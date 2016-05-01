@@ -22,13 +22,15 @@ def Run():
 
 def _RunEc2Inst():
 	# This is run as root
-	test_script_00 = \
+	init_script = \
 """#!/bin/bash
-cd /home/ubuntu/work
-sudo -u ubuntu bash -c 'git clone https://github.com/hobinyoon/acorn-tools.git'
+cd /home/ubuntu/work/acorn-tools
+sudo -u ubuntu bash -c 'git pull'
 cd /home/ubuntu/work/acorn-tools/ec2
 sudo -u ubuntu ./ec2-init.py
 """
+#cd /home/ubuntu/work
+#sudo -u ubuntu bash -c 'git clone https://github.com/hobinyoon/acorn-tools.git'
 
 	response = _boto_client.run_instances(
 			DryRun = False
@@ -44,7 +46,7 @@ sudo -u ubuntu ./ec2-init.py
 			# 4 vCPUs, 7.5 Gib RAM, 2 x 40 SSD, $0.21 per Hour
 			, InstanceType="c3.xlarge"
 			, Placement={'AvailabilityZone': 'us-east-1a' }
-			, UserData=test_script_00
+			, UserData=init_script
 			, InstanceInitiatedShutdownBehavior='terminate'
 			)
 	Cons.P("Response:")
