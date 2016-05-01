@@ -55,13 +55,13 @@ def _MountAndFormatLocalSSDs():
 def _CloneAcornSrcAndBuild():
 	_RunSubp("mkdir -p /mnt/local-ssd0/work")
 	_RunSubp("rm -rf /mnt/local-ssd0/work/acorn")
-	_RunSubp("git clone https://github.com/hobinyoon/acorn.git /mnt/local-ssd0/work/acorn")
+	_RunSubp("git clone https://github.com/hobinyoon/apache-cassandra-3.0.5-src.git /mnt/local-ssd0/work/apache-cassandra-3.0.5-src")
 	_RunSubp("rm /home/ubuntu/work/acorn")
-	_RunSubp("ln -s /mnt/local-ssd0/work/acorn /home/ubuntu/work/acorn")
-	# TODO: progress report. clone done.
+	_RunSubp("ln -s /mnt/local-ssd0/work/apache-cassandra-3.0.5-src /home/ubuntu/work/acorn")
+	# TODO: report progress. clone done.
 
-	_RunSubp("cd /home/ubuntu/work/acorn/apache-cassandra-3.0.5-src && time ant", shell = True)
-	# TODO: progress report. build done.
+	_RunSubp("cd /home/ubuntu/work/acorn && time ant", shell = True)
+	# TODO: report progress. build done.
 
 
 def main(argv):
