@@ -24,13 +24,14 @@ def _RunEc2Inst():
 	# This is run as root
 	init_script = \
 """#!/bin/bash
-cd /home/ubuntu/work/acorn-tools
-sudo -u ubuntu bash -c 'git pull'
+cd /home/ubuntu/work
+rm -rf /home/ubuntu/work/acorn-tools
+sudo -u ubuntu bash -c 'git clone https://github.com/hobinyoon/acorn-tools.git'
 cd /home/ubuntu/work/acorn-tools/ec2
 sudo -u ubuntu ./ec2-init.py
 """
-#cd /home/ubuntu/work
-#sudo -u ubuntu bash -c 'git clone https://github.com/hobinyoon/acorn-tools.git'
+#cd /home/ubuntu/work/acorn-tools
+#sudo -u ubuntu bash -c 'git pull'
 
 	response = _boto_client.run_instances(
 			DryRun = False
