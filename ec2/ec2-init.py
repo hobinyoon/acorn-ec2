@@ -49,27 +49,27 @@ def _Log(msg):
 def _RunInitByTags():
 	boto_client = boto3.client("ec2")
 
-	# Not sure if this is for the current (API-calling) instance.
 	r = boto_client.describe_tags()
 	#Cons.P(pprint.pformat(r, indent=2, width=100))
-	r0 = r["Tags"][0]
-	key = r0["Key"]
-	res_id = r0["ResourceId"]
-	value = r0["Value"]
-	if _inst_id != res_id:
-		raise RuntimeError("res_id=%s _inst_id=%s" % (res_id, _inst_id))
+	for r0 in r["Tags"]:
+		res_id = r0["ResourceId"]
+		if _inst_id != res_id:
+			continue
+		if _inst_id == res_id:
+			key = r0["Key"]
+			value = r0["Value"]
+			#_Log("tags key   : %s" % key)
+			#_Log("     value : %s" % value)
 
-	#_Log("tags key   : %s" % key)
-	#_Log("     value : %s" % value)
+			if key == "Name":
+				global _tag_name
+				_tag_name = value
+			_Log("tag:Name=%s" % _tag_name)
 
-	if key == "Name":
-		global _tag_name
-		_tag_name = value
-	_Log("tag:Name=%s" % _tag_name)
-
-	fn_cmd = "%s/ec2-init.d/%s.py" % (os.path.dirname(os.path.realpath(__file__)), _tag_name)
-	_Log("Running %s" % fn_cmd)
-	Util.RunSubp(fn_cmd, print_cmd = False, print_result = False)
+			fn_cmd = "%s/ec2-init.d/%s.py" % (os.path.dirname(os.path.realpath(__file__)), _tag_name)
+			_Log("Running %s" % fn_cmd)
+			Util.RunSubp(fn_cmd, print_cmd = False, print_result = False)
+			break
 
 
 def main(argv):
