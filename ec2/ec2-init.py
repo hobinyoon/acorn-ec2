@@ -8,7 +8,7 @@ import pprint
 import sys
 import traceback
 
-sys.path.insert(0, "../util/python")
+sys.path.insert(0, "%s/../util/python" % os.path.dirname(os.path.realpath(__file__)))
 import Cons
 import Util
 
@@ -37,10 +37,16 @@ _fo_log = None
 
 
 def _Log(msg):
+	fn = "/var/log/acorn/ec2-init.log"
+	global _fo_log
+	# Possible race. Okay for single threaded.
+	if _fo_log == None:
+		_fo_log = open(fn, "a")
 	_fo_log.write("%s: %s\n" % (datetime.datetime.now().strftime("%y%m%d-%H%M%S"), msg))
+	_fo_log.flush()
 
 
-def _GetTags():
+def _RunInitByTags():
 	boto_client = boto3.client("ec2")
 
 	# Not sure if this is for the current (API-calling) instance.
@@ -61,10 +67,10 @@ def _GetTags():
 		_tag_name = value
 	_Log("tag:Name=%s" % _tag_name)
 
+	fn_cmd = "%s/ec2-init.d/%s.py" % (os.path.dirname(os.path.realpath(__file__)), _tag_name)
+	_Log("Running %s" % fn_cmd)
+	Util.RunSubp(fn_cmd, print_cmd = False, print_result = False)
 
-def _RunInitByTags():
-	# TODO
-	pass
 
 def main(argv):
 	try:
@@ -74,22 +80,13 @@ def main(argv):
 		Util.RunSubp("sudo mkdir -p /var/log/acorn")
 		Util.RunSubp("sudo chown %s /var/log/acorn" % getpass.getuser())
 
-		fn = "/var/log/acorn/ec2-init.log"
-		global _fo_log
-		_fo_log = open(fn, "a")
 		_Log("started")
 		_LogInstInfo()
-		_GetTags()
 		_RunInitByTags()
 	except RuntimeError as e:
 		msg = "Exception: %s\n%s" % (e, traceback.format_exc())
 		_Log(msg)
 		Cons.P(msg)
-
-	# TODO: Do something based on the instance's tags
-
-	# Attach local SSD volumes
-	#fn = "%s/ec2-init.log" % (os.path.expanduser("~"), datetime.datetime.now().strftime("%y%m%d-%H%M%S"))
 
 
 if __name__ == "__main__":

@@ -4,7 +4,7 @@ import pprint
 import sys
 import time
 
-sys.path.insert(0, "../util/python")
+sys.path.insert(0, "%s/../util/python" % os.path.dirname(os.path.realpath(__file__)))
 import Cons
 import Util
 
@@ -35,7 +35,7 @@ sudo -u ubuntu ./ec2-init.py
 
 	response = _boto_client.run_instances(
 			DryRun = False
-			, ImageId = "ami-21f3154c"
+			, ImageId = "ami-c9fc1aa4"
 			, MinCount=1
 			, MaxCount=1
 			, SecurityGroups=["cass-server"]
