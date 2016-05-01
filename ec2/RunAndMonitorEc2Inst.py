@@ -21,6 +21,14 @@ def Run():
 
 
 def _RunEc2Inst():
+	test_script_00 = \
+"""#!/bin/bash
+cd ~/work
+git clone https://github.com/hobinyoon/acorn-tools.git
+cd acorn-tools/ec2
+./ec2-init.py
+"""
+
 	response = _boto_client.run_instances(
 			DryRun = False
 			, ImageId = "ami-1fc7d575"
@@ -35,6 +43,8 @@ def _RunEc2Inst():
 			# 4 vCPUs, 7.5 Gib RAM, 2 x 40 SSD, $0.21 per Hour
 			, InstanceType="c3.xlarge"
 			, Placement={'AvailabilityZone': 'us-east-1a' }
+			, UserData=test_script_00
+			, InstanceInitiatedShutdownBehavior='terminate'
 			)
 	Cons.P("Response:")
 	Cons.P(Util.Indent(pprint.pformat(response, indent=2, width=100), 2))
@@ -135,16 +145,26 @@ def _KeepCheckingInst(inst_id):
 			time.sleep(1)
 	print ""
 
+	fmt = "%10s %9s %13s %10s %15s %15s %10s"
+	Cons.P(Util.BuildHeader(fmt,
+		"InstanceId"
+		" InstanceType"
+		" LaunchTime"
+		" Placement:AvailabilityZone"
+		" PrivateIpAddress"
+		" PublicIpAddress"
+		" State:Name"))
+
 	r = response["Reservations"][0]["Instances"][0]
-	Cons.P("%10s %10s %20s %10s %15s %10s" \
-			% (_Value(r1, "InstanceId")
-				, _Value(r1, "InstanceType")
-				, _Value(r1, "LaunchTime")
-				, _Value(_Value(r1, "Placement"), "AvailabilityZone")
-				#, _Value(r1, "PrivateIpAddress")
-				, _Value(r1, "PublicIpAddress")
-				, _Value(_Value(r1, "State"), "Name")
-				))
+	Cons.P(fmt % (
+		_Value(r, "InstanceId")
+		, _Value(r, "InstanceType")
+		, _Value(r, "LaunchTime").strftime("%y%m%d-%H%M%S")
+		, _Value(_Value(r, "Placement"), "AvailabilityZone")
+		, _Value(r, "PrivateIpAddress")
+		, _Value(r, "PublicIpAddress")
+		, _Value(_Value(r, "State"), "Name")
+		))
 
 	if state == "running":
 		tag_value = "acorn-server"
