@@ -34,7 +34,7 @@ sudo -u ubuntu ./ec2-init.py
 
 	response = _boto_client.run_instances(
 			DryRun = False
-			, ImageId = "ami-1fc7d575"
+			, ImageId = "ami-1ff51372"
 			, MinCount=1
 			, MaxCount=1
 			, SecurityGroups=["cass-server"]
