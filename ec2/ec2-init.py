@@ -11,9 +11,7 @@ import Util
 
 
 def main(argv):
-
-	# TODO: Under what uid this script is run?
-
+	# The script is run under the user ubuntu
 	Util.RunSubp("touch /tmp/%s" % getpass.getuser())
 
 	Util.RunSubp("sudo mkdir -p /var/log/acorn")

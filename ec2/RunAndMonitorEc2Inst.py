@@ -21,12 +21,13 @@ def Run():
 
 
 def _RunEc2Inst():
+	# This is run as root
 	test_script_00 = \
 """#!/bin/bash
-cd ~/work
-git clone https://github.com/hobinyoon/acorn-tools.git
-cd acorn-tools/ec2
-./ec2-init.py
+cd /home/ubuntu/work
+sudo -u ubuntu bash -c 'git clone https://github.com/hobinyoon/acorn-tools.git'
+cd /home/ubuntu/work/acorn-tools/ec2
+sudo -u ubuntu ./ec2-init.py
 """
 
 	response = _boto_client.run_instances(
