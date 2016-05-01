@@ -47,6 +47,8 @@ sudo -u ubuntu ./ec2-init.py
 			# 4 vCPUs, 7.5 Gib RAM, 2 x 40 SSD, $0.21 per Hour
 			, InstanceType="c3.xlarge"
 			, Placement={'AvailabilityZone': 'us-east-1a' }
+
+			# I don't see a user data file. Just string.
 			, UserData=init_script
 			, InstanceInitiatedShutdownBehavior='terminate'
 			)
