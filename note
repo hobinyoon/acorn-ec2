@@ -1,0 +1,3 @@
+Installing boto3 on El Capitan
+  https://github.com/pypa/pip/issues/3165
+  $ sudo pip install boto3 --upgrade --ignore-installed six
