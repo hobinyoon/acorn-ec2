@@ -2,6 +2,7 @@
 
 import boto3
 import os
+import pprint
 import sys
 
 sys.path.insert(0, "%s/../util/python" % os.path.dirname(os.path.realpath(__file__)))
@@ -12,14 +13,14 @@ import Util
 def _DescInst():
 	boto_client = boto3.client("ec2")
 	response = boto_client.describe_instances(
-			Filters = [{
-				'Name': 'tag:Name',
-				'Values': ['acorn-server']
-				}]
+			#Filters = [{
+			#	'Name': 'tag:Name',
+			#	'Values': ['acorn-server']
+			#	}]
 			)
 	#Cons.P(pprint.pformat(response, indent=2, width=100))
 
-	fmt = "%10s %9s %13s %10s %15s %15s %10s"
+	fmt = "%10s %9s %13s %10s %15s %15s %10s %20s"
 	Cons.P(Util.BuildHeader(fmt,
 		"InstanceId"
 		" InstanceType"
@@ -27,10 +28,17 @@ def _DescInst():
 		" Placement:AvailabilityZone"
 		" PrivateIpAddress"
 		" PublicIpAddress"
-		" State:Name"))
+		" State:Name"
+		" Tag:Name"
+		))
 
 	for r in response["Reservations"]:
 		for r1 in r["Instances"]:
+			tag_name = None
+			for t in r1["Tags"]:
+				if t["Key"] == "Name":
+					tag_name = t["Value"]
+
 			Cons.P(fmt % (
 				_Value(r1, "InstanceId")
 				, _Value(r1, "InstanceType")
@@ -39,6 +47,7 @@ def _DescInst():
 				, _Value(r1, "PrivateIpAddress")
 				, _Value(r1, "PublicIpAddress")
 				, _Value(_Value(r1, "State"), "Name")
+				, tag_name
 				))
 
 
