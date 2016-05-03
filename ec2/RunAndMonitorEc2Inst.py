@@ -16,7 +16,7 @@ _dn_tmp = "%s/../.tmp" % os.path.dirname(os.path.realpath(__file__))
 
 
 def Run(regions = ["us-east-1"], tag_name = None):
-	Util.RunSubp("mkdir -p %s" % _dn_tmp)
+	Util.RunSubp("mkdir -p %s" % _dn_tmp, print_cmd = False)
 
 	rams = []
 	for r in regions:
