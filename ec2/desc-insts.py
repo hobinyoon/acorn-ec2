@@ -20,7 +20,19 @@ def RunDescInst():
 	sys.stdout.write("desc_instances ")
 	sys.stdout.flush()
 
-	regions = ["us-east-1", "us-west-1"]
+	regions = [
+			"us-east-1"
+			, "us-west-1"
+			, "us-west-2"
+			, "eu-west-1"
+			, "eu-central-1"
+			, "ap-southeast-1"
+			, "ap-southeast-2"
+			, "ap-northeast-2"
+			, "ap-northeast-1"
+			, "sa-east-1"
+			]
+
 	dis = []
 	for r in regions:
 		dis.append(DescInst(r))
@@ -53,20 +65,32 @@ def RunDescInst():
 class DescInst:
 	def __init__(self, region):
 		self.region = region
+		self.exception = None
 
 	def Run(self):
-		boto_client = boto3.client("ec2", region_name=self.region)
+		try:
+			# http://boto3.readthedocs.io/en/latest/guide/session.html
+			session = boto3.session.Session()
+			boto_client = session.client("ec2", region_name=self.region)
 
-		self.response = boto_client.describe_instances(
-				#Filters = [{
-				#	'Name': 'tag:Name',
-				#	'Values': ['acorn-server']
-				#	}]
-				)
+			self.response = boto_client.describe_instances(
+					#Filters = [{
+					#	'Name': 'tag:Name',
+					#	'Values': ['acorn-server']
+					#	}]
+					)
+		except KeyError as e:
+			#ConsP("region=%s KeyError=[%s]" % (self.region, e))
+			self.exception = e
+
 		sys.stdout.write(".")
 		sys.stdout.flush()
 
 	def PrintResult(self):
+		if self.exception != None:
+			ConsP("region=%s KeyError=[%s]" % (self.region, self.exception))
+			return
+
 		#ConsP(pprint.pformat(self.response, indent=2, width=100))
 
 		for r in self.response["Reservations"]:
