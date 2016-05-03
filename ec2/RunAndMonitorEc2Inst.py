@@ -12,9 +12,12 @@ import Util
 
 
 _threads = []
+_dn_tmp = "%s/../.tmp" % os.path.dirname(os.path.realpath(__file__)))
 
 
 def Run(regions = ["us-east-1"], tag_name = None):
+	Util.RunSubp("mkdir -p %s" % _dn_tmp)
+
 	rams = []
 	for r in regions:
 		rams.append(RunAndMonitor(r, tag_name))
@@ -117,6 +120,11 @@ sudo -i -u ubuntu /home/ubuntu/work/acorn-tools/ec2/ec2-init.py
 			response = self.boto_client.describe_instances(InstanceIds=[self.inst_id])
 			state = response["Reservations"][0]["Instances"][0]["State"]["Name"]
 			InstLaunchProgMon.Update(self.inst_id, response)
+
+			# Make region-ipaddr files
+			fn = "%s/%s" % (_dn_tmp, self.region)
+			with open(fn, "w") as fo:
+				fo.write(response["Reservations"][0]["Instances"][0]["PublicIpAddress"])
 
 
 class InstLaunchProgMon():
@@ -227,7 +235,6 @@ class InstLaunchProgMon():
 						tag_name = t["Value"]
 
 			#ConsP(Util.Indent(pprint.pformat(r, indent=2, width=100), 2))
-
 			ConsP(fmt % (
 				_Value(_Value(r, "Placement"), "AvailabilityZone")
 				, _Value(r, "InstanceId")
