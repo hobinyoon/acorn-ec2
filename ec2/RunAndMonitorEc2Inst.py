@@ -3,27 +3,50 @@ import boto3
 import os
 import pprint
 import sys
+import threading
 import time
 
 sys.path.insert(0, "%s/../util/python" % os.path.dirname(os.path.realpath(__file__)))
 import Cons
 import Util
 
-_boto_client = None
 
-def Run():
-	with Cons.MeasureTime("Running an EC2 instance ..."):
-		global _boto_client
-		if _boto_client == None:
-			_boto_client = boto3.client("ec2")
-
-		inst_id = _RunEc2Inst()
-		_KeepCheckingInst(inst_id)
+_threads = []
 
 
-def _RunEc2Inst():
-	# This is run as root
-	init_script = \
+def Run(regions = ["us-east-1"], tag_name = None):
+	rams = []
+	for r in regions:
+		rams.append(RunAndMonitor(r, tag_name))
+
+	for ram in rams:
+		t = threading.Thread(target=ram.RunEc2Inst)
+		_threads.append(t)
+		t.start()
+
+	InstLaunchProgMon.Run()
+
+	for t in _threads:
+		t.join()
+
+
+class RunAndMonitor():
+	def __init__(self, region_name, tag_name):
+		if region_name == "us-east-1":
+			self.az = "us-east-1a"
+			self.ami_id = "ami-c44daba9"
+		elif region_name == "us-west-1":
+			self.az = "us-west-1c"
+			self.ami_id = "ami-caccb2aa"
+		else:
+			raise RuntimeError("Unexpected region %s" % region_name)
+		self.region_name = region_name
+		self.tag_name = tag_name
+
+
+	def RunEc2Inst(self):
+		# This is run as root
+		init_script = \
 """#!/bin/bash
 cd /home/ubuntu/work
 rm -rf /home/ubuntu/work/acorn-tools
@@ -34,155 +57,189 @@ sudo -u ubuntu ./ec2-init.py
 #cd /home/ubuntu/work/acorn-tools
 #sudo -u ubuntu bash -c 'git pull'
 
-	response = _boto_client.run_instances(
-			DryRun = False
-			, ImageId = "ami-c9fc1aa4"
-			, MinCount=1
-			, MaxCount=1
-			, SecurityGroups=["cass-server"]
-			, EbsOptimized=True
-			# 4 vCPUs, 7.5 Gib RAM, EBS only, $0.209 per Hour
-			# "The specified instance type can only be used in a VPC. A subnet ID or network interface ID is required to carry out the request."
-			#, InstanceType="c4.xlarge"
+		self.boto_client = boto3.client("ec2", region_name = self.region_name)
+		response = self.boto_client.run_instances(
+				DryRun = False
+				, ImageId = self.ami_id
+				, MinCount=1
+				, MaxCount=1
+				, SecurityGroups=["cass-server"]
+				, EbsOptimized=True
+				# 4 vCPUs, 7.5 Gib RAM, EBS only, $0.209 per Hour
+				# "The specified instance type can only be used in a VPC. A subnet ID or network interface ID is required to carry out the request."
+				#, InstanceType="c4.xlarge"
 
-			# 4 vCPUs, 7.5 Gib RAM, 2 x 40 SSD, $0.21 per Hour
-			, InstanceType="c3.xlarge"
-			, Placement={'AvailabilityZone': 'us-east-1a' }
+				# 4 vCPUs, 7.5 Gib RAM, 2 x 40 SSD, $0.21 per Hour
+				, InstanceType="c3.xlarge"
+				, Placement={'AvailabilityZone': self.az}
 
-			# I don't see a user data file. Just string.
-			, UserData=init_script
-			, InstanceInitiatedShutdownBehavior='terminate'
-			)
-	Cons.P("Response:")
-	Cons.P(Util.Indent(pprint.pformat(response, indent=2, width=100), 2))
-	if len(response["Instances"]) != 1:
-		raise RuntimeError("len(response[\"Instances\"])=%d" % len(response["Instances"]))
-	inst_id = response["Instances"][0]["InstanceId"]
-	return inst_id
+				# I don't see a user data file. Just string.
+				, UserData=init_script
+				, InstanceInitiatedShutdownBehavior='terminate'
+				)
+		#ConsP("Response:")
+		#ConsP(Util.Indent(pprint.pformat(response, indent=2, width=100), 2))
+		if len(response["Instances"]) != 1:
+			raise RuntimeError("len(response[\"Instances\"])=%d" % len(response["Instances"]))
+		self.inst_id = response["Instances"][0]["InstanceId"]
+		#ConsP("region=%s inst_id=%s" % (self.region_name, self.inst_id))
+		InstLaunchProgMon.SetRegion(self.inst_id, self.region_name)
 
-
-def _RunEc2InstR3XlargeEbs():
-	response = _boto_client.run_instances(
-			DryRun = False
-			, ImageId = "ami-1fc7d575"
-			, MinCount=1
-			, MaxCount=1
-			, SecurityGroups=["cass-server"]
-			, EbsOptimized=True
-			, InstanceType="r3.xlarge"
-			, BlockDeviceMappings=[
-				{
-					'DeviceName': '/dev/sdc',
-					'Ebs': {
-						'VolumeSize': 16384,
-						'DeleteOnTermination': True,
-						'VolumeType': 'gp2',
-						'Encrypted': False
-						},
-					},
-				],
-			)
-
-			# What's the defalt value, when not specified? Might be True. I see the
-			# Basic CloudWatch monitoring on the web console.
-			# Monitoring={
-			#     'Enabled': True|False
-			# },
-			#
-			# "stop" when not specified.
-			#   InstanceInitiatedShutdownBehavior='stop'|'terminate',
-	Cons.P("Response:")
-	Cons.P(Util.Indent(pprint.pformat(response, indent=2, width=100), 2))
-	if len(response["Instances"]) != 1:
-		raise RuntimeError("len(response[\"Instances\"])=%d" % len(response["Instances"]))
-	inst_id = response["Instances"][0]["InstanceId"]
-	return inst_id
+		self._KeepCheckingInst()
 
 
-def _KeepCheckingInst(inst_id):
-	prev_state = None
-	just_printed_dot = False
-	response = None
-	state = None
-
-	while True:
-		response = None
-		state = None
-		try:
-			response = _boto_client.describe_instances(InstanceIds=[inst_id])
+	def _KeepCheckingInst(self):
+		while True:
+			response = self.boto_client.describe_instances(InstanceIds=[self.inst_id])
 			# Note: describe_instances() returns StateReason, while
 			# describe_instance_status() doesn't.
 
-			#Cons.P(pprint.pformat(response, indent=2, width=100))
-		except botocore.exceptions.ClientError as e:
-			if e.response['Error']['Code'] == "InvalidInstanceID.NotFound":
-				state = "NotFound"
-			else:
-				raise
-
-		if state == None:
 			state = response["Reservations"][0]["Instances"][0]["State"]["Name"]
-
-		if state == prev_state:
-			if just_printed_dot:
-				sys.stdout.write(".")
-			else:
-				sys.stdout.write(" .")
-			sys.stdout.flush()
-			just_printed_dot = True
-			time.sleep(1)
-		else:
-			if prev_state == None:
-				sys.stdout.write("  State: ")
-			else:
-				sys.stdout.write(" ")
-			sys.stdout.write(state)
-			sys.stdout.flush()
-			just_printed_dot = False
-			prev_state = state
-
+			InstLaunchProgMon.Update(self.inst_id, response)
 			if state == "terminated" or state == "running":
 				break
-
-			if state == "shutting-down":
-				state_reason = response["Reservations"][0]["Instances"][0]["StateReason"]["Message"]
-				sys.stdout.write(" (%s)" % state_reason)
-				sys.stdout.flush()
-
 			time.sleep(1)
-	print ""
 
-	fmt = "%10s %9s %13s %10s %15s %15s %10s"
-	Cons.P(Util.BuildHeader(fmt,
-		"InstanceId"
-		" InstanceType"
-		" LaunchTime"
-		" Placement:AvailabilityZone"
-		" PrivateIpAddress"
-		" PublicIpAddress"
-		" State:Name"))
-
-	r = response["Reservations"][0]["Instances"][0]
-	Cons.P(fmt % (
-		_Value(r, "InstanceId")
-		, _Value(r, "InstanceType")
-		, _Value(r, "LaunchTime").strftime("%y%m%d-%H%M%S")
-		, _Value(_Value(r, "Placement"), "AvailabilityZone")
-		, _Value(r, "PrivateIpAddress")
-		, _Value(r, "PublicIpAddress")
-		, _Value(_Value(r, "State"), "Name")
-		))
-
-	if state == "running":
-		tag_value = "acorn-server"
-		with Cons.MeasureTime("Creating a tag %s" % tag_value):
-			_boto_client.create_tags(
-					Resources = [inst_id],
+		# Create a tag and check one more time to make sure the tag is in place.
+		if state == "running":
+			self.boto_client.create_tags(
+					Resources = [self.inst_id],
 					Tags = [{
 						"Key": "Name",
-						"Value": tag_value
+						"Value": self.tag_name
 						}]
 					)
+
+			response = self.boto_client.describe_instances(InstanceIds=[self.inst_id])
+			state = response["Reservations"][0]["Instances"][0]["State"]["Name"]
+			InstLaunchProgMon.Update(self.inst_id, response)
+
+
+class InstLaunchProgMon():
+	progress = {}
+	progress_lock = threading.Lock()
+
+	class Entry():
+		def __init__(self, region):
+			self.region = region
+			self.responses = []
+
+		def AddResponse(self, response):
+			self.responses.append(response)
+
+	@staticmethod
+	def SetRegion(inst_id, region_name):
+		with InstLaunchProgMon.progress_lock:
+			InstLaunchProgMon.progress[inst_id] = InstLaunchProgMon.Entry(region_name)
+
+	@staticmethod
+	def Update(inst_id, response):
+		with InstLaunchProgMon.progress_lock:
+			InstLaunchProgMon.progress[inst_id].AddResponse(response)
+
+	@staticmethod
+	def Run():
+		output_lines_written = 0
+		while True:
+			output = ""
+			for k, v in InstLaunchProgMon.progress.iteritems():
+				if len(output) > 0:
+					output += "\n"
+				inst_id = k
+				output += ("%s %s" % (v.region, inst_id))
+				prev_state = None
+				same_state_cnt = 0
+				for r in v.responses:
+					state = r["Reservations"][0]["Instances"][0]["State"]["Name"]
+					if state == "shutting-down":
+						state_reason = response["Reservations"][0]["Instances"][0]["StateReason"]["Message"]
+						state = "%s:%s" % (state, state_reason)
+
+					if prev_state == None:
+						output += (" %s" % state)
+					elif prev_state != state:
+						if same_state_cnt > 0:
+							output += (" x%d %s" % ((same_state_cnt + 1), state))
+						else:
+							output += (" %s" % state)
+						same_state_cnt = 0
+					else:
+						same_state_cnt += 1
+					prev_state = state
+
+				if same_state_cnt > 0:
+					output += (" x%d" % (same_state_cnt + 1))
+
+			if output_lines_written > 0:
+				for l in range(output_lines_written - 1):
+					# Clear current line
+					sys.stdout.write(chr(27) + "[2K")
+					# Move up
+					sys.stdout.write(chr(27) + "[1F")
+				# Clear current line
+				sys.stdout.write(chr(27) + "[2K")
+				# Move the cursor to column 1
+				sys.stdout.write(chr(27) + "[1G")
+
+			sys.stdout.write(output)
+			sys.stdout.flush()
+			output_lines_written = len(output.split("\n"))
+
+			# Are we done?
+			all_done = True
+			for t in _threads:
+				if t.is_alive():
+					all_done = False
+					break
+			if all_done:
+				break
+
+			time.sleep(0.1)
+		print ""
+		InstLaunchProgMon.DescInsts()
+
+	@staticmethod
+	def DescInsts():
+		fmt = "%10s %9s %13s %10s %15s %15s %10s %20s"
+		ConsP(Util.BuildHeader(fmt,
+			"InstanceId"
+			" InstanceType"
+			" LaunchTime"
+			" Placement:AvailabilityZone"
+			" PrivateIpAddress"
+			" PublicIpAddress"
+			" State:Name"
+			" Tag:Name"
+			))
+
+		for k, v in InstLaunchProgMon.progress.iteritems():
+			r = v.responses[-1]["Reservations"][0]["Instances"][0]
+
+			tag_name = None
+			if "Tags" in r:
+				for t in r["Tags"]:
+					if t["Key"] == "Name":
+						tag_name = t["Value"]
+
+			#ConsP(Util.Indent(pprint.pformat(r, indent=2, width=100), 2))
+
+			ConsP(fmt % (
+				_Value(r, "InstanceId")
+				, _Value(r, "InstanceType")
+				, _Value(r, "LaunchTime").strftime("%y%m%d-%H%M%S")
+				, _Value(_Value(r, "Placement"), "AvailabilityZone")
+				, _Value(r, "PrivateIpAddress")
+				, _Value(r, "PublicIpAddress")
+				, _Value(_Value(r, "State"), "Name")
+				, tag_name
+				))
+
+
+_print_lock = threading.Lock()
+
+def ConsP(msg):
+	with _print_lock:
+		Cons.P(msg)
 
 
 def _Value(dict_, key):
@@ -193,3 +250,43 @@ def _Value(dict_, key):
 		return dict_[key]
 	else:
 		return ""
+
+
+
+
+#def _RunEc2InstR3XlargeEbs():
+#	response = boto_client.run_instances(
+#			DryRun = False
+#			, ImageId = "ami-1fc7d575"
+#			, MinCount=1
+#			, MaxCount=1
+#			, SecurityGroups=["cass-server"]
+#			, EbsOptimized=True
+#			, InstanceType="r3.xlarge"
+#			, BlockDeviceMappings=[
+#				{
+#					'DeviceName': '/dev/sdc',
+#					'Ebs': {
+#						'VolumeSize': 16384,
+#						'DeleteOnTermination': True,
+#						'VolumeType': 'gp2',
+#						'Encrypted': False
+#						},
+#					},
+#				],
+#			)
+#
+#			# What's the defalt value, when not specified? Might be True. I see the
+#			# Basic CloudWatch monitoring on the web console.
+#			# Monitoring={
+#			#     'Enabled': True|False
+#			# },
+#			#
+#			# "stop" when not specified.
+#			#   InstanceInitiatedShutdownBehavior='stop'|'terminate',
+#	ConsP("Response:")
+#	ConsP(Util.Indent(pprint.pformat(response, indent=2, width=100), 2))
+#	if len(response["Instances"]) != 1:
+#		raise RuntimeError("len(response[\"Instances\"])=%d" % len(response["Instances"]))
+#	inst_id = response["Instances"][0]["InstanceId"]
+#	return inst_id
