@@ -9,6 +9,7 @@ sys.path.insert(0, "%s/../../util/python" % os.path.dirname(os.path.realpath(__f
 import Cons
 import Util
 
+import GetIPs
 
 _fo_log = None
 
@@ -52,6 +53,31 @@ def _MountAndFormatLocalSSDs():
 		_RunSubp("sudo chown -R ubuntu /mnt/local-%s" % ssds[i], shell=True)
 
 
+def _EditCassConf():
+	tag_name = "acorn-server"
+	_Log("Getting IP addrs of all running %s instances ..." % tag_name)
+	ips = GetIPs.GetByTag(tag_name)
+	_Log(ips)
+
+	_Log("Editing conf/cassandra.yaml ...")
+	# http://stackoverflow.com/questions/7517632/how-do-i-escape-double-and-single-quotes-in-sed-bash
+	_RunSubp("sed -i 's/^cluster_name: .*/cluster_name: '\"'\"'acorn'\"'\"'/g' /home/ubuntu/work/acorn/conf/cassandra.yaml", shell = True)
+
+	cmd = "sed -i 's/" \
+			"^          - seeds: .*" \
+			"/          - seeds: \"%s\"" \
+			"/g' /home/ubuntu/work/acorn/conf/cassandra.yaml" % ",".join(ips)
+	_RunSubp(cmd, shell = True)
+
+	# sed doesn't support ?
+	#   http://stackoverflow.com/questions/4348166/using-with-sed
+	cmd = "sed -i 's/" \
+			"^\(# \|\)broadcast_address: .*" \
+			"/broadcast_address: %s" \
+			"/g' /home/ubuntu/work/acorn/conf/cassandra.yaml" % GetIPs.GetMyPubIp()
+	_RunSubp(cmd, shell = True)
+
+
 def _CloneAcornSrcAndBuild():
 	_RunSubp("mkdir -p /mnt/local-ssd0/work")
 	_RunSubp("rm -rf /mnt/local-ssd0/work/acorn")
@@ -64,11 +90,23 @@ def _CloneAcornSrcAndBuild():
 	# TODO: report progress. build done.
 
 
+def _RunCass():
+	_Log("Running Cassandra ...")
+	_SunSubp("rm -rf ~/work/acorn/data")
+	_RunSubp("/home/ubuntu/work/acorn/bin/cassandra")
+
+	# TODO: check if all nodes are joined
+
+
 def main(argv):
 	try:
 		# This script is run under the user 'ubuntu'.
+		# TODO
 		_MountAndFormatLocalSSDs()
 		_CloneAcornSrcAndBuild()
+
+		#_EditCassConf()
+		#_RunCass()
 
 	except RuntimeError as e:
 		msg = "Exception: %s\n%s" % (e, traceback.format_exc())
