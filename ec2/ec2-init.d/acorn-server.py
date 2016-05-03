@@ -105,7 +105,7 @@ def main(argv):
 		_MountAndFormatLocalSSDs()
 		_CloneAcornSrcAndBuild()
 
-		#_EditCassConf()
+		_EditCassConf()
 		#_RunCass()
 
 	except RuntimeError as e:
