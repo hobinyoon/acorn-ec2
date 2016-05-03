@@ -86,7 +86,7 @@ def _CloneAcornSrcAndBuild():
 	_RunSubp("ln -s /mnt/local-ssd0/work/apache-cassandra-3.0.5-src /home/ubuntu/work/acorn")
 	# TODO: report progress. clone done.
 
-	_RunSubp("cd /home/ubuntu/work/acorn && time ant", shell = True)
+	_RunSubp("cd /home/ubuntu/work/acorn && (time ant || time ant)", shell = True)
 	# TODO: report progress. build done.
 
 
