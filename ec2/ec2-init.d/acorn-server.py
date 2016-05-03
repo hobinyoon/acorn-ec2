@@ -89,7 +89,8 @@ def _CloneAcornSrcAndBuild():
 	# TODO: debugging why ant fails only in the init script
 	_RunSubp("set > /var/log/acorn/set-in-init-script", shell = True)
 
-	_RunSubp("cd /home/ubuntu/work/acorn && ((JAVA_TOOL_OPTIONS=-Dfile.encoding=UTF8 ant)", shell = True)
+	# http://stackoverflow.com/questions/26067350/unmappable-character-for-encoding-ascii-but-my-files-are-in-utf-8
+	_RunSubp("cd /home/ubuntu/work/acorn && (JAVA_TOOL_OPTIONS=-Dfile.encoding=UTF8 ant)", shell = True)
 	#_RunSubp("cd /home/ubuntu/work/acorn && (time ant || time ant)", shell = True)
 	# TODO: report progress. build done.
 
