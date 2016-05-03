@@ -82,7 +82,7 @@ def _CloneAcornSrcAndBuild():
 	_RunSubp("mkdir -p /mnt/local-ssd0/work")
 	_RunSubp("rm -rf /mnt/local-ssd0/work/acorn")
 	_RunSubp("git clone https://github.com/hobinyoon/apache-cassandra-3.0.5-src.git /mnt/local-ssd0/work/apache-cassandra-3.0.5-src")
-	_RunSubp("rm /home/ubuntu/work/acorn")
+	_RunSubp("rm -rf /home/ubuntu/work/acorn")
 	_RunSubp("ln -s /mnt/local-ssd0/work/apache-cassandra-3.0.5-src /home/ubuntu/work/acorn")
 	# TODO: report progress. clone done.
 
