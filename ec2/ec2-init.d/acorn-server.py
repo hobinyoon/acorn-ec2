@@ -93,7 +93,7 @@ def _EditCassConf():
 
 def _RunCass():
 	_Log("Running Cassandra ...")
-	_SunSubp("rm -rf ~/work/acorn/data")
+	_RunSubp("rm -rf ~/work/acorn/data")
 	_RunSubp("/home/ubuntu/work/acorn/bin/cassandra")
 
 	# TODO: check if all nodes are joined
