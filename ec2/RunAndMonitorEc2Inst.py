@@ -52,10 +52,11 @@ cd /home/ubuntu/work
 rm -rf /home/ubuntu/work/acorn-tools
 sudo -u ubuntu bash -c 'git clone https://github.com/hobinyoon/acorn-tools.git'
 cd /home/ubuntu/work/acorn-tools/ec2
-sudo -u ubuntu ./ec2-init.py
+sudo -i -u ubuntu ./ec2-init.py
 """
 #cd /home/ubuntu/work/acorn-tools
 #sudo -u ubuntu bash -c 'git pull'
+# http://unix.stackexchange.com/questions/4342/how-do-i-get-sudo-u-user-to-use-the-users-env
 
 		self.boto_client = boto3.session.Session().client("ec2", region_name = self.region_name)
 		response = self.boto_client.run_instances(
