@@ -53,6 +53,19 @@ def _MountAndFormatLocalSSDs():
 		_RunSubp("sudo chown -R ubuntu /mnt/local-%s" % ssds[i], shell=True)
 
 
+def _CloneAcornSrcAndBuild():
+	_RunSubp("mkdir -p /mnt/local-ssd0/work")
+	_RunSubp("rm -rf /mnt/local-ssd0/work/acorn")
+	_RunSubp("git clone https://github.com/hobinyoon/apache-cassandra-3.0.5-src.git /mnt/local-ssd0/work/apache-cassandra-3.0.5-src")
+	_RunSubp("rm -rf /home/ubuntu/work/acorn")
+	_RunSubp("ln -s /mnt/local-ssd0/work/apache-cassandra-3.0.5-src /home/ubuntu/work/acorn")
+	# TODO: report progress. clone done.
+
+	# http://stackoverflow.com/questions/26067350/unmappable-character-for-encoding-ascii-but-my-files-are-in-utf-8
+	_RunSubp("cd /home/ubuntu/work/acorn && (JAVA_TOOL_OPTIONS=-Dfile.encoding=UTF8 ant)", shell = True)
+	# TODO: report progress. build done.
+
+
 def _EditCassConf():
 	tag_name = "acorn-server"
 	_Log("Getting IP addrs of all running %s instances ..." % tag_name)
@@ -78,23 +91,6 @@ def _EditCassConf():
 	_RunSubp(cmd, shell = True)
 
 
-def _CloneAcornSrcAndBuild():
-	_RunSubp("mkdir -p /mnt/local-ssd0/work")
-	_RunSubp("rm -rf /mnt/local-ssd0/work/acorn")
-	_RunSubp("git clone https://github.com/hobinyoon/apache-cassandra-3.0.5-src.git /mnt/local-ssd0/work/apache-cassandra-3.0.5-src")
-	_RunSubp("rm -rf /home/ubuntu/work/acorn")
-	_RunSubp("ln -s /mnt/local-ssd0/work/apache-cassandra-3.0.5-src /home/ubuntu/work/acorn")
-	# TODO: report progress. clone done.
-
-	# TODO: debugging why ant fails only in the init script
-	_RunSubp("set > /var/log/acorn/set-in-init-script", shell = True)
-
-	# http://stackoverflow.com/questions/26067350/unmappable-character-for-encoding-ascii-but-my-files-are-in-utf-8
-	_RunSubp("cd /home/ubuntu/work/acorn && (JAVA_TOOL_OPTIONS=-Dfile.encoding=UTF8 ant)", shell = True)
-	#_RunSubp("cd /home/ubuntu/work/acorn && (time ant || time ant)", shell = True)
-	# TODO: report progress. build done.
-
-
 def _RunCass():
 	_Log("Running Cassandra ...")
 	_SunSubp("rm -rf ~/work/acorn/data")
@@ -106,12 +102,11 @@ def _RunCass():
 def main(argv):
 	try:
 		# This script is run under the user 'ubuntu'.
-		# TODO
 		_MountAndFormatLocalSSDs()
 		_CloneAcornSrcAndBuild()
 
 		_EditCassConf()
-		#_RunCass()
+		_RunCass()
 
 	except RuntimeError as e:
 		msg = "Exception: %s\n%s" % (e, traceback.format_exc())
