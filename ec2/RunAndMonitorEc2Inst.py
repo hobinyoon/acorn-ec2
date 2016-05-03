@@ -71,7 +71,10 @@ sudo -i -u ubuntu ./ec2-init.py
 				#, InstanceType="c4.xlarge"
 
 				# 4 vCPUs, 7.5 Gib RAM, 2 x 40 SSD, $0.21 per Hour
-				, InstanceType="c3.xlarge"
+				#, InstanceType="c3.xlarge"
+
+				# For fast development
+				, InstanceType="c3.4xlarge"
 				, Placement={'AvailabilityZone': self.az}
 
 				# I don't see a user data file. Just string.
