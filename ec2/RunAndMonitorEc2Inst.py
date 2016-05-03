@@ -34,7 +34,7 @@ class RunAndMonitor():
 	def __init__(self, region_name, tag_name):
 		if region_name == "us-east-1":
 			self.az = "us-east-1a"
-			self.ami_id = "ami-7414f519"
+			self.ami_id = "ami-a317f6ce"
 		elif region_name == "us-west-1":
 			self.az = "us-west-1c"
 			# The 2 are not the same (copied)
