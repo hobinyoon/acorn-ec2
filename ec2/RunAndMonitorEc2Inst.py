@@ -34,9 +34,10 @@ class RunAndMonitor():
 	def __init__(self, region_name, tag_name):
 		if region_name == "us-east-1":
 			self.az = "us-east-1a"
-			self.ami_id = "ami-c44daba9"
+			self.ami_id = "ami-7414f519"
 		elif region_name == "us-west-1":
 			self.az = "us-west-1c"
+			# TODO: update to the latest one when ready
 			self.ami_id = "ami-caccb2aa"
 		else:
 			raise RuntimeError("Unexpected region %s" % region_name)
