@@ -205,12 +205,12 @@ class InstLaunchProgMon():
 
 	@staticmethod
 	def DescInsts():
-		fmt = "%10s %9s %13s %10s %15s %15s %10s %20s"
+		fmt = "%10s %10s %10s %13s %15s %15s %10s %20s"
 		ConsP(Util.BuildHeader(fmt,
-			"InstanceId"
+			"Placement:AvailabilityZone"
+			" InstanceId"
 			" InstanceType"
 			" LaunchTime"
-			" Placement:AvailabilityZone"
 			" PrivateIpAddress"
 			" PublicIpAddress"
 			" State:Name"
@@ -229,10 +229,10 @@ class InstLaunchProgMon():
 			#ConsP(Util.Indent(pprint.pformat(r, indent=2, width=100), 2))
 
 			ConsP(fmt % (
-				_Value(r, "InstanceId")
+				_Value(_Value(r, "Placement"), "AvailabilityZone")
+				, _Value(r, "InstanceId")
 				, _Value(r, "InstanceType")
 				, _Value(r, "LaunchTime").strftime("%y%m%d-%H%M%S")
-				, _Value(_Value(r, "Placement"), "AvailabilityZone")
 				, _Value(r, "PrivateIpAddress")
 				, _Value(r, "PublicIpAddress")
 				, _Value(_Value(r, "State"), "Name")
