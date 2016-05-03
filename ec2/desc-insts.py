@@ -4,39 +4,72 @@ import boto3
 import os
 import pprint
 import sys
+import threading
 
 sys.path.insert(0, "%s/../util/python" % os.path.dirname(os.path.realpath(__file__)))
 import Cons
 import Util
 
 
-def _DescInst():
-	fmt = "%10s %9s %13s %10s %15s %15s %10s %20s"
-	Cons.P(Util.BuildHeader(fmt,
-		"InstanceId"
+_fmt = "%10s %10s %9s %13s %15s %15s %10s %20s"
+
+
+def RunDescInst():
+	threads = []
+
+	sys.stdout.write("desc_instances ")
+	sys.stdout.flush()
+
+	regions = ["us-east-1", "us-west-1"]
+	dis = []
+	for r in regions:
+		dis.append(DescInst(r))
+
+	for di in dis:
+		t = threading.Thread(target=di.Run)
+		threads.append(t)
+		t.start()
+
+	for t in threads:
+		t.join()
+	print ""
+	print ""
+
+	ConsP(Util.BuildHeader(_fmt,
+		"Placement:AvailabilityZone"
+		" InstanceId"
 		" InstanceType"
 		" LaunchTime"
-		" Placement:AvailabilityZone"
 		" PrivateIpAddress"
 		" PublicIpAddress"
 		" State:Name"
 		" Tag:Name"
 		))
 
-	# TODO: parallelize
-	regions = ["us-east-1", "us-west-1"]
-	for r in regions:
-		boto_client = boto3.client("ec2", region_name=r)
+	for di in dis:
+		di.PrintResult()
 
-		response = boto_client.describe_instances(
+
+class DescInst:
+	def __init__(self, region):
+		self.region = region
+
+	def Run(self):
+		boto_client = boto3.client("ec2", region_name=self.region)
+
+		self.response = boto_client.describe_instances(
 				#Filters = [{
 				#	'Name': 'tag:Name',
 				#	'Values': ['acorn-server']
 				#	}]
 				)
-		#Cons.P(pprint.pformat(response, indent=2, width=100))
+		sys.stdout.write(".")
+		sys.stdout.flush()
 
-		for r in response["Reservations"]:
+	def PrintResult(self):
+		#ConsP(pprint.pformat(self.response, indent=2, width=100))
+
+		for r in self.response["Reservations"]:
 			for r1 in r["Instances"]:
 				tag_name = None
 				if "Tags" in r1:
@@ -44,11 +77,11 @@ def _DescInst():
 						if t["Key"] == "Name":
 							tag_name = t["Value"]
 
-				Cons.P(fmt % (
-					_Value(r1, "InstanceId")
+				ConsP(_fmt % (
+					_Value(_Value(r1, "Placement"), "AvailabilityZone")
+					, _Value(r1, "InstanceId")
 					, _Value(r1, "InstanceType")
 					, _Value(r1, "LaunchTime").strftime("%y%m%d-%H%M%S")
-					, _Value(_Value(r1, "Placement"), "AvailabilityZone")
 					, _Value(r1, "PrivateIpAddress")
 					, _Value(r1, "PublicIpAddress")
 					, _Value(_Value(r1, "State"), "Name")
@@ -66,8 +99,16 @@ def _Value(dict_, key):
 		return ""
 
 
+_print_lock = threading.Lock()
+
+# Serialization is not needed in this file. Leave it for now.
+def ConsP(msg):
+	with _print_lock:
+		Cons.P(msg)
+
+
 def main(argv):
-	_DescInst()
+	RunDescInst()
 
 
 if __name__ == "__main__":
