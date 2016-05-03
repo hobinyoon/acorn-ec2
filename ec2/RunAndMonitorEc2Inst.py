@@ -52,11 +52,8 @@ class RunAndMonitor():
 cd /home/ubuntu/work
 rm -rf /home/ubuntu/work/acorn-tools
 sudo -i -u ubuntu bash -c 'git clone https://github.com/hobinyoon/acorn-tools.git /home/ubuntu/work/acorn-tools'
-sudo -i -u ubuntu bash -c '/home/ubuntu/work/acorn-tools/ec2/ec2-init.py'
+sudo -i -u ubuntu /home/ubuntu/work/acorn-tools/ec2/ec2-init.py
 """
-# Testing if builds cassandra
-# sudo -i -u ubuntu /home/ubuntu/work/acorn-tools/ec2/ec2-init.py
-
 #cd /home/ubuntu/work/acorn-tools
 #sudo -u ubuntu bash -c 'git pull'
 # http://unix.stackexchange.com/questions/4342/how-do-i-get-sudo-u-user-to-use-the-users-env
