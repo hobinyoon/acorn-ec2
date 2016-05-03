@@ -57,7 +57,7 @@ sudo -u ubuntu ./ec2-init.py
 #cd /home/ubuntu/work/acorn-tools
 #sudo -u ubuntu bash -c 'git pull'
 
-		self.boto_client = boto3.client("ec2", region_name = self.region_name)
+		self.boto_client = boto3.session.Session().client("ec2", region_name = self.region_name)
 		response = self.boto_client.run_instances(
 				DryRun = False
 				, ImageId = self.ami_id

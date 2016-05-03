@@ -51,7 +51,7 @@ class TermInst:
 		self.region = region
 
 	def Run(self):
-		boto_client = boto3.client("ec2", region_name=self.region)
+		boto_client = boto3.session.Session().client("ec2", region_name=self.region)
 		response = boto_client.describe_instances()
 		#ConsP(pprint.pformat(response, indent=2, width=100))
 
@@ -108,7 +108,7 @@ def ConsP(msg):
 
 
 def TestTermInst():
-	boto_client = boto3.client("ec2", region_name="us-east-1")
+	boto_client = boto3.session.Session().client("ec2", region_name="us-east-1")
 	response = boto_client.describe_instances()
 	#ConsP(pprint.pformat(response, indent=2, width=100))
 
