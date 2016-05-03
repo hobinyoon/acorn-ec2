@@ -12,7 +12,7 @@ import Util
 
 
 _threads = []
-_dn_tmp = "%s/../.tmp" % os.path.dirname(os.path.realpath(__file__)))
+_dn_tmp = "%s/../.tmp" % os.path.dirname(os.path.realpath(__file__))
 
 
 def Run(regions = ["us-east-1"], tag_name = None):
@@ -122,7 +122,7 @@ sudo -i -u ubuntu /home/ubuntu/work/acorn-tools/ec2/ec2-init.py
 			InstLaunchProgMon.Update(self.inst_id, response)
 
 			# Make region-ipaddr files
-			fn = "%s/%s" % (_dn_tmp, self.region)
+			fn = "%s/%s" % (_dn_tmp, self.region_name)
 			with open(fn, "w") as fo:
 				fo.write(response["Reservations"][0]["Instances"][0]["PublicIpAddress"])
 
