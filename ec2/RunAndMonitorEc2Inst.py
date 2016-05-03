@@ -36,12 +36,9 @@ def Run(regions = ["us-east-1"], tag_name = None):
 class RunAndMonitor():
 	def __init__(self, region_name, tag_name):
 		if region_name == "us-east-1":
-			self.az = "us-east-1a"
-			self.ami_id = "ami-a317f6ce"
+			self.ami_id = "ami-4766872a"
 		elif region_name == "us-west-1":
-			self.az = "us-west-1c"
-			# The 2 are not the same (copied)
-			self.ami_id = "ami-58285138"
+			self.ami_id = "ami-6c21580c"
 		else:
 			raise RuntimeError("Unexpected region %s" % region_name)
 		self.region_name = region_name
@@ -78,7 +75,9 @@ sudo -i -u ubuntu /home/ubuntu/work/acorn-tools/ec2/ec2-init.py
 
 				# For fast development
 				, InstanceType="c3.4xlarge"
-				, Placement={'AvailabilityZone': self.az}
+
+				# AZ doesn't need to be specified. self.az = "us-west-1c"
+				#, Placement={'AvailabilityZone': self.az}
 
 				# I don't see a user data file. Just string.
 				, UserData=init_script
