@@ -50,8 +50,7 @@ class RunAndMonitor():
 """#!/bin/bash
 cd /home/ubuntu/work
 rm -rf /home/ubuntu/work/acorn-tools
-sudo -u ubuntu bash -c 'git clone https://github.com/hobinyoon/acorn-tools.git'
-cd /home/ubuntu/work/acorn-tools/ec2
+sudo -i -u ubuntu bash -c 'git clone https://github.com/hobinyoon/acorn-tools.git /home/ubuntu/work/acorn-tools'
 sudo -i -u ubuntu /home/ubuntu/work/acorn-tools/ec2/ec2-init.py
 """
 #cd /home/ubuntu/work/acorn-tools
