@@ -37,8 +37,8 @@ class RunAndMonitor():
 			self.ami_id = "ami-7414f519"
 		elif region_name == "us-west-1":
 			self.az = "us-west-1c"
-			# TODO: update to the latest one when ready
-			self.ami_id = "ami-caccb2aa"
+			# The 2 are not the same (copied)
+			self.ami_id = "ami-58285138"
 		else:
 			raise RuntimeError("Unexpected region %s" % region_name)
 		self.region_name = region_name
