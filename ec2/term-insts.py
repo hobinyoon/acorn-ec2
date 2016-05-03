@@ -17,7 +17,7 @@ _fmt = "%10s %10s %13s %13s"
 def RunTermInst():
 	threads = []
 
-	sys.stdout.write("terminating instances ")
+	sys.stdout.write("terminating all running instances ")
 	sys.stdout.flush()
 
 	regions = ["us-east-1", "us-west-1"]
@@ -36,7 +36,7 @@ def RunTermInst():
 	print ""
 
 	ConsP(Util.BuildHeader(_fmt,
-		"Placement:AvailabilityZone"
+		"Region"
 		" InstanceId"
 		" PrevState"
 		" CurrState"
