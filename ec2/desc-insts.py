@@ -11,7 +11,7 @@ import Cons
 import Util
 
 
-_fmt = "%10s %10s %10s %13s %15s %15s %10s %20s"
+_fmt = "%10s %10s %10s %13s %15s %15s %13s %20s"
 
 
 def RunDescInst():
