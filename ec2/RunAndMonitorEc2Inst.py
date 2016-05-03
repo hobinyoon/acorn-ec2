@@ -196,6 +196,7 @@ class InstLaunchProgMon():
 
 			time.sleep(0.1)
 		print ""
+		print ""
 		InstLaunchProgMon.DescInsts()
 
 	@staticmethod
