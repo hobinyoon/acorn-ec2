@@ -36,9 +36,9 @@ def Run(regions = ["us-east-1"], tag_name = None):
 class RunAndMonitor():
 	def __init__(self, region_name, tag_name):
 		if region_name == "us-east-1":
-			self.ami_id = "ami-87e404ea"
+			self.ami_id = "ami-3ff51552"
 		elif region_name == "us-west-1":
-			self.ami_id = "ami-3a1c655a"
+			self.ami_id = "ami-3b11685b"
 		else:
 			raise RuntimeError("Unexpected region %s" % region_name)
 		self.region_name = region_name
