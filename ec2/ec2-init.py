@@ -5,6 +5,7 @@ import datetime
 import getpass
 import os
 import pprint
+import re
 import sys
 import traceback
 
@@ -15,15 +16,27 @@ import Util
 
 _inst_id = None
 _tag_name = None
+_region = None
 
 def _LogInstInfo():
-	ami_id  = Util.RunSubp("curl -s http://169.254.169.254/latest/meta-data/ami-id", print_cmd = False, print_result = False)
+	ami_id    = Util.RunSubp("curl -s http://169.254.169.254/latest/meta-data/ami-id", print_cmd = False, print_result = False)
 	global _inst_id
-	_inst_id = Util.RunSubp("curl -s http://169.254.169.254/latest/meta-data/instance-id", print_cmd = False, print_result = False)
+	_inst_id  = Util.RunSubp("curl -s http://169.254.169.254/latest/meta-data/instance-id", print_cmd = False, print_result = False)
 	inst_type = Util.RunSubp("curl -s http://169.254.169.254/latest/meta-data/instance-type", print_cmd = False, print_result = False)
-	az = Util.RunSubp("curl -s http://169.254.169.254/latest/meta-data/placement/availability-zone", print_cmd = False, print_result = False)
-	pub_ip = Util.RunSubp("curl -s http://169.254.169.254/latest/meta-data/public-ipv4", print_cmd = False, print_result = False)
-	local_ip = Util.RunSubp("curl -s http://169.254.169.254/latest/meta-data/local-ipv4", print_cmd = False, print_result = False)
+	az        = Util.RunSubp("curl -s http://169.254.169.254/latest/meta-data/placement/availability-zone", print_cmd = False, print_result = False)
+	pub_ip    = Util.RunSubp("curl -s http://169.254.169.254/latest/meta-data/public-ipv4", print_cmd = False, print_result = False)
+	local_ip  = Util.RunSubp("curl -s http://169.254.169.254/latest/meta-data/local-ipv4", print_cmd = False, print_result = False)
+
+	# http://stackoverflow.com/questions/4249488/find-region-from-within-ec2-instance
+	doc       = Util.RunSubp("curl -s http://169.254.169.254/latest/dynamic/instance-identity/document", print_cmd = False, print_result = False)
+	for line in doc.split("\n"):
+		# "region" : "us-west-1"
+		tokens = filter(None, re.split(":| |,|\"", line))
+		#Cons.P(tokens)
+		if len(tokens) == 2 and tokens[0] == "region":
+			global _region
+			_region = tokens[1]
+			break
 
 	_Log("ami_id:    %s" % ami_id)
 	_Log("inst_id:   %s" % _inst_id)
@@ -31,10 +44,10 @@ def _LogInstInfo():
 	_Log("az:        %s" % az)
 	_Log("pub_ip:    %s" % pub_ip)
 	_Log("local_ip:  %s" % local_ip)
+	_Log("region:    %s" % _region)
 
 
 _fo_log = None
-
 
 def _Log(msg):
 	fn = "/var/log/acorn/ec2-init.log"
@@ -47,7 +60,7 @@ def _Log(msg):
 
 
 def _RunInitByTags():
-	boto_client = boto3.client("ec2")
+	boto_client = boto3.session.Session().client("ec2", region_name=_region)
 
 	r = boto_client.describe_tags()
 	#Cons.P(pprint.pformat(r, indent=2, width=100))
