@@ -15,12 +15,12 @@ _threads = []
 _dn_tmp = "%s/../.tmp" % os.path.dirname(os.path.realpath(__file__))
 
 
-def Run(regions = ["us-east-1"], tag_name = None):
+def Run(regions = ["us-east-1"], tag_name = None, ec2_type = None):
 	Util.RunSubp("mkdir -p %s" % _dn_tmp, print_cmd = False)
 
 	rams = []
 	for r in regions:
-		rams.append(RunAndMonitor(r, tag_name))
+		rams.append(RunAndMonitor(r, tag_name, ec2_type))
 
 	for ram in rams:
 		t = threading.Thread(target=ram.RunEc2Inst)
@@ -34,7 +34,7 @@ def Run(regions = ["us-east-1"], tag_name = None):
 
 
 class RunAndMonitor():
-	def __init__(self, region_name, tag_name):
+	def __init__(self, region_name, tag_name, ec2_type):
 		if region_name == "us-east-1":
 			self.ami_id = "ami-3ff51552"
 		elif region_name == "us-west-1":
@@ -43,6 +43,7 @@ class RunAndMonitor():
 			raise RuntimeError("Unexpected region %s" % region_name)
 		self.region_name = region_name
 		self.tag_name = tag_name
+		self.ec2_type = ec2_type
 
 
 	def RunEc2Inst(self):
@@ -66,15 +67,7 @@ sudo -i -u ubuntu /home/ubuntu/work/acorn-tools/ec2/ec2-init.py
 				, MaxCount=1
 				, SecurityGroups=["cass-server"]
 				, EbsOptimized=True
-				# 4 vCPUs, 7.5 Gib RAM, EBS only, $0.209 per Hour
-				# "The specified instance type can only be used in a VPC. A subnet ID or network interface ID is required to carry out the request."
-				#, InstanceType="c4.xlarge"
-
-				# 4 vCPUs, 7.5 Gib RAM, 2 x 40 SSD, $0.21 per Hour
-				#, InstanceType="c3.xlarge"
-
-				# For fast development
-				, InstanceType="c3.4xlarge"
+				, InstanceType = self.ec2_type
 
 				# AZ doesn't need to be specified. self.az = "us-west-1c"
 				#, Placement={'AvailabilityZone': self.az}
