@@ -82,6 +82,18 @@ def _EditCassConf():
 			"/g' /home/ubuntu/work/acorn/conf/cassandra.yaml" % ",".join(ips)
 	_RunSubp(cmd, shell = True)
 
+	cmd = "sed -i 's/" \
+			"^listen_address: localhost" \
+			"/#listen_address: localhost" \
+			"/g' /home/ubuntu/work/acorn/conf/cassandra.yaml"
+	_RunSubp(cmd, shell = True)
+
+	cmd = "sed -i 's/" \
+			"^# listen_interface: eth0" \
+			"/listen_interface: eth0" \
+			"/g' /home/ubuntu/work/acorn/conf/cassandra.yaml"
+	_RunSubp(cmd, shell = True)
+
 	# sed doesn't support ?
 	#   http://stackoverflow.com/questions/4348166/using-with-sed
 	cmd = "sed -i 's/" \
@@ -90,13 +102,23 @@ def _EditCassConf():
 			"/g' /home/ubuntu/work/acorn/conf/cassandra.yaml" % GetIPs.GetMyPubIp()
 	_RunSubp(cmd, shell = True)
 
+	cmd = "sed -i 's/" \
+			"^endpoint_snitch:.*" \
+			"/endpoint_snitch: Ec2MultiRegionSnitch" \
+			"/g' /home/ubuntu/work/acorn/conf/cassandra.yaml" % ",".join(ips)
+	_RunSubp(cmd, shell = True)
+
 
 def _RunCass():
 	_Log("Running Cassandra ...")
 	_RunSubp("rm -rf ~/work/acorn/data")
 	_RunSubp("/home/ubuntu/work/acorn/bin/cassandra")
 
-	# TODO: check if all nodes are joined
+	# Check if all nodes are joined
+	_RunSubp("/home/ubuntu/work/acorn/bin/nodetool status")
+
+	# TODO: report the number of nodes that it sees
+	# TODO: keep reporting until it sees the correct number of nodes
 
 
 def main(argv):
