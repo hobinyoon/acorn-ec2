@@ -96,28 +96,32 @@ sudo -i -u ubuntu /home/ubuntu/work/acorn-tools/ec2/ec2-init.py
 
 	def _KeepCheckingInst(self):
 		state = None
+		tagged = False
 
 		while True:
 			response = self.boto_client.describe_instances(InstanceIds=[self.inst_id])
 			# Note: describe_instances() returns StateReason, while
 			# describe_instance_status() doesn't.
 
-			state = response["Reservations"][0]["Instances"][0]["State"]["Name"]
 			InstLaunchProgMon.Update(self.inst_id, response)
-			if state == "terminated" or state == "running":
+			state = response["Reservations"][0]["Instances"][0]["State"]["Name"]
+			# Create a tag
+			if state == "pending" and tagged == False:
+				self.boto_client.create_tags(
+						Resources = [self.inst_id],
+						Tags = [{
+							"Key": "Name",
+							"Value": self.tag_name
+							}]
+						)
+				tagged = True
+
+			elif state == "terminated" or state == "running":
 				break
 			time.sleep(1)
 
-		# Create a tag and check one more time to make sure the tag is in place.
+		# Make sure everything is ok.
 		if state == "running":
-			self.boto_client.create_tags(
-					Resources = [self.inst_id],
-					Tags = [{
-						"Key": "Name",
-						"Value": self.tag_name
-						}]
-					)
-
 			response = self.boto_client.describe_instances(InstanceIds=[self.inst_id])
 			state = response["Reservations"][0]["Instances"][0]["State"]["Name"]
 			InstLaunchProgMon.Update(self.inst_id, response)
