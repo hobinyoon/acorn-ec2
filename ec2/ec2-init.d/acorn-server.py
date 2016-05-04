@@ -105,7 +105,7 @@ def _EditCassConf():
 	cmd = "sed -i 's/" \
 			"^endpoint_snitch:.*" \
 			"/endpoint_snitch: Ec2MultiRegionSnitch" \
-			"/g' /home/ubuntu/work/acorn/conf/cassandra.yaml" % ",".join(ips)
+			"/g' /home/ubuntu/work/acorn/conf/cassandra.yaml"
 	_RunSubp(cmd, shell = True)
 
 
