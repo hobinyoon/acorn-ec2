@@ -95,6 +95,8 @@ sudo -i -u ubuntu /home/ubuntu/work/acorn-tools/ec2/ec2-init.py
 
 
 	def _KeepCheckingInst(self):
+		state = None
+
 		while True:
 			response = self.boto_client.describe_instances(InstanceIds=[self.inst_id])
 			# Note: describe_instances() returns StateReason, while
@@ -261,8 +263,6 @@ def _Value(dict_, key):
 		return dict_[key]
 	else:
 		return ""
-
-
 
 
 #def _RunEc2InstR3XlargeEbs():
