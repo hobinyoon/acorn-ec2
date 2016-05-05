@@ -17,7 +17,7 @@ _fmt = "%10s %10s %10s %13s %15s %15s %13s %20s"
 def RunDescInst():
 	threads = []
 
-	sys.stdout.write("desc_instances ")
+	sys.stdout.write("desc_instances:")
 	sys.stdout.flush()
 
 	regions = [
@@ -83,8 +83,7 @@ class DescInst:
 			#ConsP("region=%s KeyError=[%s]" % (self.region, e))
 			self.exception = e
 
-		sys.stdout.write(".")
-		sys.stdout.flush()
+		sys_stdout_write(" %s" % self.region)
 
 	def PrintResult(self):
 		if self.exception != None:
@@ -129,6 +128,12 @@ _print_lock = threading.Lock()
 def ConsP(msg):
 	with _print_lock:
 		Cons.P(msg)
+
+
+def sys_stdout_write(msg):
+	with _print_lock:
+		sys.stdout.write(msg)
+		sys.stdout.flush()
 
 
 def main(argv):

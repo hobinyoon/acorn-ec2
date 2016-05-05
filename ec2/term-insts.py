@@ -15,12 +15,24 @@ _fmt = "%10s %10s %13s %13s"
 
 
 def RunTermInst():
+	regions = [
+			"us-east-1"
+			, "us-west-1"
+			, "us-west-2"
+			, "eu-west-1"
+			, "eu-central-1"
+			, "ap-southeast-1"
+			, "ap-southeast-2"
+			, "ap-northeast-2"
+			, "ap-northeast-1"
+			, "sa-east-1"
+			]
+
 	threads = []
 
-	sys.stdout.write("terminating all running instances ")
+	sys.stdout.write("terminating all running instances:")
 	sys.stdout.flush()
 
-	regions = ["us-east-1", "us-west-1"]
 	tis = []
 	for r in regions:
 		tis.append(TermInst(r))
@@ -67,13 +79,13 @@ class TermInst:
 		#ConsP(pprint.pformat(self.inst_ids, indent=2, width=100))
 
 		if len(self.inst_ids) == 0:
+			sys_stdout_write(" %s" % self.region)
 			return
 
 		self.response = boto_client.terminate_instances(
 				InstanceIds = self.inst_ids
 				)
-		sys.stdout.write(".")
-		sys.stdout.flush()
+		sys_stdout_write(" %s" % self.region)
 
 	def PrintResult(self):
 		if len(self.inst_ids) == 0:
@@ -105,6 +117,12 @@ _print_lock = threading.Lock()
 def ConsP(msg):
 	with _print_lock:
 		Cons.P(msg)
+
+
+def sys_stdout_write(msg):
+	with _print_lock:
+		sys.stdout.write(msg)
+		sys.stdout.flush()
 
 
 def TestTermInst():
