@@ -33,7 +33,7 @@ def _RunSubp(cmd, shell = False):
 def _MountAndFormatLocalSSDs():
 	# Make sure we are using the known machine types
 	inst_type = Util.RunSubp("curl -s http://169.254.169.254/latest/meta-data/instance-type", print_cmd = False, print_result = False)
-	if inst_type not in ["c3.xlarge", "c3.4xlarge"]:
+	if not inst_type.startswith("c3."):
 		raise RuntimeError("Unexpected instance type %s" % inst_type)
 
 	ssds = ["ssd0", "ssd1"]
