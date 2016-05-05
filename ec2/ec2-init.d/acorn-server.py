@@ -30,6 +30,13 @@ def _RunSubp(cmd, shell = False):
 		_Log(Util.Indent(r, 2))
 
 
+def _SyncTime():
+	# Sync time. Important for Cassandra.
+	# http://askubuntu.com/questions/254826/how-to-force-a-clock-update-using-ntp
+	_Log("Synching time ...")
+	_RunSubp("sudo service ntp stop && sudo ntpd -gq && sudo service ntp start", shell = True)
+
+
 def _MountAndFormatLocalSSDs():
 	# Make sure we are using the known machine types
 	inst_type = Util.RunSubp("curl -s http://169.254.169.254/latest/meta-data/instance-type", print_cmd = False, print_result = False)
@@ -124,6 +131,8 @@ def _RunCass():
 def main(argv):
 	try:
 		# This script is run under the user 'ubuntu'.
+
+		_SyncTime()
 		_MountAndFormatLocalSSDs()
 		_CloneAcornSrcAndBuild()
 
