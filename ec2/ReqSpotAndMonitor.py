@@ -11,6 +11,8 @@ sys.path.insert(0, "%s/../util/python" % os.path.dirname(os.path.realpath(__file
 import Cons
 import Util
 
+import Ec2Util
+
 
 _threads = []
 _dn_tmp = "%s/../.tmp" % os.path.dirname(os.path.realpath(__file__))
@@ -39,12 +41,8 @@ def Run(regions = ["us-east-1"], tag_name = None, ec2_type = None, price = None)
 
 class ReqAndMonitor():
 	def __init__(self, region_name, tag_name, ec2_type, price):
-		if region_name == "us-east-1":
-			self.ami_id = "ami-1ef81873"
-		elif region_name == "us-west-1":
-			self.ami_id = "ami-7f10691f"
-		else:
-			raise RuntimeError("Unexpected region %s" % region_name)
+		self.ami_id = Ec2Util.GetLatestAmiId(region_name)
+
 		self.region_name = region_name
 		self.tag_name = tag_name
 		self.ec2_type = ec2_type
@@ -217,7 +215,7 @@ class InstLaunchProgMon():
 			for spot_req_id, v in InstLaunchProgMon.progress.iteritems():
 				if len(output) > 0:
 					output += "\n"
-				output += ("%s %s" % (v.region, spot_req_id))
+				output += ("%-15s %s" % (v.region, spot_req_id))
 
 				# Spot req status
 				prev_status = None
@@ -278,7 +276,9 @@ class InstLaunchProgMon():
 				# Move the cursor to column 1
 				sys.stdout.write(chr(27) + "[1G")
 
-			sys.stdout.write(output)
+			#sys.stdout.write(output)
+			# Sort them
+			sys.stdout.write("\n".join(sorted(output.split("\n"))))
 			sys.stdout.flush()
 			output_lines_written = len(output.split("\n"))
 
@@ -299,7 +299,7 @@ class InstLaunchProgMon():
 
 	@staticmethod
 	def DescInsts():
-		fmt = "%10s %10s %10s %13s %15s %15s %10s %20s"
+		fmt = "%-15s %10s %10s %13s %15s %15s %10s %20s"
 		ConsP(Util.BuildHeader(fmt,
 			"Placement:AvailabilityZone"
 			" InstanceId"

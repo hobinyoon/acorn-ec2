@@ -10,6 +10,8 @@ sys.path.insert(0, "%s/../util/python" % os.path.dirname(os.path.realpath(__file
 import Cons
 import Util
 
+import Ec2Util
+
 
 _threads = []
 _dn_tmp = "%s/../.tmp" % os.path.dirname(os.path.realpath(__file__))
@@ -35,12 +37,8 @@ def Run(regions = ["us-east-1"], tag_name = None, ec2_type = None):
 
 class RunAndMonitor():
 	def __init__(self, region_name, tag_name, ec2_type):
-		if region_name == "us-east-1":
-			self.ami_id = "ami-1ef81873"
-		elif region_name == "us-west-1":
-			self.ami_id = "ami-7f10691f"
-		else:
-			raise RuntimeError("Unexpected region %s" % region_name)
+		self.ami_id = Ec2Util.GetLatestAmiId(region_name)
+
 		self.region_name = region_name
 		self.tag_name = tag_name
 		self.ec2_type = ec2_type

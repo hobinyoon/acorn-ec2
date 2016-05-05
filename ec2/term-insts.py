@@ -11,7 +11,7 @@ import Cons
 import Util
 
 
-_fmt = "%10s %10s %13s %13s"
+_fmt = "%-15s %10s %13s %13s"
 
 
 def RunTermInst():

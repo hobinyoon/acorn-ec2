@@ -8,15 +8,18 @@ import ReqSpotAndMonitor
 def main(argv):
 	regions = [
 			"us-east-1"
-			#, "us-west-1"
-	#		, "us-west-2"
-	#		, "eu-west-1"
-	#		, "eu-central-1"
-	#		, "ap-southeast-1"
-	#		, "ap-southeast-2"
-	#		, "ap-northeast-2"
-	#		, "ap-northeast-1"
-	#		, "sa-east-1"
+			, "us-west-1"
+			, "us-west-2"
+			, "eu-west-1"
+			, "eu-central-1"
+			, "ap-southeast-1"
+			, "ap-southeast-2"
+
+			# Seoul. Didn't work. Waited for 800 secs.
+			#, "ap-northeast-2"
+
+			, "ap-northeast-1"
+			, "sa-east-1"
 			]
 
 	# EC2 instance types
@@ -40,4 +43,8 @@ def main(argv):
 
 
 if __name__ == "__main__":
-	sys.exit(main(sys.argv))
+	try:
+		sys.exit(main(sys.argv))
+	except KeyboardInterrupt:
+		print "Interrupted"
+		sys.exit(1)
