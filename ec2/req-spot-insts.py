@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 
+import os
+import signal
 import sys
 
 import ReqSpotAndMonitor
@@ -46,5 +48,8 @@ if __name__ == "__main__":
 	try:
 		sys.exit(main(sys.argv))
 	except KeyboardInterrupt:
-		print "Interrupted"
+		print "\nInterrupted"
+		# Requesting threads to stop doesn't work.
+		# ReqSpotAndMonitor.ReqStop()
+		os.kill(os.getpid(), signal.SIGTERM)
 		sys.exit(1)
