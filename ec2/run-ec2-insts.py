@@ -29,7 +29,7 @@ def main(argv):
 	# ec2_type = "c3.xlarge"
 	#
 	# For fast development
-	# ec2_type = "c3.4xlarge"
+	ec2_type = "c3.4xlarge"
 
 	RunAndMonitorEc2Inst.Run(
 			regions = regions
