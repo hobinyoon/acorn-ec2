@@ -122,7 +122,7 @@ sudo -i -u ubuntu /home/ubuntu/work/acorn-tools/ec2/ec2-init.py
 		self.inst_id = response["SpotInstanceRequests"][0]["InstanceId"]
 		InstLaunchProgMon.SetInstID(self.spot_req_id, self.inst_id)
 
-		# TODO: may want to show the current pricing
+		# Note: may want to show the current pricing
 
 
 	def _KeepCheckingInst(self):
@@ -167,6 +167,8 @@ sudo -i -u ubuntu /home/ubuntu/work/acorn-tools/ec2/ec2-init.py
 
 
 class InstLaunchProgMon():
+	# Note: making the key to region seems more natural for the output. Lowest priority.
+	#
 	# key: spot_req_id, value: Entry
 	progress = {}
 	progress_lock = threading.Lock()
