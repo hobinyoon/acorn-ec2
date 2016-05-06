@@ -34,7 +34,7 @@ def _SyncTime():
 	# Sync time. Important for Cassandra.
 	# http://askubuntu.com/questions/254826/how-to-force-a-clock-update-using-ntp
 	_Log("Synching time ...")
-	_RunSubp("sudo service ntp stop && sudo ntpd -gq && sudo service ntp start", shell = True)
+	_RunSubp("sudo service ntp stop && sudo /usr/sbin/ntpd -gq && sudo service ntp start", shell = True)
 
 
 def _MountAndFormatLocalSSDs():
