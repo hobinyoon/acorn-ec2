@@ -8,7 +8,7 @@ import ReqSpotAndMonitor
 
 
 def main(argv):
-	regions = [
+	regions_all = [
 			"us-east-1"
 			, "us-west-1"
 			, "us-west-2"
@@ -23,6 +23,23 @@ def main(argv):
 			, "ap-northeast-1"
 			, "sa-east-1"
 			]
+
+	if len(argv) == 1:
+		print "Usage: %s [region]+" % argv[0]
+		print "  region: all or some of %s" % " ".join(regions_all)
+		sys.exit(1)
+
+	# Note: Not sure if I want to parameterize the cluster name too. It can be
+	# generated dynamically.
+
+	regions = []
+	if argv[1] == "all":
+		regions = regions_all
+	else:
+		for i in range(len(argv)):
+			if i == 0:
+				continue
+			regions.append(argv[i])
 
 	# EC2 instance types
 	#
