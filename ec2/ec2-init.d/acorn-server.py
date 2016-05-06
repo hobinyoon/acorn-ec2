@@ -42,6 +42,20 @@ def _SyncTime():
 	_RunSubp("sudo service ntp start")
 
 
+def _SetHostname():
+	az = Util.RunSubp("curl -s http://169.254.169.254/latest/meta-data/placement/availability-zone", print_cmd = False, print_result = False)
+	# Note: may want to add tag name too.
+	hn = az
+
+	# http://askubuntu.com/questions/9540/how-do-i-change-the-computer-name
+	cmd = "sudo sh -c 'echo \"%s\" > /etc/hostname'" % hn
+	Util.RunSubp(cmd, shell=True)
+	cmd = "sudo sed -i '/^127.0.0.1 localhost.*/c\\127.0.0.1 localhost %s' /etc/hosts" % hn
+	Util.RunSubp(cmd, shell=True)
+	cmd = "sudo service hostname restart"
+	Util.RunSubp(cmd)
+
+
 def _MountAndFormatLocalSSDs():
 	# Make sure we are using the known machine types
 	inst_type = Util.RunSubp("curl -s http://169.254.169.254/latest/meta-data/instance-type", print_cmd = False, print_result = False)
@@ -138,6 +152,7 @@ def main(argv):
 		# This script is run under the user 'ubuntu'.
 
 		_SyncTime()
+		_SetHostname()
 		_MountAndFormatLocalSSDs()
 		_CloneAcornSrcAndBuild()
 
