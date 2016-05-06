@@ -35,7 +35,10 @@ def _SyncTime():
 	# http://askubuntu.com/questions/254826/how-to-force-a-clock-update-using-ntp
 	_Log("Synching time ...")
 	_RunSubp("sudo service ntp stop")
-	_RunSubp("sudo /usr/sbin/ntpd -gq")
+
+	# Fails with a rc 1 in the init script. Mask with true for now.
+	_RunSubp("sudo /usr/sbin/ntpd -gq || true", shell = True)
+
 	_RunSubp("sudo service ntp start")
 
 
