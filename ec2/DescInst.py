@@ -10,31 +10,29 @@ import Util
 
 
 _fmt = "%-15s %10s %10s %13s %15s %15s %13s %20s"
+_regions_all = [
+		"us-east-1"
+		, "us-west-1"
+		, "us-west-2"
+		, "eu-west-1"
+		, "eu-central-1"
+		, "ap-southeast-1"
+		, "ap-southeast-2"
+		, "ap-northeast-2"
+		, "ap-northeast-1"
+		, "sa-east-1"
+		]
 
 
 def Run(tag_name = None):
-	threads = []
-
 	sys.stdout.write("desc_instances:")
 	sys.stdout.flush()
 
-	regions = [
-			"us-east-1"
-			, "us-west-1"
-			, "us-west-2"
-			, "eu-west-1"
-			, "eu-central-1"
-			, "ap-southeast-1"
-			, "ap-southeast-2"
-			, "ap-northeast-2"
-			, "ap-northeast-1"
-			, "sa-east-1"
-			]
-
 	dis = []
-	for r in regions:
+	for r in _regions_all:
 		dis.append(DescInstPerRegion(r, tag_name))
 
+	threads = []
 	for di in dis:
 		t = threading.Thread(target=di.Run)
 		threads.append(t)
@@ -65,6 +63,30 @@ def Run(tag_name = None):
 
 	for di in dis:
 		di.PrintResult()
+
+
+def GetPubIpAddrs(tag_name = None):
+	sys.stdout.write("desc_instances:")
+	sys.stdout.flush()
+
+	dis = []
+	for r in _regions_all:
+		dis.append(DescInstPerRegion(r, tag_name))
+
+	threads = []
+	for di in dis:
+		t = threading.Thread(target=di.Run)
+		threads.append(t)
+		t.start()
+
+	for t in threads:
+		t.join()
+	print ""
+
+	ip_addrs = []
+	for di in dis:
+		ip_addrs += di.PubIpAddrs()
+	return ip_addrs
 
 
 class DescInstPerRegion:
@@ -103,6 +125,16 @@ class DescInstPerRegion:
 			for r1 in r["Instances"]:
 				num += 1
 		return num
+
+	def PubIpAddrs(self):
+		ip_addrs = []
+		if self.exception != None:
+			return ip_addrs
+		for r in self.response["Reservations"]:
+			for r1 in r["Instances"]:
+				ip_addrs.append(r1["PublicIpAddress"])
+		return ip_addrs
+
 
 	def PrintResult(self):
 		if self.exception != None:
