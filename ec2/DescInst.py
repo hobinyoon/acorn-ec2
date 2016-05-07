@@ -65,7 +65,7 @@ def Run(tag_name = None):
 		di.PrintResult()
 
 
-def GetPubIpAddrs(tag_name = None):
+def GetInstDescs(tag_name = None):
 	sys.stdout.write("desc_instances:")
 	sys.stdout.flush()
 
@@ -83,10 +83,10 @@ def GetPubIpAddrs(tag_name = None):
 		t.join()
 	print ""
 
-	ip_addrs = []
+	inst_descs = []
 	for di in dis:
-		ip_addrs += di.PubIpAddrs()
-	return ip_addrs
+		inst_descs += di.GetInstDesc()
+	return inst_descs
 
 
 class DescInstPerRegion:
@@ -126,14 +126,13 @@ class DescInstPerRegion:
 				num += 1
 		return num
 
-	def PubIpAddrs(self):
-		ip_addrs = []
+	def GetInstDesc(self):
+		ids = []
 		if self.exception != None:
-			return ip_addrs
+			return ids
 		for r in self.response["Reservations"]:
-			for r1 in r["Instances"]:
-				ip_addrs.append(r1["PublicIpAddress"])
-		return ip_addrs
+			ids += r["Instances"]
+		return ids
 
 
 	def PrintResult(self):
