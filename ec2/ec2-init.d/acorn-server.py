@@ -42,6 +42,10 @@ def _SyncTime():
 	_RunSubp("sudo service ntp start")
 
 
+def _InstallPkgs():
+	_SunSubp("sudo apt-get install -y pssh")
+
+
 def _SetHostname():
 	az = Util.RunSubp("curl -s http://169.254.169.254/latest/meta-data/placement/availability-zone", print_cmd = False, print_result = False)
 	# Note: may want to add tag name too.
@@ -152,6 +156,7 @@ def main(argv):
 		# This script is run under the user 'ubuntu'.
 
 		_SyncTime()
+		_InstallPkgs()
 		_SetHostname()
 		_MountAndFormatLocalSSDs()
 		_CloneAcornSrcAndBuild()
