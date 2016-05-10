@@ -43,7 +43,7 @@ def _SyncTime():
 
 
 def _InstallPkgs():
-	_SunSubp("sudo apt-get install -y pssh")
+	_RunSubp("sudo apt-get install -y pssh")
 
 
 def _SetHostname():
