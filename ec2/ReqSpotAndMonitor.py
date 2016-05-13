@@ -3,6 +3,7 @@ import boto3
 # Boto: http://boto3.readthedocs.org/en/latest/
 import os
 import pprint
+import re
 import sys
 import threading
 import time
@@ -40,10 +41,15 @@ def Run(regions = ["us-east-1"], tag_name = None, ec2_type = None, price = None)
 
 
 class ReqAndMonitor():
-	def __init__(self, region_name, tag_name, ec2_type, price):
-		self.ami_id = Ec2Util.GetLatestAmiId(region_name)
+	def __init__(self, az_or_region, tag_name, ec2_type, price):
+		if re.match(r".*[a-z]$", az_or_region):
+			self.az = az_or_region
+			self.region_name = self.az[:-1]
+		else:
+			self.az = None
+			self.region_name = az_or_region
+		self.ami_id = Ec2Util.GetLatestAmiId(self.region_name)
 
-		self.region_name = region_name
 		self.tag_name = tag_name
 		self.ec2_type = ec2_type
 		self.price = price
@@ -65,6 +71,19 @@ sudo -i -u ubuntu /home/ubuntu/work/acorn-tools/ec2/ec2-init.py
 # http://unix.stackexchange.com/questions/4342/how-do-i-get-sudo-u-user-to-use-the-users-env
 
 		self.boto_client = boto3.session.Session().client("ec2", region_name = self.region_name)
+
+		ls = {'ImageId': self.ami_id,
+				#'KeyName': 'string',
+				'SecurityGroups': ["cass-server"],
+				'UserData': base64.b64encode(init_script),
+				#'AddressingType': 'string',
+				'InstanceType': self.ec2_type,
+				'EbsOptimized': True,
+				}
+		if self.az == None:
+			ls['Placement'] = {}
+			ls['Placement']['AvailabilityZone'] = self.az
+
 		response = self.boto_client.request_spot_instances(
 				SpotPrice=self.price,
 				#ClientToken='string',
@@ -78,15 +97,7 @@ sudo -i -u ubuntu /home/ubuntu/work/acorn-tools/ec2/ec2-init.py
 				# https://aws.amazon.com/blogs/aws/new-ec2-spot-blocks-for-defined-duration-workloads/
 				#BlockDurationMinutes=123,
 
-				LaunchSpecification={
-					'ImageId': self.ami_id,
-					#'KeyName': 'string',
-					'SecurityGroups': ["cass-server"],
-					'UserData': base64.b64encode(init_script),
-					#'AddressingType': 'string',
-					'InstanceType': self.ec2_type,
-					'EbsOptimized': True,
-					}
+				LaunchSpecification = ls,
 				)
 		#ConsP("Response:")
 		#ConsP(Util.Indent(pprint.pformat(response, indent=2, width=100), 2))
