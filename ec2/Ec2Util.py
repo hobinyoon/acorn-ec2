@@ -5,11 +5,11 @@ def GetLatestAmiId(region):
 
 	# N. Virginia
 	if region == "us-east-1":
-		ami_id = "ami-6255b90f"
+		ami_id = "ami-4f44ad22"
 
 	# N. California
 	elif region == "us-west-1":
-		ami_id = "ami-35ec9555"
+		ami_id = "ami-c37109a3"
 
 	# Oregon
 	elif region == "us-west-2":
