@@ -13,35 +13,35 @@ def GetLatestAmiId(region):
 
 	# Oregon
 	elif region == "us-west-2":
-		ami_id = "ami-af887acf"
+		ami_id = "ami-884ab6e8"
 
 	# Ireland
 	elif region == "eu-west-1":
-		ami_id = "ami-fd6de58e"
+		ami_id = "ami-b440d4c7"
 
 	# Frankfurt
 	elif region == "eu-central-1":
-		ami_id = "ami-036d8f6c"
+		ami_id = "ami-acec00c3"
 
 	# Singapore
 	elif region == "ap-southeast-1":
-		ami_id = "ami-a135e2c2"
+		ami_id = "ami-3620f655"
 
 	# Tokyo
 	elif region == "ap-northeast-1":
-		ami_id = "ami-158e947b"
+		ami_id = "ami-08f31269"
 
 	# Seoul
 	elif region == "ap-northeast-2":
-		ami_id = "ami-a74d85c9"
+		ami_id = "ami-30864d5e"
 
 	# Sydney
 	elif region == "ap-southeast-2":
-		ami_id = "ami-583c103b"
+		ami_id = "ami-36250a55"
 
 	# São Paulo
 	elif region == "sa-east-1":
-		ami_id = "ami-2c5dd440"
+		ami_id = "ami-af4bc3c3"
 
 	else:
 		raise RuntimeError("Unexpected region %s" % region)
