@@ -133,6 +133,24 @@ def _EditCassConf():
 	_RunSubp(cmd, shell = True)
 
 	cmd = "sed -i 's/" \
+			"^rpc_address: localhost" \
+			"/#rpc_address: localhost" \
+			"/g' /home/ubuntu/work/acorn/conf/cassandra.yaml"
+	_RunSubp(cmd, shell = True)
+
+	cmd = "sed -i 's/" \
+			"^# rpc_interface: eth1" \
+			"/rpc_interface: eth0" \
+			"/g' /home/ubuntu/work/acorn/conf/cassandra.yaml"
+	_RunSubp(cmd, shell = True)
+
+	cmd = "sed -i 's/" \
+			"^\(# \|\)broadcast_rpc_address: .*" \
+			"/broadcast_rpc_address: %s" \
+			"/g' /home/ubuntu/work/acorn/conf/cassandra.yaml" % GetIPs.GetMyPubIp()
+	_RunSubp(cmd, shell = True)
+
+	cmd = "sed -i 's/" \
 			"^endpoint_snitch:.*" \
 			"/endpoint_snitch: Ec2MultiRegionSnitch" \
 			"/g' /home/ubuntu/work/acorn/conf/cassandra.yaml"
