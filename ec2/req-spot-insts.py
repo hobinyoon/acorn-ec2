@@ -57,7 +57,7 @@ def main(argv):
 			regions = regions
 			, tag_name = "acorn-server"
 			, ec2_type = ec2_type
-			, price = "0.84"
+			, price = "1.0"
 			)
 
 
