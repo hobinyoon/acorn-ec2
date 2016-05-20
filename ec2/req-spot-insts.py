@@ -14,7 +14,10 @@ def main(argv):
 			, "us-west-2"
 			, "eu-west-1"
 			, "eu-central-1"
-			, "ap-southeast-1"
+
+			# 1b is more stable. May 20th.
+			, "ap-southeast-1b"
+
 			, "ap-southeast-2"
 
 			# Seoul. Didn't work. Waited for 800 secs.
