@@ -80,7 +80,7 @@ sudo -i -u ubuntu /home/ubuntu/work/acorn-tools/ec2/ec2-init.py
 				'InstanceType': self.ec2_type,
 				'EbsOptimized': True,
 				}
-		if self.az == None:
+		if self.az != None:
 			ls['Placement'] = {}
 			ls['Placement']['AvailabilityZone'] = self.az
 
