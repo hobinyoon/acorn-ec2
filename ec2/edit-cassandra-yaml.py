@@ -15,9 +15,9 @@ def _EditCassConf():
 	tag_name = "acorn-server"
 	Cons.P("Getting IP addrs of all running %s instances ..." % tag_name)
 	ips = GetIPs.GetByTag(tag_name)
-	_Log(ips)
+	Cons.P(ips)
 
-	_Log("Editing conf/cassandra.yaml ...")
+	Cons.P("Editing conf/cassandra.yaml ...")
 	# http://stackoverflow.com/questions/7517632/how-do-i-escape-double-and-single-quotes-in-sed-bash
 	Util.RunSubp("sed -i 's/^cluster_name: .*/cluster_name: '\"'\"'acorn'\"'\"'/g' /home/ubuntu/work/acorn/conf/cassandra.yaml", shell = True)
 
