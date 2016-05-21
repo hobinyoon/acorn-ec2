@@ -14,7 +14,7 @@ import Util
 _fmt = "%-15s %10s %13s %13s"
 
 
-def RunTermInst():
+def RunTermInst(acorn_exp_param):
 	regions = [
 			"us-east-1"
 			, "us-west-1"
@@ -33,9 +33,11 @@ def RunTermInst():
 	sys.stdout.write("terminating all running instances:")
 	sys.stdout.flush()
 
+	tags = {"cluster_name": "acorn-server", "acorn_exp_param": acorn_exp_param}
+
 	tis = []
 	for r in regions:
-		tis.append(TermInst(r))
+		tis.append(TermInst(r, tags))
 
 	for ti in tis:
 		t = threading.Thread(target=ti.Run)
@@ -59,12 +61,20 @@ def RunTermInst():
 
 
 class TermInst:
-	def __init__(self, region):
+	def __init__(self, region, tags):
 		self.region = region
+		self.tags = tags
 
 	def Run(self):
 		boto_client = boto3.session.Session().client("ec2", region_name=self.region)
-		response = boto_client.describe_instances()
+
+		filters = []
+		for k, v in self.tags.iteritems():
+		 d = {}
+		 d["Name"] = ("tag:%s" % k)
+		 d["Values"] = [v]
+		 filters.append(d)
+		response = boto_client.describe_instances(Filters = filters)
 		#ConsP(pprint.pformat(response, indent=2, width=100))
 
 		# "running" instances
@@ -83,7 +93,7 @@ class TermInst:
 			return
 
 		self.response = boto_client.terminate_instances(
-				InstanceIds = self.inst_ids
+				, InstanceIds = self.inst_ids
 				)
 		sys_stdout_write(" %s" % self.region)
 
@@ -125,36 +135,14 @@ def sys_stdout_write(msg):
 		sys.stdout.flush()
 
 
-def TestTermInst():
-	boto_client = boto3.session.Session().client("ec2", region_name="us-east-1")
-	response = boto_client.describe_instances()
-	#ConsP(pprint.pformat(response, indent=2, width=100))
-
-	# "running" instances
-	inst_ids = []
-
-	for r in response["Reservations"]:
-		for r1 in r["Instances"]:
-			if "Name" in r1["State"]:
-				if r1["State"]["Name"] == "running":
-					inst_ids.append(r1["InstanceId"])
-
-	ConsP("There are %d \"running\" instances." % len(inst_ids))
-	#ConsP(pprint.pformat(inst_ids, indent=2, width=100))
-
-	response = boto_client.terminate_instances(
-			DryRun=True,
-			InstanceIds = inst_ids
-			)
-	ConsP(pprint.pformat(response, indent=2, width=100))
-
-
 def main(argv):
-	ConsP("Implement by tags")
-	sys.exit(1)
+	if len(argv) != 2:
+		print "Usage: %s [acorn_exp_param]" % argv[0]
+		sys.exit(1)
 
-	#TestTermInst()
-	RunTermInst()
+	acorn_exp_param = argv[1]
+
+	RunTermInst(acorn_exp_param)
 
 
 if __name__ == "__main__":
