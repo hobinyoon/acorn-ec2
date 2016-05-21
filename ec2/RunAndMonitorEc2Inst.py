@@ -164,7 +164,7 @@ class InstLaunchProgMon():
 				if len(output) > 0:
 					output += "\n"
 				inst_id = k
-				output += ("%s %s" % (v.region, inst_id))
+				output += ("%-15s %s" % (v.region, inst_id))
 				prev_state = None
 				same_state_cnt = 0
 				for r in v.responses:
