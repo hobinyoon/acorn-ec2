@@ -57,7 +57,7 @@ def main(argv):
 	ec2_type = "c3.4xlarge"
 
 	RunAndMonitorEc2Inst.Run(
-			, regions = regions
+			regions = regions
 			, ec2_type = ec2_type
 			# TODO: The first key used to be just "Name". replace all.
 			, tags = {"cluster_name": "acorn-server"

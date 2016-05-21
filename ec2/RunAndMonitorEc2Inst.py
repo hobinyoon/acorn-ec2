@@ -18,7 +18,7 @@ _threads = []
 _dn_tmp = "%s/../.tmp" % os.path.dirname(os.path.realpath(__file__))
 
 
-def Run(regions, ec2_type = None, tags):
+def Run(regions, ec2_type, tags):
 	Util.RunSubp("mkdir -p %s" % _dn_tmp, print_cmd = False)
 
 	rams = []
@@ -113,9 +113,7 @@ sudo -i -u ubuntu /home/ubuntu/work/acorn-tools/ec2/ec2-init.py
 				for k, v in self.tags.iteritems():
 					tags_boto.append({"Key": k, "Value": v})
 
-				self.boto_client.create_tags(
-						Resources = [self.inst_id],
-						Tags = tags_boto
+				self.boto_client.create_tags(Resources = [self.inst_id], Tags = tags_boto)
 				tagged = True
 
 			elif state == "terminated" or state == "running":
@@ -238,12 +236,16 @@ class InstLaunchProgMon():
 		for k, v in InstLaunchProgMon.progress.iteritems():
 			r = v.responses[-1]["Reservations"][0]["Instances"][0]
 
-			tags_str = ""
+			tags = {}
 			if "Tags" in r:
 				for t in r["Tags"]:
-					if len(tags_str) > 0:
-						tags_str += ","
-					tags_str += ("%s:%s" % (t["Key"], t["Value"]))
+					tags[t["Key"]] = t["Value"]
+
+			tags_str = ""
+			for k, v in sorted(tags.iteritems()):
+				if len(tags_str) > 0:
+					tags_str += ","
+				tags_str += ("%s:%s" % (t["Key"], t["Value"]))
 
 			#ConsP(Util.Indent(pprint.pformat(r, indent=2, width=100), 2))
 			ConsP(fmt % (
