@@ -43,7 +43,7 @@ def _SyncTime():
 
 
 def _InstallPkgs():
-	_RunSubp("sudo apt-get install -y pssh dstat")
+	_RunSubp("sudo apt-get update && sudo apt-get install -y pssh dstat", shell = True)
 
 
 def _SetHostname():
