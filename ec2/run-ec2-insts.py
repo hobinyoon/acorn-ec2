@@ -25,7 +25,7 @@ def main(argv):
 	# Note: I may want to use option parsing utility.
 
 	# acorn_exp_param seems hacky. Can be generalized to a dict of key value later.
-	if len(argv) < 2:
+	if len(argv) < 3:
 		print "Usage: %s acorn_exp_param [region]+" % argv[0]
 		print "  acorn_exp_param examples: u, t, ut, na, full"
 		print "  region: all or some of %s" % " ".join(regions_all)
