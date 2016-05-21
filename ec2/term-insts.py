@@ -150,6 +150,9 @@ def TestTermInst():
 
 
 def main(argv):
+	ConsP("Implement by tags")
+	sys.exit(1)
+
 	#TestTermInst()
 	RunTermInst()
 

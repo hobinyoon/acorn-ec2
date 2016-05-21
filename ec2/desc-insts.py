@@ -11,7 +11,8 @@ def main(argv):
 	elif len(argv) == 2:
 		DescInst.Run(argv[1])
 	else:
-		print "Usage: %s [tag_name]" % argv[0]
+		# Note: It's okay for now, but what if you have other projects than acorn?
+		print "Usage: %s [acorn_exp_param]" % argv[0]
 
 
 if __name__ == "__main__":

@@ -22,20 +22,25 @@ def main(argv):
 			, "sa-east-1"
 			]
 
-	if len(argv) == 1:
-		print "Usage: %s [region]+" % argv[0]
+	# Note: I may want to use option parsing utility.
+
+	# acorn_exp_param seems hacky. Can be generalized to a dict of key value later.
+	if len(argv) < 2:
+		print "Usage: %s acorn_exp_param [region]+" % argv[0]
+		print "  acorn_exp_param: u, t, ut, na, full"
 		print "  region: all or some of %s" % " ".join(regions_all)
 		sys.exit(1)
 
-	# Note: Not sure if I want to parameterize the cluster name too. It can be
-	# generated dynamically.
+	# Note: In the future, I may want to generate the cluster name on the fly.
+
+	acorn_exp_param = argv[1]
 
 	regions = []
-	if argv[1] == "all":
+	if argv[2] == "all":
 		regions = regions_all
 	else:
 		for i in range(len(argv)):
-			if i == 0:
+			if i < 2:
 				continue
 			regions.append(argv[i])
 
@@ -52,9 +57,15 @@ def main(argv):
 	ec2_type = "c3.4xlarge"
 
 	RunAndMonitorEc2Inst.Run(
-			regions = regions
-			, tag_name = "acorn-server"
-			, ec2_type = ec2_type)
+			, regions = regions
+			, ec2_type = ec2_type
+			# TODO: The first key used to be just "Name". replace all.
+			, tags = {"cluster_name": "acorn-server"
+
+				# Per cluster parameter. Combined with the cluster_name, this is used
+				# for identifying a cluster. Seems hacky, but okay for now.
+				, "acorn_exp_param": acorn_exp_param}
+			)
 
 
 if __name__ == "__main__":

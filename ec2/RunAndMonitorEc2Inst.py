@@ -18,12 +18,12 @@ _threads = []
 _dn_tmp = "%s/../.tmp" % os.path.dirname(os.path.realpath(__file__))
 
 
-def Run(regions, tag_name = None, ec2_type = None):
+def Run(regions, ec2_type = None, tags):
 	Util.RunSubp("mkdir -p %s" % _dn_tmp, print_cmd = False)
 
 	rams = []
 	for r in regions:
-		rams.append(RunAndMonitor(r, tag_name, ec2_type))
+		rams.append(RunAndMonitor(r, ec2_type, tags))
 
 	for ram in rams:
 		t = threading.Thread(target=ram.RunEc2Inst)
@@ -37,7 +37,7 @@ def Run(regions, tag_name = None, ec2_type = None):
 
 
 class RunAndMonitor():
-	def __init__(self, az_or_region, tag_name, ec2_type):
+	def __init__(self, az_or_region, ec2_type, tags):
 		if re.match(r".*[a-z]$", az_or_region):
 			self.az = az_or_region
 			self.region_name = self.az[:-1]
@@ -46,8 +46,8 @@ class RunAndMonitor():
 			self.region_name = az_or_region
 		self.ami_id = Ec2Util.GetLatestAmiId(self.region_name)
 
-		self.tag_name = tag_name
 		self.ec2_type = ec2_type
+		self.tags = tags
 
 
 	def RunEc2Inst(self):
@@ -59,6 +59,7 @@ rm -rf /home/ubuntu/work/acorn-tools
 sudo -i -u ubuntu bash -c 'git clone https://github.com/hobinyoon/acorn-tools.git /home/ubuntu/work/acorn-tools'
 sudo -i -u ubuntu /home/ubuntu/work/acorn-tools/ec2/ec2-init.py
 """
+
 #cd /home/ubuntu/work/acorn-tools
 #sudo -u ubuntu bash -c 'git pull'
 # http://unix.stackexchange.com/questions/4342/how-do-i-get-sudo-u-user-to-use-the-users-env
@@ -108,13 +109,13 @@ sudo -i -u ubuntu /home/ubuntu/work/acorn-tools/ec2/ec2-init.py
 			state = response["Reservations"][0]["Instances"][0]["State"]["Name"]
 			# Create a tag
 			if state == "pending" and tagged == False:
+				tags_boto = []
+				for k, v in self.tags.iteritems():
+					tags_boto.append({"Key": k, "Value": v})
+
 				self.boto_client.create_tags(
 						Resources = [self.inst_id],
-						Tags = [{
-							"Key": "Name",
-							"Value": self.tag_name
-							}]
-						)
+						Tags = tags_boto
 				tagged = True
 
 			elif state == "terminated" or state == "running":
@@ -127,8 +128,8 @@ sudo -i -u ubuntu /home/ubuntu/work/acorn-tools/ec2/ec2-init.py
 			state = response["Reservations"][0]["Instances"][0]["State"]["Name"]
 			InstLaunchProgMon.Update(self.inst_id, response)
 
-			# Make region-ipaddr files
-			fn = "%s/%s" % (_dn_tmp, self.region_name)
+			# Make (region-acorn_exp_param)-ipaddr files
+			fn = "%s/%s-%s" % (_dn_tmp, self.region_name, self.tags["acorn_exp_param"])
 			with open(fn, "w") as fo:
 				fo.write(response["Reservations"][0]["Instances"][0]["PublicIpAddress"])
 
@@ -222,7 +223,7 @@ class InstLaunchProgMon():
 
 	@staticmethod
 	def DescInsts():
-		fmt = "%-15s %10s %10s %13s %15s %15s %10s %20s"
+		fmt = "%-15s %10s %10s %13s %15s %15s %10s %-20s"
 		ConsP(Util.BuildHeader(fmt,
 			"Placement:AvailabilityZone"
 			" InstanceId"
@@ -231,17 +232,18 @@ class InstLaunchProgMon():
 			" PrivateIpAddress"
 			" PublicIpAddress"
 			" State:Name"
-			" Tag:Name"
+			" Tags"
 			))
 
 		for k, v in InstLaunchProgMon.progress.iteritems():
 			r = v.responses[-1]["Reservations"][0]["Instances"][0]
 
-			tag_name = None
+			tags_str = ""
 			if "Tags" in r:
 				for t in r["Tags"]:
-					if t["Key"] == "Name":
-						tag_name = t["Value"]
+					if len(tags_str) > 0:
+						tags_str += ","
+					tags_str += ("%s:%s" % (t["Key"], t["Value"]))
 
 			#ConsP(Util.Indent(pprint.pformat(r, indent=2, width=100), 2))
 			ConsP(fmt % (
@@ -252,7 +254,7 @@ class InstLaunchProgMon():
 				, _Value(r, "PrivateIpAddress")
 				, _Value(r, "PublicIpAddress")
 				, _Value(_Value(r, "State"), "Name")
-				, tag_name
+				, tags_str
 				))
 
 

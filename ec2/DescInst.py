@@ -24,13 +24,13 @@ _regions_all = [
 		]
 
 
-def Run(tag_name = None):
+def Run(acorn_exp_param = None):
 	sys.stdout.write("desc_instances:")
 	sys.stdout.flush()
 
 	dis = []
 	for r in _regions_all:
-		dis.append(DescInstPerRegion(r, tag_name))
+		dis.append(DescInstPerRegion(r, acorn_exp_param))
 
 	threads = []
 	for di in dis:
@@ -65,13 +65,13 @@ def Run(tag_name = None):
 		di.PrintResult()
 
 
-def GetInstDescs(tag_name = None):
+def GetInstDescs(acorn_exp_param = None):
 	sys.stdout.write("desc_instances:")
 	sys.stdout.flush()
 
 	dis = []
 	for r in _regions_all:
-		dis.append(DescInstPerRegion(r, tag_name))
+		dis.append(DescInstPerRegion(r, acorn_exp_param))
 
 	threads = []
 	for di in dis:
@@ -90,9 +90,9 @@ def GetInstDescs(tag_name = None):
 
 
 class DescInstPerRegion:
-	def __init__(self, region, tag_name):
+	def __init__(self, region, acorn_exp_param):
 		self.region = region
-		self.tag_name = tag_name
+		self.tags = {"cluster_name": "acorn-server", "acorn_exp_param": acorn_exp_param}
 		self.exception = None
 
 	def Run(self):
@@ -101,15 +101,13 @@ class DescInstPerRegion:
 			session = boto3.session.Session()
 			boto_client = session.client("ec2", region_name=self.region)
 
-			if self.tag_name == None:
+			if self.tags == None:
 				self.response = boto_client.describe_instances()
 			else:
-				self.response = boto_client.describe_instances(
-						Filters = [{
-							'Name': 'tag:Name',
-							'Values': [self.tag_name]
-							}]
-						)
+				filters = []
+				for k, v in tags.iteritems():
+					filters["tag:%s" % k] = [v]
+				self.response = boto_client.describe_instances(Filters = filters)
 
 		except KeyError as e:
 			#ConsP("region=%s KeyError=[%s]" % (self.region, e))
@@ -144,11 +142,12 @@ class DescInstPerRegion:
 
 		for r in self.response["Reservations"]:
 			for r1 in r["Instances"]:
-				tag_name = None
+				tags_str = ""
 				if "Tags" in r1:
 					for t in r1["Tags"]:
-						if t["Key"] == "Name":
-							tag_name = t["Value"]
+						if len(tags_str) > 0:
+							tags_str += ","
+						tags_str += "%s:%s" % (t["Key"], t["Value"])
 
 				ConsP(_fmt % (
 					_Value(_Value(r1, "Placement"), "AvailabilityZone")
@@ -158,7 +157,7 @@ class DescInstPerRegion:
 					, _Value(r1, "PrivateIpAddress")
 					, _Value(r1, "PublicIpAddress")
 					, _Value(_Value(r1, "State"), "Name")
-					, tag_name
+					, tags_str
 					))
 
 
@@ -184,5 +183,3 @@ def sys_stdout_write(msg):
 	with _print_lock:
 		sys.stdout.write(msg)
 		sys.stdout.flush()
-
-

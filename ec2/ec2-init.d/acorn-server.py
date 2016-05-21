@@ -30,6 +30,20 @@ def _RunSubp(cmd, shell = False):
 		_Log(Util.Indent(r, 2))
 
 
+def _SetHostname(tags):
+	az = Util.RunSubp("curl -s http://169.254.169.254/latest/meta-data/placement/availability-zone", print_cmd = False, print_result = False)
+	# Hostname consists of availability zone name and acorn experiment parameters
+	hn = "%s-%s" % (az, tags["acorn_exp_param"])
+
+	# http://askubuntu.com/questions/9540/how-do-i-change-the-computer-name
+	cmd = "sudo sh -c 'echo \"%s\" > /etc/hostname'" % hn
+	Util.RunSubp(cmd, shell=True)
+	cmd = "sudo sed -i '/^127.0.0.1 localhost.*/c\\127.0.0.1 localhost %s' /etc/hosts" % hn
+	Util.RunSubp(cmd, shell=True)
+	cmd = "sudo service hostname restart"
+	Util.RunSubp(cmd)
+
+
 def _SyncTime():
 	# Sync time. Important for Cassandra.
 	# http://askubuntu.com/questions/254826/how-to-force-a-clock-update-using-ntp
@@ -44,20 +58,6 @@ def _SyncTime():
 
 def _InstallPkgs():
 	_RunSubp("sudo apt-get update && sudo apt-get install -y pssh dstat", shell = True)
-
-
-def _SetHostname():
-	az = Util.RunSubp("curl -s http://169.254.169.254/latest/meta-data/placement/availability-zone", print_cmd = False, print_result = False)
-	# Note: may want to add tag name too.
-	hn = az
-
-	# http://askubuntu.com/questions/9540/how-do-i-change-the-computer-name
-	cmd = "sudo sh -c 'echo \"%s\" > /etc/hostname'" % hn
-	Util.RunSubp(cmd, shell=True)
-	cmd = "sudo sed -i '/^127.0.0.1 localhost.*/c\\127.0.0.1 localhost %s' /etc/hosts" % hn
-	Util.RunSubp(cmd, shell=True)
-	cmd = "sudo service hostname restart"
-	Util.RunSubp(cmd)
 
 
 def _MountAndFormatLocalSSDs():
@@ -89,22 +89,25 @@ def _CloneAcornSrcAndBuild():
 	_RunSubp("git clone https://github.com/hobinyoon/apache-cassandra-3.0.5-src.git /mnt/local-ssd0/work/apache-cassandra-3.0.5-src")
 	_RunSubp("rm -rf /home/ubuntu/work/acorn")
 	_RunSubp("ln -s /mnt/local-ssd0/work/apache-cassandra-3.0.5-src /home/ubuntu/work/acorn")
-	# TODO: report progress. clone done.
+	# Note: report progress. clone done.
 
 	# http://stackoverflow.com/questions/26067350/unmappable-character-for-encoding-ascii-but-my-files-are-in-utf-8
 	_RunSubp("cd /home/ubuntu/work/acorn && (JAVA_TOOL_OPTIONS=-Dfile.encoding=UTF8 ant)", shell = True)
-	# TODO: report progress. build done.
+	# Note: report progress. build done.
 
 
-def _EditCassConf():
-	tag_name = "acorn-server"
-	_Log("Getting IP addrs of all running %s instances ..." % tag_name)
-	ips = GetIPs.GetByTag(tag_name)
+def _EditCassConf(tags):
+	_Log("Getting IP addrs of all running instances of tags %s ..." % tags)
+
+	cluster_name = tags["cluster_name"]
+
+	ips = GetIPs.GetByTags(tags)
 	_Log(ips)
 
 	_Log("Editing conf/cassandra.yaml ...")
 	# http://stackoverflow.com/questions/7517632/how-do-i-escape-double-and-single-quotes-in-sed-bash
-	_RunSubp("sed -i 's/^cluster_name: .*/cluster_name: '\"'\"'acorn'\"'\"'/g' /home/ubuntu/work/acorn/conf/cassandra.yaml", shell = True)
+	_RunSubp("sed -i 's/^cluster_name: .*/cluster_name: '\"'\"'%s'\"'\"'/g' /home/ubuntu/work/acorn/conf/cassandra.yaml" % cluster_name
+			, shell = True)
 
 	cmd = "sed -i 's/" \
 			"^          - seeds: .*" \
@@ -165,22 +168,35 @@ def _RunCass():
 	# Check if all nodes are joined
 	_RunSubp("/home/ubuntu/work/acorn/bin/nodetool status")
 
-	# TODO: report the number of nodes that it sees
-	# TODO: keep reporting until it sees the correct number of nodes
+
+def _CacheEbsDataFileIntoMemory():
+	_RunSubp("/usr/local/bin/vmtouch -t /home/ubuntu/work/acorn-data/150812-143151-tweets-5667779")
 
 
 def main(argv):
 	try:
 		# This script is run under the user 'ubuntu'.
 
+		if len(argv) != 2:
+			raise RuntimeError("Unexpected argv %s" % argv)
+		tags_str = argv[1]
+
+		tags = {}
+		for kv in tags_str.split(","):
+			t = kv.split(":")
+			if len(t) != 2:
+				raise RuntimeError("Unexpected kv=[%s]" % kv)
+			tags[t[0]] = t[1]
+
+		_SetHostname(tags)
 		_SyncTime()
 		_InstallPkgs()
-		_SetHostname()
 		_MountAndFormatLocalSSDs()
 		_CloneAcornSrcAndBuild()
 
-		_EditCassConf()
+		_EditCassConf(tags)
 		_RunCass()
+		_CacheEbsDataFileIntoMemory()
 
 	except RuntimeError as e:
 		msg = "Exception: %s\n%s" % (e, traceback.format_exc())

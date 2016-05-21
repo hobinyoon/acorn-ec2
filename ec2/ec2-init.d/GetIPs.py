@@ -11,7 +11,7 @@ import Cons
 import Util
 
 
-def GetByTag(tag_name):
+def GetByTags(tags):
 	threads = []
 
 	regions = [
@@ -29,7 +29,7 @@ def GetByTag(tag_name):
 
 	dis = []
 	for r in regions:
-		dis.append(DescInst(r, tag_name))
+		dis.append(DescInst(r, tags))
 
 	for di in dis:
 		t = threading.Thread(target=di.Run)
@@ -49,17 +49,18 @@ def GetByTag(tag_name):
 
 
 class DescInst:
-	def __init__(self, region, tag_name):
+	def __init__(self, region, tags):
 		self.region = region
-		self.tag_name = tag_name
+		self.tags = tags
 
 	def Run(self):
 		boto_client = boto3.session.Session().client("ec2", region_name=self.region)
+		filters = []
+		for k, v in tags.iteritems():
+			filters["tag:%s" % k] = [v]
+
 		self.response = boto_client.describe_instances(
-				Filters = [{
-					'Name': 'tag:Name',
-					'Values': [self.tag_name]
-					}]
+				Filters = filters
 				)
 
 	def GetIp(self):

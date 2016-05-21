@@ -15,7 +15,6 @@ import Util
 
 
 _inst_id = None
-_tag_name = None
 _region = None
 
 def _LogInstInfo():
@@ -61,28 +60,35 @@ def _Log(msg):
 
 def _RunInitByTags():
 	boto_client = boto3.session.Session().client("ec2", region_name=_region)
-
 	r = boto_client.describe_tags()
 	#Cons.P(pprint.pformat(r, indent=2, width=100))
+	tags = {}
 	for r0 in r["Tags"]:
 		res_id = r0["ResourceId"]
 		if _inst_id != res_id:
 			continue
 		if _inst_id == res_id:
-			key = r0["Key"]
-			value = r0["Value"]
-			#_Log("tags key   : %s" % key)
-			#_Log("     value : %s" % value)
+			k = r0["Key"]
+			v = r0["Value"]
+			#_Log("tags key   : %s" % k)
+			#_Log("     value : %s" % v)
+			tags[k] = v
+	_Log("tags: %s" % tags)
 
-			if key == "Name":
-				global _tag_name
-				_tag_name = value
-			_Log("tag:Name=%s" % _tag_name)
+	if "cluster_name" not in tags:
+		raise RuntimeError("Unexpected. no cluster_name in tags")
+	cluster_name = tags["cluster_name"]
 
-			fn_cmd = "%s/ec2-init.d/%s.py" % (os.path.dirname(os.path.realpath(__file__)), _tag_name)
-			_Log("Running %s" % fn_cmd)
-			Util.RunSubp(fn_cmd, print_cmd = False, print_result = False)
-			break
+	tags_str = ""
+	for k, v in tags.iteritems():
+		if len(tags_str) > 0:
+			tags_str += ","
+		tags_str += ("%s:%s" % (k, v))
+
+	fn_cmd = "%s/ec2-init.d/%s.py %s" \
+			% (os.path.dirname(os.path.realpath(__file__)), cluster_name, tags_str)
+	_Log("Running %s" % fn_cmd)
+	Util.RunSubp(fn_cmd, shell = True, print_cmd = False, print_result = False)
 
 
 def main(argv):
