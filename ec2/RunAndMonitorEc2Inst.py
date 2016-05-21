@@ -2,6 +2,7 @@ import boto3
 # Boto: http://boto3.readthedocs.org/en/latest/
 import os
 import pprint
+import re
 import sys
 import threading
 import time
@@ -36,10 +37,15 @@ def Run(regions = ["us-east-1"], tag_name = None, ec2_type = None):
 
 
 class RunAndMonitor():
-	def __init__(self, region_name, tag_name, ec2_type):
-		self.ami_id = Ec2Util.GetLatestAmiId(region_name)
+	def __init__(self, az_or_region, tag_name, ec2_type):
+		if re.match(r".*[a-z]$", az_or_region):
+			self.az = az_or_region
+			self.region_name = self.az[:-1]
+		else:
+			self.az = None
+			self.region_name = az_or_region
+		self.ami_id = Ec2Util.GetLatestAmiId(self.region_name)
 
-		self.region_name = region_name
 		self.tag_name = tag_name
 		self.ec2_type = ec2_type
 
@@ -58,6 +64,11 @@ sudo -i -u ubuntu /home/ubuntu/work/acorn-tools/ec2/ec2-init.py
 # http://unix.stackexchange.com/questions/4342/how-do-i-get-sudo-u-user-to-use-the-users-env
 
 		self.boto_client = boto3.session.Session().client("ec2", region_name = self.region_name)
+
+		placement = {}
+		if self.az != None:
+			placement['AvailabilityZone'] = self.az
+
 		response = self.boto_client.run_instances(
 				DryRun = False
 				, ImageId = self.ami_id
@@ -66,12 +77,11 @@ sudo -i -u ubuntu /home/ubuntu/work/acorn-tools/ec2/ec2-init.py
 				, SecurityGroups=["cass-server"]
 				, EbsOptimized=True
 				, InstanceType = self.ec2_type
+				, Placement=placement
 
-				# AZ doesn't need to be specified. self.az = "us-west-1c"
-				#, Placement={'AvailabilityZone': self.az}
-
-				# I don't see a user data file. Just string.
+				# User data is passed as a string. I don't see an option of specifying a file.
 				, UserData=init_script
+
 				, InstanceInitiatedShutdownBehavior='terminate'
 				)
 		#ConsP("Response:")
@@ -189,7 +199,9 @@ class InstLaunchProgMon():
 				# Move the cursor to column 1
 				sys.stdout.write(chr(27) + "[1G")
 
-			sys.stdout.write(output)
+			#sys.stdout.write(output)
+			# Sort them
+			sys.stdout.write("\n".join(sorted(output.split("\n"))))
 			sys.stdout.flush()
 			output_lines_written = len(output.split("\n"))
 
@@ -205,11 +217,12 @@ class InstLaunchProgMon():
 			time.sleep(0.1)
 		print ""
 		print ""
+
 		InstLaunchProgMon.DescInsts()
 
 	@staticmethod
 	def DescInsts():
-		fmt = "%10s %10s %10s %13s %15s %15s %10s %20s"
+		fmt = "%-15s %10s %10s %13s %15s %15s %10s %20s"
 		ConsP(Util.BuildHeader(fmt,
 			"Placement:AvailabilityZone"
 			" InstanceId"
