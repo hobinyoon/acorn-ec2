@@ -18,7 +18,7 @@ _threads = []
 _dn_tmp = "%s/../.tmp" % os.path.dirname(os.path.realpath(__file__))
 
 
-def Run(regions = ["us-east-1"], tag_name = None, ec2_type = None):
+def Run(regions, tag_name = None, ec2_type = None):
 	Util.RunSubp("mkdir -p %s" % _dn_tmp, print_cmd = False)
 
 	rams = []
