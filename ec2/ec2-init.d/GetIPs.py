@@ -55,9 +55,14 @@ class DescInst:
 
 	def Run(self):
 		boto_client = boto3.session.Session().client("ec2", region_name=self.region)
+
 		filters = []
-		for k, v in tags.iteritems():
-			filters["tag:%s" % k] = [v]
+		for k, v in self.tags.iteritems():
+		 d = {}
+		 d["Name"] = ("tag:%s" % k)
+		 d["Values"] = [v]
+		 filters.append(d)
+		self.response = boto_client.describe_instances(Filters = filters)
 
 		self.response = boto_client.describe_instances(
 				Filters = filters
