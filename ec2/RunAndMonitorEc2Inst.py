@@ -245,7 +245,7 @@ class InstLaunchProgMon():
 			for k, v in sorted(tags.iteritems()):
 				if len(tags_str) > 0:
 					tags_str += ","
-				tags_str += ("%s:%s" % (t["Key"], t["Value"]))
+				tags_str += ("%s:%s" % (k, v))
 
 			#ConsP(Util.Indent(pprint.pformat(r, indent=2, width=100), 2))
 			ConsP(fmt % (

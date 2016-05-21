@@ -105,8 +105,11 @@ class DescInstPerRegion:
 				self.response = boto_client.describe_instances()
 			else:
 				filters = []
-				for k, v in tags.iteritems():
-					filters["tag:%s" % k] = [v]
+				for k, v in self.tags.iteritems():
+					d = {}
+					d["Name"] = ("tag:%s" % k)
+					d["Values"] = [v]
+					filters.append(d)
 				self.response = boto_client.describe_instances(Filters = filters)
 
 		except KeyError as e:
