@@ -92,9 +92,7 @@ class TermInst:
 			sys_stdout_write(" %s" % self.region)
 			return
 
-		self.response = boto_client.terminate_instances(
-				, InstanceIds = self.inst_ids
-				)
+		self.response = boto_client.terminate_instances(InstanceIds = self.inst_ids)
 		sys_stdout_write(" %s" % self.region)
 
 	def PrintResult(self):
