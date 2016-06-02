@@ -14,6 +14,7 @@ import Util
 
 sqs_region = "us-east-1"
 q_name = "acorn-exps"
+msg_body = "acorn-exp"
 
 
 def main(argv):
@@ -26,7 +27,7 @@ def main(argv):
 		DeqReq(q)
 	except KeyboardInterrupt as e:
 		Cons.P("Got a keyboard interrupt. Stopping ...")
-		WaitTimer.ReqStop()
+		AllWaitTimers.ReqStop()
 
 
 def DeleteQ(bc):
@@ -66,7 +67,7 @@ def GetQ(bc, sqs):
 
 def EnqReq(q):
 	with Cons.MT("Enq a message ..."):
-		q.send_message(MessageBody="acorn-exp", MessageAttributes={
+		q.send_message(MessageBody=msg_body, MessageAttributes={
 			"rep_model": {"StringValue": "full", "DataType": "String"},
 			"exchange_acorn_metadata": {"StringValue": "true", "DataType": "String"},
 			})
@@ -99,59 +100,74 @@ def DeqReq(q):
 				#rep_model = m.message_attributes.get('rep_model').get('StringValue')
 				#Cons.P("[%s] [%s]" % (m.body, rep_model))
 
-				Cons.P("%d m.body=[%s]" % (i, m.body))
+				#Cons.P("%d m.body=[%s]" % (i, m.body))
+				if m.body != msg_body:
+					raise RuntimeError("Unexpected")
+				params = {}
 				for k, v in m.message_attributes.iteritems():
 					if v["DataType"] != "String":
 						raise RuntimeError("Unexpected")
-					Cons.P("  %s: %s" % (k, v["StringValue"]))
+					v1 = v["StringValue"]
+					params[k] = v1
+					#Cons.P("  %s: %s" % (k, v1))
 
-				# TODO: Start the experiment with the parameters
+				# TODO
+				Cons.P("TODO: Start an experiment with the parameters %s"
+						% ", ".join(['%s=%s' % (k, v) for (k, v) in params.items()]))
 
 				# TODO: Let the queue know that the m is processed
 				#m.delete()
 
 
-# It can be stopped without the object handle
-class WaitTimer:
-	stop_requested = False
-	cv = threading.Condition()
-	t = None
+class AllWaitTimers:
+	timers = []
 
+	@staticmethod
+	def Add(wt):
+		AllWaitTimers.timers.append(wt)
+
+	@staticmethod
+	def ReqStop():
+		for wt in AllWaitTimers.timers:
+			wt.ReqStop()
+
+
+class WaitTimer:
 	def __enter__(self):
-		WaitTimer.t = threading.Thread(target=self.Timer)
-		WaitTimer.t.start()
+		AllWaitTimers.Add(self)
+		self.stop_requested = False
+		self.cv = threading.Condition()
+		self.t = threading.Thread(target=self.Timer)
+		self.t.start()
 
 	def Timer(self):
 		self.wait_time = 0
-		while WaitTimer.stop_requested == False:
-			with WaitTimer.cv:
-				WaitTimer.cv.wait(1.0)
-			if WaitTimer.stop_requested == True:
+		while self.stop_requested == False:
+			with self.cv:
+				self.cv.wait(1.0)
+			if self.stop_requested == True:
 				break
-			self.wait_time += 1
 
 			# Clear current line
 			sys.stdout.write(chr(27) + "[2K")
 			# Move the cursor to column 1
 			sys.stdout.write(chr(27) + "[1G")
 
-			Cons.Pnnl("Waiting for a reply %s" % self.wait_time)
+			Cons.Pnnl("Waiting for a reply %s" % (self.wait_time + 1))
+			self.wait_time += 1
 
 	def __exit__(self, type, value, traceback):
-		if self.wait_time > 0:
-			print " ... got one"
-		WaitTimer.stop_requested = True
-		with WaitTimer.cv:
-			WaitTimer.cv.notifyAll()
-		WaitTimer.t.join()
+		self.ReqStop()
 
-	@staticmethod
-	def ReqStop():
-		WaitTimer.stop_requested = True
-		with WaitTimer.cv:
-			WaitTimer.cv.notifyAll()
-		if WaitTimer.t != None:
-			WaitTimer.t.join()
+	def ReqStop(self):
+		if self.wait_time > 0:
+			print ""
+
+		self.stop_requested = True
+		with self.cv:
+			self.cv.notifyAll()
+		if self.t != None:
+			self.t.join()
 
 
 if __name__ == "__main__":
