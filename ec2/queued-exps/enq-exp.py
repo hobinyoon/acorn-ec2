@@ -13,6 +13,7 @@ import Util
 
 sqs_region = "us-east-1"
 q_name = "acorn-exps"
+msg_body = "acorn-exp"
 
 def main(argv):
 	bc = boto3.client("sqs", region_name = sqs_region)
@@ -60,10 +61,16 @@ def GetQ(bc, sqs):
 
 def EnqReq(q):
 	with Cons.MT("Enq a message ..."):
-		q.send_message(MessageBody="acorn-exp", MessageAttributes={
-			"rep_model": {"StringValue": "full", "DataType": "String"},
-			"exchange_acorn_metadata": {"StringValue": "true", "DataType": "String"},
-			})
+		attrs = {
+				"rep_model": "full"
+				, "exchange_acorn_metadata": "true"
+				}
+
+		msg_attrs = {}
+		for k, v in attrs.iteritems():
+			msg_attrs[k] = {"StringValue": v, "DataType": "String"}
+
+		q.send_message(MessageBody=msg_body, MessageAttributes={msg_attrs})
 
 
 if __name__ == "__main__":
