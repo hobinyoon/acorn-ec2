@@ -79,16 +79,27 @@ def DeqReq(q):
 			messages = None
 			with WaitTimer():
 				while True:
-					messages = q.receive_messages(
-							#AttributeNames=[
-							#	'Policy'|'VisibilityTimeout'|'MaximumMessageSize'|'MessageRetentionPeriod'|'ApproximateNumberOfMessages'|'ApproximateNumberOfMessagesNotVisible'|'CreatedTimestamp'|'LastModifiedTimestamp'|'QueueArn'|'ApproximateNumberOfMessagesDelayed'|'DelaySeconds'|'ReceiveMessageWaitTimeSeconds'|'RedrivePolicy',
-							#	],
-							MessageAttributeNames=["All"],
-							MaxNumberOfMessages=1,
-							VisibilityTimeout=10,
-							WaitTimeSeconds=5
-							)
-					if len(messages) > 0:
+					try:
+						messages = None
+						messages = q.receive_messages(
+								#AttributeNames=[
+								#	'Policy'|'VisibilityTimeout'|'MaximumMessageSize'|'MessageRetentionPeriod'|'ApproximateNumberOfMessages'|'ApproximateNumberOfMessagesNotVisible'|'CreatedTimestamp'|'LastModifiedTimestamp'|'QueueArn'|'ApproximateNumberOfMessagesDelayed'|'DelaySeconds'|'ReceiveMessageWaitTimeSeconds'|'RedrivePolicy',
+								#	],
+								MessageAttributeNames=["All"],
+								MaxNumberOfMessages=1,
+
+								# Should be bigger than one experiment duration so that another
+								# of the same experiment doesn't get picked up while one is
+								# running.
+								VisibilityTimeout=3600,
+
+								WaitTimeSeconds=5
+								)
+					except botocore.exceptions.EndpointConnectionError as e:
+						# Could not connect to the endpoint URL: "https://queue.amazonaws.com/"
+						Cons.P("%s. Retrying ..." % e)
+						time.sleep(2)
+					if (messages is not None) and (len(messages)) > 0:
 						break
 
 			for m in messages:
@@ -115,7 +126,8 @@ def DeqReq(q):
 				Cons.P("TODO: Start an experiment with the parameters %s"
 						% ", ".join(['%s=%s' % (k, v) for (k, v) in params.items()]))
 
-				# TODO: Let the queue know that the m is processed
+				# TODO: Delete when the experiment is done. How do you know when one is
+				# done?
 				#m.delete()
 
 
