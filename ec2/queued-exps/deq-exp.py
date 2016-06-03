@@ -122,12 +122,15 @@ def DeqReq(q):
 					params[k] = v1
 					#Cons.P("  %s: %s" % (k, v1))
 
-				# TODO
-				Cons.P("TODO: Start an experiment with the parameters %s"
+				# TODO: Need a rate control here? May want some admission control.
+				# First, you need to check how many free instance slots are available.
+
+				Cons.P("Starting an experiment with the parameters %s"
 						% ", ".join(['%s=%s' % (k, v) for (k, v) in params.items()]))
 
-				# TODO: Delete when the experiment is done. How do you know when one is
-				# done?
+				# TODO: Delete when the experiment is done.  Should be done by a master
+				# cluster node.  This node (controller node) doesn't know when an
+				# experiment is done.
 				#m.delete()
 
 
