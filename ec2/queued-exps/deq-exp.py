@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+import base64
 import boto3
 import botocore
 import os
@@ -13,8 +14,8 @@ import Util
 
 
 sqs_region = "us-east-1"
-q_name = "acorn-exps"
-msg_body = "acorn-exp"
+q_name_jr = "acorn-jobs-requested"
+msg_body = "acorn-exp-req"
 
 
 def main(argv):
@@ -25,6 +26,11 @@ def main(argv):
 		q = GetQ(bc, sqs)
 
 		DeqReq(q)
+
+		# TODO: rename the file. poll and process job request messages and job
+		# completed messages
+		# TODO: implement job completed msg processing.
+
 	except KeyboardInterrupt as e:
 		Cons.P("Got a keyboard interrupt. Stopping ...")
 		AllWaitTimers.ReqStop()
@@ -43,7 +49,7 @@ def GetQ(bc, sqs):
 	with Cons.MT("Getting the queue ..."):
 		try:
 			queue = sqs.get_queue_by_name(
-					QueueName = q_name,
+					QueueName = q_name_jr,
 					# QueueOwnerAWSAccountId='string'
 					)
 			#Cons.P(pprint.pformat(vars(queue), indent=2))
@@ -59,10 +65,10 @@ def GetQ(bc, sqs):
 				raise e
 
 		Cons.P("The queue doesn't exists. Creating one ...")
-		response = bc.create_queue(QueueName = q_name)
+		response = bc.create_queue(QueueName = q_name_jr)
 		# Default message retention period is 4 days.
 
-		return sqs.get_queue_by_name(QueueName = q_name)
+		return sqs.get_queue_by_name(QueueName = q_name_jr)
 
 
 def EnqReq(q):
@@ -103,17 +109,15 @@ def DeqReq(q):
 						break
 
 			for m in messages:
-				# Get the custom author m attribute if it was set
-				author_text = ''
+				if m.body != msg_body:
+					raise RuntimeError("Unexpected. m.body=[%s]" % m.body)
+
+				if m.receipt_handle is None:
+					raise RuntimeError("Unexpected")
+
 				if m.message_attributes is None:
 					raise RuntimeError("Unexpected")
 
-				#rep_model = m.message_attributes.get('rep_model').get('StringValue')
-				#Cons.P("[%s] [%s]" % (m.body, rep_model))
-
-				#Cons.P("%d m.body=[%s]" % (i, m.body))
-				if m.body != msg_body:
-					raise RuntimeError("Unexpected")
 				params = {}
 				for k, v in m.message_attributes.iteritems():
 					if v["DataType"] != "String":
@@ -122,16 +126,28 @@ def DeqReq(q):
 					params[k] = v1
 					#Cons.P("  %s: %s" % (k, v1))
 
-				# TODO: Need a rate control here? May want some admission control.
-				# First, you need to check how many free instance slots are available.
+				params["sqs_url"] = base64.b64encode(q._url)
+				params["sqs_message_receipt_handle"] = m.recript_handle
+
+				# TODO: May want some admission control here, like one based on how
+				# many free instance slots are available.
 
 				Cons.P("Starting an experiment with the parameters %s"
 						% ", ".join(['%s=%s' % (k, v) for (k, v) in params.items()]))
-
-				# TODO: Delete when the experiment is done.  Should be done by a master
-				# cluster node.  This node (controller node) doesn't know when an
-				# experiment is done.
-				#m.delete()
+				argv = []
+				argv.append("run-ec2-insts.py")
+				for k, v in params.iteritems():
+					# SQS message receipt handle seems to be base64-encoded, which can
+					# contain the char =. So, = cannot be used as a delimiter for the
+					# key-value pairs. Go with :
+					# http://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/ImportantIdentifiers.html
+					argv.append("%s:%s", (k, v))
+				# Regions
+				argv.append("all")
+				run-ec2-insts.main(argv=argv)
+				# Sleep a bit so that each cluster has a unique ID, which is made of
+				# current datetime
+				time.sleep(1.5)
 
 
 class AllWaitTimers:

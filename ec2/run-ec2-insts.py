@@ -22,27 +22,34 @@ def main(argv):
 			, "sa-east-1"
 			]
 
-	# Note: I may want to use option parsing utility.
-
-	# acorn_exp_param seems hacky. Can be generalized to a dict of key value later.
 	if len(argv) < 3:
-		print "Usage: %s acorn_exp_param [region]+" % argv[0]
-		print "  acorn_exp_param examples: u, t, ut, na, full"
+		print "Usage: %s [acorn_exp_param]+ [region]+" % argv[0]
+		print "  acorn_exp_param examples: rep_model=full exchange_acorn_metadata=true"
 		print "  region: all or some of %s" % " ".join(regions_all)
 		sys.exit(1)
 
-	# Note: In the future, I may want to generate the cluster name on the fly.
-
-	acorn_exp_param = argv[1]
-
 	regions = []
-	if argv[2] == "all":
-		regions = regions_all
-	else:
-		for i in range(len(argv)):
-			if i < 2:
-				continue
-			regions.append(argv[i])
+	params = {}
+	for i in range(1, len(argv)):
+		a = argv[i]
+		t = a.split(":")
+		if len(t) == 1:
+			if t == "all":
+				regions = regions_all
+			else:
+				regions.append(t)
+		elif len(t) == 2:
+			params[t[0]] = t[1]
+		else:
+			raise RuntimeError("Unexpected argv=[%s]" % " ".join(argv))
+
+	# cluster_name for executing the init script.
+	params["init_script"] = "acorn-server"
+
+	# Cassandra cluster name. It's ok for multiple clusters to have the same
+	# cluster_name for Cassandra. It's ok for multiple clusters to have the same
+	# name as long as they don't see each other through the gossip protocol.
+	params["cass_cluster_name"] = "acorn"
 
 	# EC2 instance types
 	#
@@ -56,16 +63,7 @@ def main(argv):
 	# For fast development
 	ec2_type = "c3.4xlarge"
 
-	RunAndMonitorEc2Inst.Run(
-			regions = regions
-			, ec2_type = ec2_type
-			# TODO: The first key used to be just "Name". replace all.
-			, tags = {"cluster_name": "acorn-server"
-
-				# Per cluster parameter. Combined with the cluster_name, this is used
-				# for identifying a cluster. Seems hacky, but okay for now.
-				, "acorn_exp_param": acorn_exp_param}
-			)
+	RunAndMonitorEc2Inst.Run(regions = regions, ec2_type = ec2_type, tags = params)
 
 
 if __name__ == "__main__":

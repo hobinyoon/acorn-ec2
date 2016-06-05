@@ -75,26 +75,29 @@ def _RunInitByTags():
 			tags[k] = v
 	_Log("tags: %s" % tags)
 
-	if "cluster_name" not in tags:
-		raise RuntimeError("Unexpected. no cluster_name in tags")
-	cluster_name = tags["cluster_name"]
+	if "init_script" not in tags:
+		raise RuntimeError("No init_script in tags")
+	init_script = tags["init_script"]
 
-	tags_str = ""
-	for k, v in tags.iteritems():
-		if len(tags_str) > 0:
-			tags_str += ","
-		tags_str += ("%s:%s" % (k, v))
+	# Stingizing is not necessary, but useful for tesing the init script
+	# separately.
+	tags_str = ",".join(["%s:%s" % (k, v) for (k, v) in tags.items()])
 
-	fn_cmd = "%s/ec2-init.d/%s.py %s" \
-			% (os.path.dirname(os.path.realpath(__file__)), cluster_name, tags_str)
+	fn_cmd = "%s/ec2-init.d/%s.py %s %s" \
+			% (os.path.dirname(os.path.realpath(__file__)), init_script, _job_id, tags_str)
 	_Log("Running %s" % fn_cmd)
 	Util.RunSubp(fn_cmd, shell = True, print_cmd = False, print_result = False)
 
+
+_job_id = None
 
 def main(argv):
 	try:
 		# This script is run under the user 'ubuntu'.
 		#Util.RunSubp("touch /tmp/%s" % getpass.getuser())
+
+		global _job_id
+		_job_id = argv[1]
 
 		Util.RunSubp("sudo mkdir -p /var/log/acorn")
 		Util.RunSubp("sudo chown %s /var/log/acorn" % getpass.getuser())

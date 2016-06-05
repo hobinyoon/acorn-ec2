@@ -64,10 +64,6 @@ class DescInst:
 		 filters.append(d)
 		self.response = boto_client.describe_instances(Filters = filters)
 
-		self.response = boto_client.describe_instances(
-				Filters = filters
-				)
-
 	def GetIp(self):
 		#Cons.P(pprint.pformat(self.response, indent=2, width=100))
 		#Cons.P(pprint.pformat(self.response["Reservations"], indent=2, width=100))

@@ -12,8 +12,8 @@ import Util
 
 
 sqs_region = "us-east-1"
-q_name = "acorn-exps"
-msg_body = "acorn-exp"
+q_name_jr = "acorn-jobs-requested"
+msg_body = "acorn-exp-req"
 
 def main(argv):
 	bc = boto3.client("sqs", region_name = sqs_region)
@@ -37,7 +37,7 @@ def GetQ(bc, sqs):
 	with Cons.MT("Getting the queue ..."):
 		try:
 			queue = sqs.get_queue_by_name(
-					QueueName = q_name,
+					QueueName = q_name_jr,
 					# QueueOwnerAWSAccountId='string'
 					)
 			#Cons.P(pprint.pformat(vars(queue), indent=2))
@@ -53,23 +53,32 @@ def GetQ(bc, sqs):
 				raise e
 
 		Cons.P("The queue doesn't exists. Creating one ...")
-		response = bc.create_queue(QueueName = q_name)
+		response = bc.create_queue(QueueName = q_name_jr)
 		# Default message retention period is 4 days.
 
-		return sqs.get_queue_by_name(QueueName = q_name)
+		return sqs.get_queue_by_name(QueueName = q_name_jr)
 
 
 def EnqReq(q):
-	with Cons.MT("Enq a message ..."):
-		attrs = {
-				"rep_model": "full"
-				, "exchange_acorn_metadata": "true"
-				}
+	# Measure xDC traffic of object replication and metadata
+	_EnqReq(q, {
+		"acorn_options.full_replication": "true"
+		, "acorn-youtube.replication_type": "partial"
+		, "fn_youtube_reqs": "tweets-010"
+		, "max_requests": "5000"
+		, "simulation_time_dur_in_ms": "10000"
+		})
+	#_EnqReq(q, {
+	#	"acorn_options.full_replication": "false"
+	#	, "acorn-youtube.replication_type": "partial"
+	#	})
 
+
+def _EnqReq(q, attrs):
+	with Cons.MT("Enq a message ..."):
 		msg_attrs = {}
 		for k, v in attrs.iteritems():
 			msg_attrs[k] = {"StringValue": v, "DataType": "String"}
-
 		q.send_message(MessageBody=msg_body, MessageAttributes={msg_attrs})
 
 

@@ -1,5 +1,6 @@
 import boto3
 # Boto: http://boto3.readthedocs.org/en/latest/
+import datetime
 import os
 import pprint
 import re
@@ -7,7 +8,7 @@ import sys
 import threading
 import time
 
-sys.path.insert(0, "%s/../util/python" % os.path.dirname(os.path.realpath(__file__)))
+sys.path.insert(0, "%s/../util/python" % os.path.dirname(__file__))
 import Cons
 import Util
 
@@ -15,10 +16,16 @@ import Ec2Util
 
 
 _threads = []
-_dn_tmp = "%s/../.tmp" % os.path.dirname(os.path.realpath(__file__))
+_dn_tmp = "%s/../.tmp" % os.path.dirname(__file__)
+_job_id = None
 
 
 def Run(regions, ec2_type, tags):
+	req_datetime = datetime.datetime.now()
+	global _job_id
+	_job_id = req_datetime.strftime("%y%m%d-%H%M%S"))
+	Cons.P("Job ID: %s (used for describing or terminating the cluster)" % _job_id)
+
 	Util.RunSubp("mkdir -p %s" % _dn_tmp, print_cmd = False)
 
 	rams = []
@@ -52,13 +59,14 @@ class RunAndMonitor():
 
 	def RunEc2Inst(self):
 		# This is run as root
-		init_script = \
+		user_data = \
 """#!/bin/bash
 cd /home/ubuntu/work
 rm -rf /home/ubuntu/work/acorn-tools
 sudo -i -u ubuntu bash -c 'git clone https://github.com/hobinyoon/acorn-tools.git /home/ubuntu/work/acorn-tools'
-sudo -i -u ubuntu /home/ubuntu/work/acorn-tools/ec2/ec2-init.py
+sudo -i -u ubuntu /home/ubuntu/work/acorn-tools/ec2/ec2-init.py {0}
 """
+		user_data = user_data.format(_job_id)
 
 #cd /home/ubuntu/work/acorn-tools
 #sudo -u ubuntu bash -c 'git pull'
@@ -81,7 +89,7 @@ sudo -i -u ubuntu /home/ubuntu/work/acorn-tools/ec2/ec2-init.py
 				, Placement=placement
 
 				# User data is passed as a string. I don't see an option of specifying a file.
-				, UserData=init_script
+				, UserData=user_data
 
 				, InstanceInitiatedShutdownBehavior='terminate'
 				)
@@ -126,10 +134,11 @@ sudo -i -u ubuntu /home/ubuntu/work/acorn-tools/ec2/ec2-init.py
 			state = response["Reservations"][0]["Instances"][0]["State"]["Name"]
 			InstLaunchProgMon.Update(self.inst_id, response)
 
-			# Make (region-acorn_exp_param)-ipaddr files
-			fn = "%s/%s-%s" % (_dn_tmp, self.region_name, self.tags["acorn_exp_param"])
-			with open(fn, "w") as fo:
-				fo.write(response["Reservations"][0]["Instances"][0]["PublicIpAddress"])
+			# With composite parametes it's not easy to make one of these any more.
+			# Make (region-acorn_exp_param) to ipaddr files
+			#fn = "%s/%s-%s" % (_dn_tmp, self.region_name, self.tags["acorn_exp_param"])
+			#with open(fn, "w") as fo:
+			#	fo.write(response["Reservations"][0]["Instances"][0]["PublicIpAddress"])
 
 
 class InstLaunchProgMon():
