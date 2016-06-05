@@ -7,6 +7,7 @@ import os
 import pprint
 import sys
 import threading
+import time
 
 sys.path.insert(0, "%s/../../util/python" % os.path.dirname(__file__))
 import Cons
