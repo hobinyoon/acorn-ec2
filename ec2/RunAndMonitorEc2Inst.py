@@ -19,18 +19,31 @@ _threads = []
 _dn_tmp = "%s/../.tmp" % os.path.dirname(__file__)
 _job_id = None
 
+_ec2_type = None
+_tags = None
+_jr_sqs_url = None
+_jr_sqs_msg_receipt_handle = None
+_init_script = None
 
-def Run(regions, ec2_type, tags):
+
+def Run(regions, ec2_type, tags, jr_sqs_url, jr_sqs_msg_receipt_handle, init_script)
+	Util.RunSubp("mkdir -p %s" % _dn_tmp, print_cmd = False)
+
 	req_datetime = datetime.datetime.now()
 	global _job_id
 	_job_id = req_datetime.strftime("%y%m%d-%H%M%S")
 	Cons.P("Job ID: %s (used for describing or terminating the cluster)" % _job_id)
 
-	Util.RunSubp("mkdir -p %s" % _dn_tmp, print_cmd = False)
+	global _ec2_type, _tags, _jr_sqs_url, _jr_sqs_msg_receipt_handle, _init_script
+	_ec2_type = ec2_type
+	_tags = tags
+	_jr_sqs_url = jr_sqs_url
+	_jr_sqs_msg_receipt_handle = jr_sqs_msg_receipt_handle
+	_init_script = init_script
 
 	rams = []
 	for r in regions:
-		rams.append(RunAndMonitor(r, ec2_type, tags))
+		rams.append(RunAndMonitor(r))
 
 	for ram in rams:
 		t = threading.Thread(target=ram.RunEc2Inst)
@@ -44,7 +57,7 @@ def Run(regions, ec2_type, tags):
 
 
 class RunAndMonitor():
-	def __init__(self, az_or_region, ec2_type, tags):
+	def __init__(self, az_or_region):
 		if re.match(r".*[a-z]$", az_or_region):
 			self.az = az_or_region
 			self.region_name = self.az[:-1]
@@ -52,9 +65,6 @@ class RunAndMonitor():
 			self.az = None
 			self.region_name = az_or_region
 		self.ami_id = Ec2Util.GetLatestAmiId(self.region_name)
-
-		self.ec2_type = ec2_type
-		self.tags = tags
 
 
 	def RunEc2Inst(self):
@@ -64,9 +74,9 @@ class RunAndMonitor():
 cd /home/ubuntu/work
 rm -rf /home/ubuntu/work/acorn-tools
 sudo -i -u ubuntu bash -c 'git clone https://github.com/hobinyoon/acorn-tools.git /home/ubuntu/work/acorn-tools'
-sudo -i -u ubuntu /home/ubuntu/work/acorn-tools/ec2/ec2-init.py {0}
+sudo -i -u ubuntu /home/ubuntu/work/acorn-tools/ec2/ec2-init.py {0} {1} {2} {3}
 """
-		user_data = user_data.format(_job_id)
+		user_data = user_data.format(_init_script, _job_id, _jr_sqs_url, _jr_sqs_msg_receipt_handle)
 
 #cd /home/ubuntu/work/acorn-tools
 #sudo -u ubuntu bash -c 'git pull'
@@ -85,7 +95,7 @@ sudo -i -u ubuntu /home/ubuntu/work/acorn-tools/ec2/ec2-init.py {0}
 				, MaxCount=1
 				, SecurityGroups=["cass-server"]
 				, EbsOptimized=True
-				, InstanceType = self.ec2_type
+				, InstanceType = _ec2_type
 				, Placement=placement
 
 				# User data is passed as a string. I don't see an option of specifying a file.
@@ -118,7 +128,7 @@ sudo -i -u ubuntu /home/ubuntu/work/acorn-tools/ec2/ec2-init.py {0}
 			# Create a tag
 			if state == "pending" and tagged == False:
 				tags_boto = []
-				for k, v in self.tags.iteritems():
+				for k, v in _tags.iteritems():
 					tags_boto.append({"Key": k, "Value": v})
 					#ConsP("[%s]=[%s]" %(k, v))
 
@@ -137,7 +147,7 @@ sudo -i -u ubuntu /home/ubuntu/work/acorn-tools/ec2/ec2-init.py {0}
 
 			# With composite parametes it's not easy to make one of these any more.
 			# Make (region-acorn_exp_param) to ipaddr files
-			#fn = "%s/%s-%s" % (_dn_tmp, self.region_name, self.tags["acorn_exp_param"])
+			#fn = "%s/%s-%s" % (_dn_tmp, self.region_name, _tags["acorn_exp_param"])
 			#with open(fn, "w") as fo:
 			#	fo.write(response["Reservations"][0]["Instances"][0]["PublicIpAddress"])
 
@@ -251,12 +261,6 @@ class InstLaunchProgMon():
 				for t in r["Tags"]:
 					tags[t["Key"]] = t["Value"]
 
-			tags_str = ""
-			for k, v in sorted(tags.iteritems()):
-				if len(tags_str) > 0:
-					tags_str += ","
-				tags_str += ("%s:%s" % (k, v))
-
 			#ConsP(Util.Indent(pprint.pformat(r, indent=2, width=100), 2))
 			ConsP(fmt % (
 				_Value(_Value(r, "Placement"), "AvailabilityZone")
@@ -266,7 +270,7 @@ class InstLaunchProgMon():
 				, _Value(r, "PrivateIpAddress")
 				, _Value(r, "PublicIpAddress")
 				, _Value(_Value(r, "State"), "Name")
-				, tags_str
+				, ",".join(["%s:%s" % (k, v) for (k, v) in tags.items()])
 				))
 
 

@@ -3,13 +3,11 @@
 import base64
 import boto3
 import botocore
-import bz2
 import os
 import pprint
 import sys
 import threading
 import time
-import zlib
 
 sys.path.insert(0, "%s/../../util/python" % os.path.dirname(__file__))
 import Cons
@@ -138,36 +136,22 @@ def DeqReq(q):
 				if m.message_attributes is None:
 					raise RuntimeError("Unexpected")
 
-				params = {}
+				tags = {}
 				for k, v in m.message_attributes.iteritems():
 					if v["DataType"] != "String":
 						raise RuntimeError("Unexpected")
 					v1 = v["StringValue"]
-					params[k] = v1
+					tags[k] = v1
 					#Cons.P("  %s: %s" % (k, v1))
-
-				params["sqs_url_jr"] = q._url
-
-				# Compress and split long parameters to work around the ec2 tag
-				# limitations. EC2 tag value has a 256-byte limit.
-				#   http://docs.aws.amazon.com/awsaccountbilling/latest/aboutv2/allocation-tag-restrictions.html
-				#
-				# zlib is more efficient than bz2 for the short, sqs receipt handles. interesting.
-				#   Original len: 412
-				#   zlib: 347
-				#   bz2: 412
-				#
-				# Compression doesn't help reduce the value under 256 chars.
-				params["sqs_message_receipt_handle_0"] = m.receipt_handle[:255]
-				params["sqs_message_receipt_handle_1"] = m.receipt_handle[255:]
 
 				# TODO: May want some admission control here, like one based on how
 				# many free instance slots are available.
 
-				Cons.P("Starting an experiment with the parameters:")
-				for k, v in sorted(params.iteritems()):
+				Cons.P("Starting an experiment with the tags:")
+				for k, v in sorted(tags.iteritems()):
 					Cons.P("  %s:%s" % (k, v))
 
+				# TODO
 				#regions = [
 				#		"us-east-1"
 				#		, "us-west-1"
@@ -183,18 +167,34 @@ def DeqReq(q):
 				#		, "ap-northeast-1"
 				#		, "sa-east-1"
 				#		]
-				regions = ["us-east-1"]
+				regions = [
+						"us-east-1"
+						, "us-west-1"
+						]
 
 				ec2_type = "c3.4xlarge"
-				# cluster_name for executing the init script.
-				params["init_script"] = "acorn-server"
+
+				# Pass these as the init script parameters. Decided not to use EC2 tag
+				# for these, due to its limitations.
+				#   http://docs.aws.amazon.com/awsaccountbilling/latest/aboutv2/allocation-tag-restrictions.html
+				jr_sqs_url = q._url
+				jr_sqs_msg_receipt_handle = m.receipt_handle
+				init_script = "acorn-server"
 
 				# Cassandra cluster name. It's ok for multiple clusters to have the same
 				# cluster_name for Cassandra. It's ok for multiple clusters to have the same
 				# name as long as they don't see each other through the gossip protocol.
-				params["cass_cluster_name"] = "acorn"
+				# It's even okay to use the default one: test-cluster
+				# Better to save EC2 tags
+				#tags["cass_cluster_name"] = "acorn"
 
-				RunAndMonitorEc2Inst.Run(regions = regions, ec2_type = ec2_type, tags = params)
+				RunAndMonitorEc2Inst.Run(
+						regions = regions
+						, ec2_type = ec2_type
+						, tags = tags
+						, jr_sqs_url = jr_sqs_url
+						, jr_sqs_msg_receipt_handle = jr_sqs_msg_receipt_handle
+						, init_script = init_script)
 				print ""
 
 				# Sleep a bit so that each cluster has a unique ID, which is made of

@@ -75,29 +75,41 @@ def _RunInitByTags():
 			tags[k] = v
 	_Log("tags: %s" % tags)
 
-	if "init_script" not in tags:
-		raise RuntimeError("No init_script in tags")
-	init_script = tags["init_script"]
-
 	# Stingizing is not necessary, but useful for tesing the init script
 	# separately.
 	tags_str = ",".join(["%s:%s" % (k, v) for (k, v) in tags.items()])
 
 	fn_cmd = "%s/ec2-init.d/%s.py %s %s" \
-			% (os.path.dirname(os.path.realpath(__file__)), init_script, _job_id, tags_str)
+			% (os.path.dirname(os.path.realpath(__file__))
+					, _fn_init_script, _job_id, _jr_sqs_url, _jr_sqs_msg_receipt_handle, tags_str)
 	_Log("Running %s" % fn_cmd)
 	Util.RunSubp(fn_cmd, shell = True, print_cmd = False, print_result = False)
 
 
+_fn_init_script = None
 _job_id = None
+_jr_sqs_url = None
+_jr_sqs_msg_receipt_handle = None
 
 def main(argv):
 	try:
 		# This script is run under the user 'ubuntu'.
 		#Util.RunSubp("touch /tmp/%s" % getpass.getuser())
 
+		if len(argv) != 5:
+			print "Usage: %s init_script job_id jr_sqs_url jr_sqs_msg_receipt_handle" % argv[0]
+			print "  E.g.: %s acorn-server 160605-1519 None None" % argv[0]
+			print "        The two Nones are for testing purposes."
+			sys.exit(1)
+
+		global _fn_init_script
 		global _job_id
-		_job_id = argv[1]
+		global _jr_sqs_url
+		global _jr_sqs_msg_receipt_handle
+		_fn_init_script = argv[1]
+		_job_id = argv[2]
+		_jr_sqs_url = argv[3]
+		_jr_sqs_msg_receipt_handle = argv[4]
 
 		Util.RunSubp("sudo mkdir -p /var/log/acorn")
 		Util.RunSubp("sudo chown %s /var/log/acorn" % getpass.getuser())
