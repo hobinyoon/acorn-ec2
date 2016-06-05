@@ -195,6 +195,7 @@ def DeqReq(q):
 				params["cass_cluster_name"] = "acorn"
 
 				RunAndMonitorEc2Inst.Run(regions = regions, ec2_type = ec2_type, tags = params)
+				print ""
 
 				# Sleep a bit so that each cluster has a unique ID, which is made of
 				# current datetime
