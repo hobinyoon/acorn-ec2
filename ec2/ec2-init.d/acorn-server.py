@@ -228,10 +228,14 @@ def _DeqJobReqMsgEnqJobDoneMsg():
 		raise RuntimeError("No %s in tags" % sqs_url_jr_key)
 	sqs_url_jr = base64.b64decode(_tags[sqs_url_jr_key])
 
-	sqs_msg_receipt_handle_key = "sqs_message_receipt_handle"
-	if sqs_msg_receipt_handle_key not in _tags:
-		raise RuntimeError("No %s in tags" % sqs_msg_receipt_handle_key)
-	sqs_msg_jr_receipt_handle = _tags[sqs_msg_receipt_handle_key]
+	sqs_msg_receipt_handle_key_0 = "sqs_message_receipt_handle_0"
+	if sqs_msg_receipt_handle_key_0 not in _tags:
+		raise RuntimeError("No %s in tags" % sqs_msg_receipt_handle_key_0)
+	sqs_msg_receipt_handle_key_1 = "sqs_message_receipt_handle_1"
+	if sqs_msg_receipt_handle_key_1 not in _tags:
+		raise RuntimeError("No %s in tags" % sqs_msg_receipt_handle_key_1)
+
+	sqs_msg_jr_receipt_handle = _tags[sqs_msg_receipt_handle_key_0] + _tags[sqs_msg_receipt_handle_key_1]
 
 	_DeqJobReqMsg(sqs_url_jr, sqs_msg_jr_receipt_handle)
 	_EnqJobdoneMsg(job_id)

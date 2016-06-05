@@ -3,11 +3,13 @@
 import base64
 import boto3
 import botocore
+import bz2
 import os
 import pprint
 import sys
 import threading
 import time
+import zlib
 
 sys.path.insert(0, "%s/../../util/python" % os.path.dirname(__file__))
 import Cons
@@ -130,30 +132,45 @@ def DeqReq(q):
 					params[k] = v1
 					#Cons.P("  %s: %s" % (k, v1))
 
-				params["sqs_url"] = base64.b64encode(q._url)
-				params["sqs_message_receipt_handle"] = m.receipt_handle
+				params["sqs_url_jr"] = q._url
+
+				# Compress and split long parameters to work around the ec2 tag
+				# limitations. EC2 tag value has a 256-byte limit.
+				#   http://docs.aws.amazon.com/awsaccountbilling/latest/aboutv2/allocation-tag-restrictions.html
+				#
+				# zlib is more efficient than bz2 for the short, sqs receipt handles. interesting.
+				#   Original len: 412
+				#   zlib: 347
+				#   bz2: 412
+				#
+				# Compression doesn't help reduce the value under 256 chars.
+				params["sqs_message_receipt_handle_0"] = m.receipt_handle[:255]
+				params["sqs_message_receipt_handle_1"] = m.receipt_handle[255:]
 
 				# TODO: May want some admission control here, like one based on how
 				# many free instance slots are available.
 
-				Cons.P("Starting an experiment with the parameters %s"
-						% ", ".join(['%s=%s' % (k, v) for (k, v) in params.items()]))
+				Cons.P("Starting an experiment with the parameters:")
+				for k, v in sorted(params.iteritems()):
+					Cons.P("  %s:%s" % (k, v))
 
-				regions_all = [
-						"us-east-1"
-						, "us-west-1"
-						, "us-west-2"
-						, "eu-west-1"
-						, "eu-central-1"
-						, "ap-southeast-1b"
-						, "ap-southeast-2"
+				#regions = [
+				#		"us-east-1"
+				#		, "us-west-1"
+				#		, "us-west-2"
+				#		, "eu-west-1"
+				#		, "eu-central-1"
+				#		, "ap-southeast-1b"
+				#		, "ap-southeast-2"
 
-						# Seoul. Terminates by itself. Turns out they don't have c3 instance types.
-						#, "ap-northeast-2"
+				#		# Seoul. Terminates by itself. Turns out they don't have c3 instance types.
+				#		#, "ap-northeast-2"
 
-						, "ap-northeast-1"
-						, "sa-east-1"
-						]
+				#		, "ap-northeast-1"
+				#		, "sa-east-1"
+				#		]
+				regions = ["us-east-1"]
+
 				ec2_type = "c3.4xlarge"
 				# cluster_name for executing the init script.
 				params["init_script"] = "acorn-server"
@@ -163,7 +180,7 @@ def DeqReq(q):
 				# name as long as they don't see each other through the gossip protocol.
 				params["cass_cluster_name"] = "acorn"
 
-				RunAndMonitorEc2Inst.Run(regions = regions_all, ec2_type = ec2_type, tags = params)
+				RunAndMonitorEc2Inst.Run(regions = regions, ec2_type = ec2_type, tags = params)
 
 				# Sleep a bit so that each cluster has a unique ID, which is made of
 				# current datetime
