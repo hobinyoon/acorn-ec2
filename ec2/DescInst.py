@@ -24,13 +24,13 @@ _regions_all = [
 		]
 
 
-def Run(acorn_exp_param = None):
+def Run(tags = None):
 	sys.stdout.write("desc_instances:")
 	sys.stdout.flush()
 
 	dis = []
 	for r in _regions_all:
-		dis.append(DescInstPerRegion(r, acorn_exp_param))
+		dis.append(DescInstPerRegion(r, tags))
 
 	threads = []
 	for di in dis:
@@ -65,13 +65,13 @@ def Run(acorn_exp_param = None):
 		di.PrintResult()
 
 
-def GetInstDescs(acorn_exp_param = None):
+def GetInstDescs(tags = None):
 	sys.stdout.write("desc_instances:")
 	sys.stdout.flush()
 
 	dis = []
 	for r in _regions_all:
-		dis.append(DescInstPerRegion(r, acorn_exp_param))
+		dis.append(DescInstPerRegion(r, tags))
 
 	threads = []
 	for di in dis:
@@ -90,9 +90,9 @@ def GetInstDescs(acorn_exp_param = None):
 
 
 class DescInstPerRegion:
-	def __init__(self, region, acorn_exp_param):
+	def __init__(self, region, tags):
 		self.region = region
-		self.tags = {"cluster_name": "acorn-server", "acorn_exp_param": acorn_exp_param}
+		self.tags = tags
 		self.exception = None
 
 	def Run(self):
@@ -101,7 +101,7 @@ class DescInstPerRegion:
 			session = boto3.session.Session()
 			boto_client = session.client("ec2", region_name=self.region)
 
-			if self.tags == None:
+			if self.tags is None:
 				self.response = boto_client.describe_instances()
 			else:
 				filters = []

@@ -14,7 +14,7 @@ import Util
 _fmt = "%-15s %10s %13s %13s"
 
 
-def RunTermInst(acorn_exp_param):
+def RunTermInst(tags):
 	regions = [
 			"us-east-1"
 			, "us-west-1"
@@ -32,8 +32,6 @@ def RunTermInst(acorn_exp_param):
 
 	sys.stdout.write("terminating all running instances:")
 	sys.stdout.flush()
-
-	tags = {"cluster_name": "acorn-server", "acorn_exp_param": acorn_exp_param}
 
 	tis = []
 	for r in regions:
@@ -68,13 +66,17 @@ class TermInst:
 	def Run(self):
 		boto_client = boto3.session.Session().client("ec2", region_name=self.region)
 
-		filters = []
-		for k, v in self.tags.iteritems():
-		 d = {}
-		 d["Name"] = ("tag:%s" % k)
-		 d["Values"] = [v]
-		 filters.append(d)
-		response = boto_client.describe_instances(Filters = filters)
+		response = None
+		if self.tags is None:
+			response = boto_client.describe_instances()
+		else:
+			filters = []
+			for k, v in self.tags.iteritems():
+			 d = {}
+			 d["Name"] = ("tag:%s" % k)
+			 d["Values"] = [v]
+			 filters.append(d)
+			response = boto_client.describe_instances(Filters = filters)
 		#ConsP(pprint.pformat(response, indent=2, width=100))
 
 		# "running" instances
@@ -134,13 +136,20 @@ def sys_stdout_write(msg):
 
 
 def main(argv):
-	if len(argv) != 2:
-		print "Usage: %s [acorn_exp_param]" % argv[0]
+	if len(argv) < 2:
+		print "Usage: %s (all or tags in key:value pairs)" % argv[0]
 		sys.exit(1)
 
-	acorn_exp_param = argv[1]
+	tags = None
+	if argv[1] != "all":
+		tags = {}
+		for i in range(1, len(argv)):
+			t = argv[i].split(":")
+			if len(t) != 2:
+				raise RuntimeError("Unexpected. argv[%d]=[%s]" % (i, argv[i]))
+			tags[t[0]] = t[1]
 
-	RunTermInst(acorn_exp_param)
+	RunTermInst(tags)
 
 
 if __name__ == "__main__":
