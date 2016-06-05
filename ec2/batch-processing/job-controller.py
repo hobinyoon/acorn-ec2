@@ -70,9 +70,23 @@ def GetQ(bc, sqs):
 			else:
 				raise e
 
-		Cons.P("The queue doesn't exists. Creating one ...")
-		response = bc.create_queue(QueueName = q_name_jr)
-		# Default message retention period is 4 days.
+		Cons.P("The queue doesn't exists. Creating one ")
+		while True:
+			response = None
+			try:
+				response = bc.create_queue(QueueName = q_name_jr)
+				# Default message retention period is 4 days.
+				break
+			except botocore.exceptions.ClientError as e:
+				# When calling the CreateQueue operation: You must wait 60 seconds after
+				# deleting a queue before you can create another with the same name.
+				# It doesn't give me how much more you need to wait. Polling until succeed.
+				if e.response["Error"]["Code"] == "AWS.SimpleQueueService.QueueDeletedRecently":
+					sys.stdout.write(".")
+					sys.stdout.flush()
+					time.sleep(2)
+				else:
+					raise e
 
 		return sqs.get_queue_by_name(QueueName = q_name_jr)
 
@@ -87,7 +101,7 @@ def EnqReq(q):
 
 def DeqReq(q):
 	with Cons.MT("Deq messages ..."):
-		for i in range(10):
+		while True:
 			messages = None
 			with WaitTimer():
 				while True:

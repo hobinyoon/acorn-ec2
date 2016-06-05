@@ -23,7 +23,10 @@ def main(argv):
 	_sqs = boto3.resource("sqs", region_name = sqs_region)
 
 	q = GetQ()
-	DeleteQ(q)
+	if q is None:
+		Cons.P("The queue doesn't exists")
+	else:
+		DeleteQ(q)
 
 
 def GetQ():
