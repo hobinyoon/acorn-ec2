@@ -120,6 +120,7 @@ sudo -i -u ubuntu /home/ubuntu/work/acorn-tools/ec2/ec2-init.py {0}
 				tags_boto = []
 				for k, v in self.tags.iteritems():
 					tags_boto.append({"Key": k, "Value": v})
+					#ConsP("[%s]=[%s]" %(k, v))
 
 				self.boto_client.create_tags(Resources = [self.inst_id], Tags = tags_boto)
 				tagged = True
