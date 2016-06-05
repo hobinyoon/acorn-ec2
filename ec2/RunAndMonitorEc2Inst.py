@@ -23,7 +23,7 @@ _job_id = None
 def Run(regions, ec2_type, tags):
 	req_datetime = datetime.datetime.now()
 	global _job_id
-	_job_id = req_datetime.strftime("%y%m%d-%H%M%S"))
+	_job_id = req_datetime.strftime("%y%m%d-%H%M%S")
 	Cons.P("Job ID: %s (used for describing or terminating the cluster)" % _job_id)
 
 	Util.RunSubp("mkdir -p %s" % _dn_tmp, print_cmd = False)

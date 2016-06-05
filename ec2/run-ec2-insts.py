@@ -24,9 +24,14 @@ def main(argv):
 
 	if len(argv) < 3:
 		print "Usage: %s [acorn_exp_param]+ [region]+" % argv[0]
-		print "  acorn_exp_param examples: rep_model=full exchange_acorn_metadata=true"
+		print "  acorn_exp_param examples: rep_model:full exchange_acorn_metadata:true"
 		print "  region: all or some of %s" % " ".join(regions_all)
 		sys.exit(1)
+
+	# Key-value delimiter is :. SQS message receipt handle seems to be
+	# base64-encoded, which can contain the char =. So, = cannot be used as a
+	# delimiter for the key-value pairs.
+	# http://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/ImportantIdentifiers.html
 
 	regions = []
 	params = {}

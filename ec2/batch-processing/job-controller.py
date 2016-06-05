@@ -12,6 +12,9 @@ sys.path.insert(0, "%s/../../util/python" % os.path.dirname(__file__))
 import Cons
 import Util
 
+sys.path.insert(0, "..")
+import RunAndMonitorEc2Inst
+
 
 sqs_region = "us-east-1"
 q_name_jr = "acorn-jobs-requested"
@@ -134,17 +137,33 @@ def DeqReq(q):
 
 				Cons.P("Starting an experiment with the parameters %s"
 						% ", ".join(['%s=%s' % (k, v) for (k, v) in params.items()]))
-				argv = []
-				argv.append("run-ec2-insts.py")
-				for k, v in params.iteritems():
-					# SQS message receipt handle seems to be base64-encoded, which can
-					# contain the char =. So, = cannot be used as a delimiter for the
-					# key-value pairs. Go with :
-					# http://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/ImportantIdentifiers.html
-					argv.append("%s:%s", (k, v))
-				# Regions
-				argv.append("all")
-				run-ec2-insts.main(argv=argv)
+
+				regions_all = [
+						"us-east-1"
+						, "us-west-1"
+						, "us-west-2"
+						, "eu-west-1"
+						, "eu-central-1"
+						, "ap-southeast-1b"
+						, "ap-southeast-2"
+
+						# Seoul. Terminates by itself. Turns out they don't have c3 instance types.
+						#, "ap-northeast-2"
+
+						, "ap-northeast-1"
+						, "sa-east-1"
+						]
+				ec2_type = "c3.4xlarge"
+				# cluster_name for executing the init script.
+				params["init_script"] = "acorn-server"
+
+				# Cassandra cluster name. It's ok for multiple clusters to have the same
+				# cluster_name for Cassandra. It's ok for multiple clusters to have the same
+				# name as long as they don't see each other through the gossip protocol.
+				params["cass_cluster_name"] = "acorn"
+
+				RunAndMonitorEc2Inst.Run(regions = regions_all, ec2_type = ec2_type, tags = params)
+
 				# Sleep a bit so that each cluster has a unique ID, which is made of
 				# current datetime
 				time.sleep(1.5)
