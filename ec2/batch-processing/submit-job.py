@@ -79,7 +79,7 @@ def _EnqReq(q, attrs):
 		msg_attrs = {}
 		for k, v in attrs.iteritems():
 			msg_attrs[k] = {"StringValue": v, "DataType": "String"}
-		q.send_message(MessageBody=msg_body, MessageAttributes={msg_attrs})
+		q.send_message(MessageBody=msg_body, MessageAttributes=msg_attrs)
 
 
 if __name__ == "__main__":

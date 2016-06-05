@@ -127,7 +127,7 @@ def DeqReq(q):
 					#Cons.P("  %s: %s" % (k, v1))
 
 				params["sqs_url"] = base64.b64encode(q._url)
-				params["sqs_message_receipt_handle"] = m.recript_handle
+				params["sqs_message_receipt_handle"] = m.receipt_handle
 
 				# TODO: May want some admission control here, like one based on how
 				# many free instance slots are available.
