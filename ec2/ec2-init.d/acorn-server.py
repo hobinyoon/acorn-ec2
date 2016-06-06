@@ -177,7 +177,7 @@ def _EditCassConf():
 			k1 = k[14:]
 			cmd = "sed -i 's/" \
 					"^    %s:.*" \
-					"/%s: %s" \
+					"/    %s: %s" \
 					"/g' %s" % (k1, k1, v, fn_cass_yaml)
 			_RunSubp(cmd, shell = True)
 
