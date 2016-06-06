@@ -140,22 +140,23 @@ sudo -i -u ubuntu /home/ubuntu/work/acorn-tools/ec2/ec2-init.py {0} {1} {2}
 
 		while True:
 			response = None
-			try:
-				response = self.boto_client.describe_instances(InstanceIds=[self.inst_id])
-				# Note: describe_instances() returns StateReason, while
-				# describe_instance_status() doesn't.
-				break
-			except ClientError as e:
-				# describe_instances() right after run_instances() fails sometimes.
-				# Keep retrying.
-				#   An error occurred (InvalidInstanceID.NotFound) when calling the
-				#   DescribeInstances operation: The instance ID 'i-dbb11a47' does n ot
-				#   exist
-				if e.response["Error"]["Code"] == "InvalidInstanceID.NotFound":
-					ConsP("inst_id %d doesn't exist. retrying in 1 sec" % self.inst_id)
-					time.sleep(1)
-				else:
-					raise e
+			while True:
+				try:
+					response = self.boto_client.describe_instances(InstanceIds=[self.inst_id])
+					# Note: describe_instances() returns StateReason, while
+					# describe_instance_status() doesn't.
+					break
+				except botocore.exceptions.ClientError as e:
+					# describe_instances() right after run_instances() fails sometimes.
+					# Keep retrying.
+					#   An error occurred (InvalidInstanceID.NotFound) when calling the
+					#   DescribeInstances operation: The instance ID 'i-dbb11a47' does n ot
+					#   exist
+					if e.response["Error"]["Code"] == "InvalidInstanceID.NotFound":
+						ConsP("inst_id %s doesn't exist. retrying in 1 sec" % self.inst_id)
+						time.sleep(1)
+					else:
+						raise e
 
 			InstLaunchProgMon.Update(self.inst_id, response)
 			state = response["Reservations"][0]["Instances"][0]["State"]["Name"]
@@ -200,8 +201,8 @@ class InstLaunchProgMon():
 
 	@staticmethod
 	def Reset():
-		InstLaunchProgMon.progress = {}
-		InstLaunchProgMon.progress_lock = threading.Lock()
+		with InstLaunchProgMon.progress_lock:
+			InstLaunchProgMon.progress = {}
 
 	@staticmethod
 	def SetRegion(inst_id, region_name):
@@ -293,6 +294,8 @@ class InstLaunchProgMon():
 			))
 
 		for k, v in InstLaunchProgMon.progress.iteritems():
+			if len(v.responses) == 0:
+				continue
 			r = v.responses[-1]["Reservations"][0]["Instances"][0]
 
 			tags = {}
