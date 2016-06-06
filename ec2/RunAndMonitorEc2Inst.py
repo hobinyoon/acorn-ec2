@@ -37,6 +37,7 @@ def Run(regions, ec2_type, tags, jr_sqs_url, jr_sqs_msg_receipt_handle, init_scr
 	global _ec2_type, _tags, _jr_sqs_url, _jr_sqs_msg_receipt_handle, _init_script
 	_ec2_type = ec2_type
 	_tags = tags
+	_tags["job_id"] = _job_id
 	_jr_sqs_url = jr_sqs_url
 	_jr_sqs_msg_receipt_handle = jr_sqs_msg_receipt_handle
 	_init_script = init_script
@@ -74,9 +75,9 @@ class RunAndMonitor():
 cd /home/ubuntu/work
 rm -rf /home/ubuntu/work/acorn-tools
 sudo -i -u ubuntu bash -c 'git clone https://github.com/hobinyoon/acorn-tools.git /home/ubuntu/work/acorn-tools'
-sudo -i -u ubuntu /home/ubuntu/work/acorn-tools/ec2/ec2-init.py {0} {1} {2} {3}
+sudo -i -u ubuntu /home/ubuntu/work/acorn-tools/ec2/ec2-init.py {0} {1} {2}
 """
-		user_data = user_data.format(_init_script, _job_id, _jr_sqs_url, _jr_sqs_msg_receipt_handle)
+		user_data = user_data.format(_init_script, _jr_sqs_url, _jr_sqs_msg_receipt_handle)
 
 #cd /home/ubuntu/work/acorn-tools
 #sudo -u ubuntu bash -c 'git pull'

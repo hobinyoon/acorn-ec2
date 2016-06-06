@@ -33,13 +33,13 @@ def _RunSubp(cmd, shell = False):
 
 _region = None
 
-def _SetHostname(job_id):
+def _SetHostname():
 	az = Util.RunSubp("curl -s http://169.254.169.254/latest/meta-data/placement/availability-zone", print_cmd = False, print_result = False)
 	global _region
 	_region = az[:-1]
 
 	# Hostname consists of availability zone name and launch req datetime
-	hn = "%s-%s" % (az, _tags["acorn_exp_param"], job_id)
+	hn = "%s-%s" % (az, _tags["acorn_exp_param"], _job_id)
 
 	# http://askubuntu.com/questions/9540/how-do-i-change-the-computer-name
 	cmd = "sudo sh -c 'echo \"%s\" > /etc/hostname'" % hn
@@ -223,50 +223,36 @@ def _DeqJobReqMsgEnqJobDoneMsg():
 	if _region != "us-east-1":
 		return
 
-	sqs_url_jr_key = "sqs_url_jr"
-	if sqs_url_jr_key not in _tags:
-		raise RuntimeError("No %s in tags" % sqs_url_jr_key)
-	sqs_url_jr = base64.b64decode(_tags[sqs_url_jr_key])
-
-	sqs_msg_receipt_handle_key_0 = "sqs_message_receipt_handle_0"
-	if sqs_msg_receipt_handle_key_0 not in _tags:
-		raise RuntimeError("No %s in tags" % sqs_msg_receipt_handle_key_0)
-	sqs_msg_receipt_handle_key_1 = "sqs_message_receipt_handle_1"
-	if sqs_msg_receipt_handle_key_1 not in _tags:
-		raise RuntimeError("No %s in tags" % sqs_msg_receipt_handle_key_1)
-
-	sqs_msg_jr_receipt_handle = _tags[sqs_msg_receipt_handle_key_0] + _tags[sqs_msg_receipt_handle_key_1]
-
-	_DeqJobReqMsg(sqs_url_jr, sqs_msg_jr_receipt_handle)
-	_EnqJobdoneMsg(job_id)
+	_DeqJobReqMsg()
+	_EnqJobDoneMsg()
 
 
 _sqs_region = "us-east-1"
 _bc = None
 
-def _DeqJobReqMsg(sqs_url_jr, sqs_msg_jr_receipt_handle):
+def _DeqJobReqMsg():
 	# Delete the request message from the request queue. Should be done here. The
 	# controller node, which launches a cluster, doesn't know when an experiment
 	# is done.
 
-	_Log("Deleting the job request message: url: %s, receipt_handle: %s" % (sqs_url_jr, sqs_msg_jr_receipt_handle))
+	_Log("Deleting the job request message: url: %s, receipt_handle: %s" % (_jr_sqs_url, _jr_sqs_msg_receipt_handle))
 	global _bc
 	_bc = boto3.client("sqs", region_name = _sqs_region)
 	response = _bc.delete_message(
-			QueueUrl = sqs_url_jr,
-			ReceiptHandle = sqs_msg_jr_receipt_handle
+			QueueUrl = _jr_sqs_url,
+			ReceiptHandle = _jr_sqs_msg_receipt_handle 
 			)
 	_Log(pprint.pformat(response, indent=2))
 
 
-def _EnqJobdoneMsg():
+def _EnqJobDoneMsg():
 	_Log("Posting a job completion message ...")
 
 	# Post a "job done" message to the job completed queue, so that the
 	# controller node can shutdown the cluster.
 
 	q = _GetJcQ()
-	_EnqJcMsg(q, attrs):
+	_EnqJcMsg(q):
 
 
 q_name_jc = "acorn-jobs-completed"
@@ -304,10 +290,11 @@ def _GetJcQ():
 
 msg_body_jc = "acorn-job-completion"
 
-def _EnqJcMsg(q, attrs):
+def _EnqJcMsg(q):
+	# _tags contains job_id, which is used to terminate the cluster
 	with Cons.MT("Enq a message ..."):
 		msg_attrs = {}
-		for k, v in attrs.iteritems():
+		for k, v in _tags.iteritems():
 			msg_attrs[k] = {"StringValue": v, "DataType": "String"}
 		q.send_message(MessageBody=msg_body_jc, MessageAttributes={msg_attrs})
 
@@ -316,16 +303,22 @@ def _CacheEbsDataFileIntoMemory():
 	_RunSubp("/usr/local/bin/vmtouch -t /home/ubuntu/work/acorn-data/150812-143151-tweets-5667779")
 
 
+_jr_sqs_url = None
+_jr_sqs_msg_receipt_handle = None
 _tags = {}
+_job_id
 
 def main(argv):
 	try:
 		# This script is run under the user 'ubuntu'.
 
-		if len(argv) != 3:
+		if len(argv) != 4:
 			raise RuntimeError("Unexpected argv %s" % argv)
-		job_id = argv[1]
-		tags_str = argv[2]
+
+		global _jr_sqs_url, _jr_sqs_msg_receipt_handle
+		_jr_sqs_url = argv[1]
+		_jr_sqs_msg_receipt_handle = argv[2]
+		tags_str = argv[3]
 
 		global _tags
 		_tags = {}
@@ -335,6 +328,9 @@ def main(argv):
 				raise RuntimeError("Unexpected kv=[%s]" % kv)
 			_tags[t[0]] = t[1]
 
+		global _job_id
+		_job_id = _tags["job_id"]
+
 		# Loading the Youtube data file form EBS takes long, like up to 5 mins, and
 		# could make a big difference among nodes in different regions, which
 		# varies the start times of Youtube clients in different regions.
@@ -343,7 +339,7 @@ def main(argv):
 		t.daemon = True
 		t.start()
 
-		_SetHostname(job_id)
+		_SetHostname()
 		_SyncTime()
 		_InstallPkgs()
 		_MountAndFormatLocalSSDs()

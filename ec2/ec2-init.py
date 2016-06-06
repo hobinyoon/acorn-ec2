@@ -60,7 +60,6 @@ def _Log(msg):
 
 def _RunInitByTags():
 	_Log("_fn_init_script           : %s" % _fn_init_script)
-	_Log("_job_id                   : %s" % _job_id)
 	_Log("_jr_sqs_url               : %s" % _jr_sqs_url)
 	_Log("_jr_sqs_msg_receipt_handle: %s" % _jr_sqs_msg_receipt_handle)
 
@@ -73,26 +72,21 @@ def _RunInitByTags():
 		if _inst_id != res_id:
 			continue
 		if _inst_id == res_id:
-			k = r0["Key"]
-			v = r0["Value"]
-			#_Log("tags key   : %s" % k)
-			#_Log("     value : %s" % v)
-			tags[k] = v
-	_Log("tags: {%s}" % ", ".join(["%s:%s" % (k, v) for (k, v) in sorted(tags.items())]))
+			tags[r0["Key"]] = r0["Value"]
+	_Log("tags:\n%s" % "\n".join(["  %s:%s" % (k, v) for (k, v) in sorted(tags.items())]))
 
 	# Stingizing is not necessary, but useful for tesing the init script
 	# separately.
 	tags_str = ",".join(["%s:%s" % (k, v) for (k, v) in sorted(tags.items())])
 
-	fn_cmd = "%s/ec2-init.d/%s.py %s %s" \
-			% (os.path.dirname(os.path.realpath(__file__))
-					, _fn_init_script, _job_id, _jr_sqs_url, _jr_sqs_msg_receipt_handle, tags_str)
+	fn_cmd = "%s/ec2-init.d/%s.py %s %s %s" \
+			% (os.path.dirname(os.path.realpath(__file__)), _fn_init_script
+					, _jr_sqs_url, _jr_sqs_msg_receipt_handle, tags_str)
 	_Log("Running %s" % fn_cmd)
 	Util.RunSubp(fn_cmd, shell = True, print_cmd = False, print_result = False)
 
 
 _fn_init_script = None
-_job_id = None
 _jr_sqs_url = None
 _jr_sqs_msg_receipt_handle = None
 
@@ -101,20 +95,18 @@ def main(argv):
 		# This script is run under the user 'ubuntu'.
 		#Util.RunSubp("touch /tmp/%s" % getpass.getuser())
 
-		if len(argv) != 5:
-			raise RuntimeError("Usage: %s init_script job_id jr_sqs_url jr_sqs_msg_receipt_handle\n"
-					"  E.g.: %s acorn-server 160605-1519 None None\n"
+		if len(argv) != 4:
+			raise RuntimeError("Usage: %s init_script jr_sqs_url jr_sqs_msg_receipt_handle\n"
+					"  E.g.: %s acorn-server None None\n"
 					"        The two Nones are for testing purposes."
 					% (argv[0], argv[0]))
 
 		global _fn_init_script
-		global _job_id
 		global _jr_sqs_url
 		global _jr_sqs_msg_receipt_handle
 		_fn_init_script = argv[1]
-		_job_id = argv[2]
-		_jr_sqs_url = argv[3]
-		_jr_sqs_msg_receipt_handle = argv[4]
+		_jr_sqs_url = argv[2]
+		_jr_sqs_msg_receipt_handle = argv[3]
 
 		Util.RunSubp("sudo mkdir -p /var/log/acorn")
 		Util.RunSubp("sudo chown %s /var/log/acorn" % getpass.getuser())

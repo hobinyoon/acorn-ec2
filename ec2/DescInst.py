@@ -9,7 +9,6 @@ import Cons
 import Util
 
 
-_fmt = "%-15s %10s %10s %13s %15s %15s %13s %20s"
 _regions_all = [
 		"us-east-1"
 		, "us-west-1"
@@ -23,6 +22,9 @@ _regions_all = [
 		, "sa-east-1"
 		]
 
+
+#_fmt = "%-15s %10s %10s %13s %15s %15s %13s %20s"
+_fmt = "%-15s %10s %15s %13s %20s"
 
 def Run(tags = None):
 	sys.stdout.write("desc_instances:")
@@ -53,9 +55,9 @@ def Run(tags = None):
 	ConsP(Util.BuildHeader(_fmt,
 		"Placement:AvailabilityZone"
 		" InstanceId"
-		" InstanceType"
-		" LaunchTime"
-		" PrivateIpAddress"
+		#" InstanceType"
+		#" LaunchTime"
+		#" PrivateIpAddress"
 		" PublicIpAddress"
 		" State:Name"
 		" Tag:Name"
@@ -156,9 +158,9 @@ class DescInstPerRegion:
 				ConsP(_fmt % (
 					_Value(_Value(r1, "Placement"), "AvailabilityZone")
 					, _Value(r1, "InstanceId")
-					, _Value(r1, "InstanceType")
-					, _Value(r1, "LaunchTime").strftime("%y%m%d-%H%M%S")
-					, _Value(r1, "PrivateIpAddress")
+					#, _Value(r1, "InstanceType")
+					#, _Value(r1, "LaunchTime").strftime("%y%m%d-%H%M%S")
+					#, _Value(r1, "PrivateIpAddress")
 					, _Value(r1, "PublicIpAddress")
 					, _Value(_Value(r1, "State"), "Name")
 					, ", ".join(["%s:%s" % (k, v) for (k, v) in sorted(tags.items())])
