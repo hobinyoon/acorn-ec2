@@ -59,6 +59,11 @@ def _Log(msg):
 
 
 def _RunInitByTags():
+	_Log("_fn_init_script           : %s" % _fn_init_script)
+	_Log("_job_id                   : %s" % _job_id)
+	_Log("_jr_sqs_url               : %s" % _jr_sqs_url)
+	_Log("_jr_sqs_msg_receipt_handle: %s" % _jr_sqs_msg_receipt_handle)
+
 	boto_client = boto3.session.Session().client("ec2", region_name=_region)
 	r = boto_client.describe_tags()
 	#Cons.P(pprint.pformat(r, indent=2, width=100))
@@ -73,11 +78,11 @@ def _RunInitByTags():
 			#_Log("tags key   : %s" % k)
 			#_Log("     value : %s" % v)
 			tags[k] = v
-	_Log("tags: %s" % tags)
+	_Log("tags: {%s}" % ", ".join(["%s:%s" % (k, v) for (k, v) in sorted(tags.items())]))
 
 	# Stingizing is not necessary, but useful for tesing the init script
 	# separately.
-	tags_str = ",".join(["%s:%s" % (k, v) for (k, v) in tags.items()])
+	tags_str = ",".join(["%s:%s" % (k, v) for (k, v) in sorted(tags.items())])
 
 	fn_cmd = "%s/ec2-init.d/%s.py %s %s" \
 			% (os.path.dirname(os.path.realpath(__file__))
@@ -97,10 +102,10 @@ def main(argv):
 		#Util.RunSubp("touch /tmp/%s" % getpass.getuser())
 
 		if len(argv) != 5:
-			print "Usage: %s init_script job_id jr_sqs_url jr_sqs_msg_receipt_handle" % argv[0]
-			print "  E.g.: %s acorn-server 160605-1519 None None" % argv[0]
-			print "        The two Nones are for testing purposes."
-			sys.exit(1)
+			raise RuntimeError("Usage: %s init_script job_id jr_sqs_url jr_sqs_msg_receipt_handle\n"
+					"  E.g.: %s acorn-server 160605-1519 None None\n"
+					"        The two Nones are for testing purposes."
+					% (argv[0], argv[0]))
 
 		global _fn_init_script
 		global _job_id

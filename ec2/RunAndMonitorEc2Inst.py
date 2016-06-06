@@ -26,7 +26,7 @@ _jr_sqs_msg_receipt_handle = None
 _init_script = None
 
 
-def Run(regions, ec2_type, tags, jr_sqs_url, jr_sqs_msg_receipt_handle, init_script)
+def Run(regions, ec2_type, tags, jr_sqs_url, jr_sqs_msg_receipt_handle, init_script):
 	Util.RunSubp("mkdir -p %s" % _dn_tmp, print_cmd = False)
 
 	req_datetime = datetime.datetime.now()
@@ -270,7 +270,7 @@ class InstLaunchProgMon():
 				, _Value(r, "PrivateIpAddress")
 				, _Value(r, "PublicIpAddress")
 				, _Value(_Value(r, "State"), "Name")
-				, ",".join(["%s:%s" % (k, v) for (k, v) in tags.items()])
+				, ",".join(["%s:%s" % (k, v) for (k, v) in sorted(tags.items())])
 				))
 
 

@@ -68,12 +68,13 @@ def GetQ(bc, sqs):
 			else:
 				raise e
 
-		Cons.P("The queue doesn't exists. Creating one ")
+		Cons.Pnnl("The queue doesn't exists. Creating one ")
 		while True:
 			response = None
 			try:
 				response = bc.create_queue(QueueName = q_name_jr)
 				# Default message retention period is 4 days.
+				print ""
 				break
 			except botocore.exceptions.ClientError as e:
 				# When calling the CreateQueue operation: You must wait 60 seconds after
