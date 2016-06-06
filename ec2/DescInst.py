@@ -158,7 +158,7 @@ class DescInstPerRegion:
 						tags[t["Key"]] = t["Value"]
 
 				results.append(_fmt % (
-					tags["job_id"]
+					tags.get("job_id")
 					, _Value(_Value(r1, "Placement"), "AvailabilityZone")
 					, _Value(r1, "InstanceId")
 					#, _Value(r1, "InstanceType")
