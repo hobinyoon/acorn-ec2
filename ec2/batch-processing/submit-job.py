@@ -35,28 +35,14 @@ def DeleteQ(bc):
 # Get the queue. Create one if not exists.
 def GetQ(bc, sqs):
 	with Cons.MT("Getting the queue ..."):
-		try:
-			queue = sqs.get_queue_by_name(
-					QueueName = q_name_jr,
-					# QueueOwnerAWSAccountId='string'
-					)
-			#Cons.P(pprint.pformat(vars(queue), indent=2))
-			#{ '_url': 'https://queue.amazonaws.com/998754746880/acorn-exps',
-			#		  'meta': ResourceMeta('sqs', identifiers=[u'url'])}
-			return queue
-		except botocore.exceptions.ClientError as e:
-			#Cons.P(pprint.pformat(e, indent=2))
-			#Cons.P(pprint.pformat(vars(e), indent=2))
-			if e.response["Error"]["Code"] == "AWS.SimpleQueueService.NonExistentQueue":
-				pass
-			else:
-				raise e
-
-		Cons.P("The queue doesn't exists. Creating one ...")
-		response = bc.create_queue(QueueName = q_name_jr)
-		# Default message retention period is 4 days.
-
-		return sqs.get_queue_by_name(QueueName = q_name_jr)
+		queue = sqs.get_queue_by_name(
+				QueueName = q_name_jr,
+				# QueueOwnerAWSAccountId='string'
+				)
+		#Cons.P(pprint.pformat(vars(queue), indent=2))
+		#{ '_url': 'https://queue.amazonaws.com/998754746880/acorn-exps',
+		#		  'meta': ResourceMeta('sqs', identifiers=[u'url'])}
+		return queue
 
 
 def EnqReq(q):
