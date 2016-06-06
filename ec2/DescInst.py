@@ -23,8 +23,7 @@ _regions_all = [
 		]
 
 
-#_fmt = "%-15s %10s %10s %13s %15s %15s %13s %20s"
-_fmt = "%-15s %10s %15s %13s %20s"
+_fmt = "%13s %-15s %10s %15s %13s"
 
 def Run(tags = None):
 	sys.stdout.write("desc_instances:")
@@ -53,18 +52,22 @@ def Run(tags = None):
 
 	print ""
 	ConsP(Util.BuildHeader(_fmt,
-		"Placement:AvailabilityZone"
+		"job_id"
+		" Placement:AvailabilityZone"
 		" InstanceId"
 		#" InstanceType"
 		#" LaunchTime"
 		#" PrivateIpAddress"
 		" PublicIpAddress"
 		" State:Name"
-		" Tag:Name"
+		#" Tag:Name"
 		))
 
+	results = []
 	for di in dis:
-		di.PrintResult()
+		results += di.GetResults()
+	for r in sorted(results):
+		Cons.P(r)
 
 
 def GetInstDescs(tags = None):
@@ -138,13 +141,12 @@ class DescInstPerRegion:
 		return ids
 
 
-	def PrintResult(self):
+	def GetResults(self):
 		if self.key_error is not None:
-			ConsP("region=%s KeyError=[%s]" % (self.region, self.key_error))
-			return
+			return ["region=%s KeyError=[%s]" % (self.region, self.key_error)]
 
 		#ConsP(pprint.pformat(self.response, indent=2, width=100))
-
+		results = []
 		for r in self.response["Reservations"]:
 			for r1 in r["Instances"]:
 				if _Value(_Value(r1, "State"), "Name") == "terminated":
@@ -155,16 +157,18 @@ class DescInstPerRegion:
 					for t in r1["Tags"]:
 						tags[t["Key"]] = t["Value"]
 
-				ConsP(_fmt % (
-					_Value(_Value(r1, "Placement"), "AvailabilityZone")
+				results.append(_fmt % (
+					tags["job_id"]
+					, _Value(_Value(r1, "Placement"), "AvailabilityZone")
 					, _Value(r1, "InstanceId")
 					#, _Value(r1, "InstanceType")
 					#, _Value(r1, "LaunchTime").strftime("%y%m%d-%H%M%S")
 					#, _Value(r1, "PrivateIpAddress")
 					, _Value(r1, "PublicIpAddress")
 					, _Value(_Value(r1, "State"), "Name")
-					, ", ".join(["%s:%s" % (k, v) for (k, v) in sorted(tags.items())])
+					#, ", ".join(["%s:%s" % (k, v) for (k, v) in sorted(tags.items())])
 					))
+		return results
 
 
 def _Value(dict_, key):
