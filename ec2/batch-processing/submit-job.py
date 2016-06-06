@@ -64,9 +64,9 @@ def EnqReq(q):
 	_EnqReq(q, {
 		"acorn_options.full_replication": "true"
 		, "acorn-youtube.replication_type": "partial"
-		, "fn_youtube_reqs": "tweets-010"
-		, "max_requests": "5000"
-		, "simulation_time_dur_in_ms": "10000"
+		, "acorn-youtube.fn_youtube_reqs": "tweets-010"
+		, "acorn-youtube.max_requests": "5000"
+		, "acorn-youtube.simulation_time_dur_in_ms": "10000"
 		})
 	#_EnqReq(q, {
 	#	"acorn_options.full_replication": "false"

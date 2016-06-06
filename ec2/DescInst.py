@@ -93,7 +93,7 @@ class DescInstPerRegion:
 	def __init__(self, region, tags):
 		self.region = region
 		self.tags = tags
-		self.exception = None
+		self.key_error = None
 
 	def Run(self):
 		try:
@@ -114,12 +114,12 @@ class DescInstPerRegion:
 
 		except KeyError as e:
 			#ConsP("region=%s KeyError=[%s]" % (self.region, e))
-			self.exception = e
+			self.key_error = e
 
 		sys_stdout_write(" %s" % self.region)
 
 	def NumInsts(self):
-		if self.exception != None:
+		if self.key_error is not None:
 			return 0
 		num = 0
 		for r in self.response["Reservations"]:
@@ -129,7 +129,7 @@ class DescInstPerRegion:
 
 	def GetInstDesc(self):
 		ids = []
-		if self.exception != None:
+		if self.key_error is not None:
 			return ids
 		for r in self.response["Reservations"]:
 			ids += r["Instances"]
@@ -137,20 +137,21 @@ class DescInstPerRegion:
 
 
 	def PrintResult(self):
-		if self.exception != None:
-			ConsP("region=%s KeyError=[%s]" % (self.region, self.exception))
+		if self.key_error is not None:
+			ConsP("region=%s KeyError=[%s]" % (self.region, self.key_error))
 			return
 
 		#ConsP(pprint.pformat(self.response, indent=2, width=100))
 
 		for r in self.response["Reservations"]:
 			for r1 in r["Instances"]:
-				tags_str = ""
+				if _Value(_Value(r1, "State"), "Name") == "terminated":
+					continue
+
+				tags = {}
 				if "Tags" in r1:
 					for t in r1["Tags"]:
-						if len(tags_str) > 0:
-							tags_str += ","
-						tags_str += "%s:%s" % (t["Key"], t["Value"])
+						tags[t["Key"]] = t["Value"]
 
 				ConsP(_fmt % (
 					_Value(_Value(r1, "Placement"), "AvailabilityZone")
@@ -160,7 +161,7 @@ class DescInstPerRegion:
 					, _Value(r1, "PrivateIpAddress")
 					, _Value(r1, "PublicIpAddress")
 					, _Value(_Value(r1, "State"), "Name")
-					, tags_str
+					, ", ".join(["%s:%s" % (k, v) for (k, v) in sorted(tags.items())])
 					))
 
 
