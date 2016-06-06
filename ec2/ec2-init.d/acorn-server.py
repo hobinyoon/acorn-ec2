@@ -292,7 +292,7 @@ msg_body_jc = "acorn-job-completion"
 
 def _EnqJcMsg(q):
 	# _tags contains job_id, which is used to terminate the cluster
-	_Log("Enq a job completion message ..."):
+	_Log("Enq a job completion message ...")
 	msg_attrs = {}
 	for k, v in _tags.iteritems():
 		msg_attrs[k] = {"StringValue": v, "DataType": "String"}
