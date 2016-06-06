@@ -263,25 +263,25 @@ def _GetJcQ():
 	global _sqs
 	_sqs = boto3.resource("sqs", region_name = _sqs_region)
 
-	_Log("Getting the job completion queue ..."):
+	_Log("Getting the job completion queue ...")
 	try:
 		queue = _sqs.get_queue_by_name(
 				QueueName = q_name_jc,
 				# QueueOwnerAWSAccountId='string'
 				)
-		#Cons.P(pprint.pformat(vars(queue), indent=2))
+		#_Log(pprint.pformat(vars(queue), indent=2))
 		#{ '_url': 'https://queue.amazonaws.com/998754746880/acorn-exps',
 		#		  'meta': ResourceMeta('sqs', identifiers=[u'url'])}
 		return queue
 	except botocore.exceptions.ClientError as e:
-		#Cons.P(pprint.pformat(e, indent=2))
-		#Cons.P(pprint.pformat(vars(e), indent=2))
+		#_Log(pprint.pformat(e, indent=2))
+		#_Log(pprint.pformat(vars(e), indent=2))
 		if e.response["Error"]["Code"] == "AWS.SimpleQueueService.NonExistentQueue":
 			pass
 		else:
 			raise e
 
-	Cons.P("The queue doesn't exists. Creating one ...")
+	_Log("The queue doesn't exists. Creating one ...")
 	response = _bc.create_queue(QueueName = q_name_jc)
 	# Default message retention period is 4 days.
 
@@ -292,11 +292,11 @@ msg_body_jc = "acorn-job-completion"
 
 def _EnqJcMsg(q):
 	# _tags contains job_id, which is used to terminate the cluster
-	with Cons.MT("Enq a message ..."):
-		msg_attrs = {}
-		for k, v in _tags.iteritems():
-			msg_attrs[k] = {"StringValue": v, "DataType": "String"}
-		q.send_message(MessageBody=msg_body_jc, MessageAttributes={msg_attrs})
+	_Log("Enq a job completion message ..."):
+	msg_attrs = {}
+	for k, v in _tags.iteritems():
+		msg_attrs[k] = {"StringValue": v, "DataType": "String"}
+	q.send_message(MessageBody=msg_body_jc, MessageAttributes={msg_attrs})
 
 
 def _CacheEbsDataFileIntoMemory():
