@@ -122,7 +122,7 @@ def main(argv):
 		_Log("started")
 		_LogInstInfo()
 		_RunInitByTags()
-	except RuntimeError as e:
+	except Exception as e:
 		msg = "Exception: %s\n%s" % (e, traceback.format_exc())
 		_Log(msg)
 		Cons.P(msg)

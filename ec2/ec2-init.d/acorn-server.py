@@ -357,7 +357,7 @@ def main(argv):
 		_WaitUntilYouSeeAllCassNodes()
 		_RunYoutubeClient()
 		_DeqJobReqMsgEnqJobDoneMsg()
-	except RuntimeError as e:
+	except Exception as e:
 		msg = "Exception: %s\n%s" % (e, traceback.format_exc())
 		_Log(msg)
 		Cons.P(msg)
