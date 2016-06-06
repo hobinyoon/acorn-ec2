@@ -112,11 +112,12 @@ def _EditCassConf():
 	fn_cass_yaml = "/home/ubuntu/work/acorn/conf/cassandra.yaml"
 	_Log("Editing %s ..." % fn_cass_yaml)
 
-	cass_cluster_name = _tags["cass_cluster_name"]
-	# http://stackoverflow.com/questions/7517632/how-do-i-escape-double-and-single-quotes-in-sed-bash
-	_RunSubp("sed -i 's/^cluster_name: .*/cluster_name: '\"'\"'%s'\"'\"'/g' %s"
-			% (cass_cluster_name, fn_cass_yaml)
-			, shell = True)
+	# Update cassandra cluster name if specified.
+	if "cass_cluster_name" in _tags:
+		# http://stackoverflow.com/questions/7517632/how-do-i-escape-double-and-single-quotes-in-sed-bash
+		_RunSubp("sed -i 's/^cluster_name: .*/cluster_name: '\"'\"'%s'\"'\"'/g' %s"
+				% (_tags["cass_cluster_name"], fn_cass_yaml)
+				, shell = True)
 
 	cmd = "sed -i 's/" \
 			"^          - seeds: .*" \
@@ -302,7 +303,10 @@ def _EnqJcMsg(q):
 
 
 def _CacheEbsDataFileIntoMemory():
-	_RunSubp("/usr/local/bin/vmtouch -t /home/ubuntu/work/acorn-data/150812-143151-tweets-5667779")
+	fn = "/home/ubuntu/work/acorn-data/tweets-010"
+	if "acorn-youtube.fn_youtube_reqs" in _tags:
+		fn = "/home/ubuntu/work/acorn-data/%s" % _tags["acorn-youtube.fn_youtube_reqs"]
+	_RunSubp("/usr/local/bin/vmtouch -t -f %s" % fn)
 
 
 _jr_sqs_url = None
