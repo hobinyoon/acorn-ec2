@@ -27,6 +27,8 @@ _init_script = None
 
 
 def Run(regions, ec2_type, tags, jr_sqs_url, jr_sqs_msg_receipt_handle, init_script):
+	Reset()
+
 	Util.RunSubp("mkdir -p %s" % _dn_tmp, print_cmd = False)
 
 	req_datetime = datetime.datetime.now()
@@ -55,6 +57,23 @@ def Run(regions, ec2_type, tags, jr_sqs_url, jr_sqs_msg_receipt_handle, init_scr
 
 	for t in _threads:
 		t.join()
+
+
+# This module can be called repeatedly
+def Reset():
+	global _threads, _job_id
+	global _ec2_type, _tags, _jr_sqs_url, _jr_sqs_msg_receipt_handle, _init_script
+
+	_threads = []
+	_job_id = None
+
+	_ec2_type = None
+	_tags = None
+	_jr_sqs_url = None
+	_jr_sqs_msg_receipt_handle = None
+	_init_script = None
+
+	InstLaunchProgMon.Reset()
 
 
 class RunAndMonitor():
@@ -164,6 +183,11 @@ class InstLaunchProgMon():
 
 		def AddResponse(self, response):
 			self.responses.append(response)
+
+	@staticmethod
+	def Reset():
+		InstLaunchProgMon.progress = {}
+		InstLaunchProgMon.progress_lock = threading.Lock()
 
 	@staticmethod
 	def SetRegion(inst_id, region_name):
