@@ -3,6 +3,7 @@
 import boto3
 import datetime
 import getpass
+import imp
 import os
 import pprint
 import re
@@ -75,15 +76,12 @@ def _RunInitByTags():
 			tags[r0["Key"]] = r0["Value"]
 	_Log("tags:\n%s" % "\n".join(["  %s:%s" % (k, v) for (k, v) in sorted(tags.items())]))
 
-	# Stingizing is not necessary, but useful for tesing the init script
-	# separately.
-	tags_str = ",".join(["%s:%s" % (k, v) for (k, v) in sorted(tags.items())])
-
-	fn_cmd = "%s/ec2-init.d/%s.py %s %s %s" \
-			% (os.path.dirname(os.path.realpath(__file__)), _fn_init_script
-					, _jr_sqs_url, _jr_sqs_msg_receipt_handle, tags_str)
-	_Log("Running %s" % fn_cmd)
-	Util.RunSubp(fn_cmd, shell = True, print_cmd = False, print_result = False)
+	fn_module = "%s/ec2-init.d/%s.py" % (os.path.dirname(__file__), _fn_init_script)
+	mod_name,file_ext = os.path.splitext(os.path.split(fn_module)[-1])
+	if file_ext.lower() != '.py':
+		raise RuntimeError("Unexpected file_ext: %s" % file_ext)
+	py_mod = imp.load_source(mod_name, fn_module)
+	getattr(py_mod, "main")(_jr_sqs_url, _jr_sqs_msg_receipt_handle, tags)
 
 
 _fn_init_script = None

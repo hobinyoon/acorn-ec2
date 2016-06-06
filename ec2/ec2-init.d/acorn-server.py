@@ -39,7 +39,7 @@ def _SetHostname():
 	_region = az[:-1]
 
 	# Hostname consists of availability zone name and launch req datetime
-	hn = "%s-%s" % (az, _tags["acorn_exp_param"], _job_id)
+	hn = "%s-%s" % (az, _tags["acorn_exp_param"], _tags["job_id"])
 
 	# http://askubuntu.com/questions/9540/how-do-i-change-the-computer-name
 	cmd = "sudo sh -c 'echo \"%s\" > /etc/hostname'" % hn
@@ -252,7 +252,7 @@ def _EnqJobDoneMsg():
 	# controller node can shutdown the cluster.
 
 	q = _GetJcQ()
-	_EnqJcMsg(q):
+	_EnqJcMsg(q)
 
 
 q_name_jc = "acorn-jobs-completed"
@@ -306,7 +306,6 @@ def _CacheEbsDataFileIntoMemory():
 _jr_sqs_url = None
 _jr_sqs_msg_receipt_handle = None
 _tags = {}
-_job_id
 
 def main(argv):
 	try:
@@ -318,18 +317,9 @@ def main(argv):
 		global _jr_sqs_url, _jr_sqs_msg_receipt_handle
 		_jr_sqs_url = argv[1]
 		_jr_sqs_msg_receipt_handle = argv[2]
-		tags_str = argv[3]
 
 		global _tags
-		_tags = {}
-		for kv in tags_str.split(","):
-			t = kv.split(":")
-			if len(t) != 2:
-				raise RuntimeError("Unexpected kv=[%s]" % kv)
-			_tags[t[0]] = t[1]
-
-		global _job_id
-		_job_id = _tags["job_id"]
+		_tags = argv[3]
 
 		# Loading the Youtube data file form EBS takes long, like up to 5 mins, and
 		# could make a big difference among nodes in different regions, which
