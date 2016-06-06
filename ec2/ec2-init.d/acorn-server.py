@@ -17,11 +17,10 @@ import GetIPs
 
 _fo_log = None
 
-
 def _Log(msg):
 	fn = "/var/log/acorn/ec2-init.log"
 	global _fo_log
-	if _fo_log == None:
+	if _fo_log is None:
 		_fo_log = open(fn, "a")
 	_fo_log.write("%s: %s\n" % (datetime.datetime.now().strftime("%y%m%d-%H%M%S"), msg))
 	_fo_log.flush()
@@ -221,8 +220,14 @@ def _RunYoutubeClient():
 	# Start the experiment from the master (or the leader) node.
 	if _region != "us-east-1":
 		return
-	cmd = "%s/work/acorn/acorn/clients/youtube/run-youtube-cluster.py" % os.path.expanduser('~')
-	_RunSubp(cmd)
+
+	_Log("Running Youtube client ...")
+	fn_module = "%s/work/acorn/acorn/clients/youtube/run-youtube-cluster.py" % os.path.expanduser('~')
+	mod_name,file_ext = os.path.splitext(os.path.split(fn_module)[-1])
+	if file_ext.lower() != '.py':
+		raise RuntimeError("Unexpected file_ext: %s" % file_ext)
+	py_mod = imp.load_source(mod_name, fn_module)
+	getattr(py_mod, "main")([fn_module])
 
 
 def _DeqJobReqMsgEnqJobDoneMsg():
