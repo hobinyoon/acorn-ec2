@@ -6,10 +6,11 @@ import os
 import sys
 import traceback
 
-sys.path.insert(0, "%s/../../util/python" % os.path.dirname(os.path.realpath(__file__)))
+sys.path.insert(0, "%s/../../util/python" % os.path.dirname(__file__))
 import Cons
 import Util
 
+sys.path.insert(0, "%s" % os.path.dirname(__file__))
 import GetIPs
 
 _fo_log = None
