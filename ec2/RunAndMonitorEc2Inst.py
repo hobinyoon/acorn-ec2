@@ -34,7 +34,7 @@ def Run(regions, ec2_type, tags, jr_sqs_url, jr_sqs_msg_receipt_handle, init_scr
 	req_datetime = datetime.datetime.now()
 	global _job_id
 	_job_id = req_datetime.strftime("%y%m%d-%H%M%S")
-	Cons.P("Job ID: %s (used for describing or terminating the cluster)" % _job_id)
+	Cons.P("job_id:%s (used for describing or terminating the cluster)" % _job_id)
 
 	global _ec2_type, _tags, _jr_sqs_url, _jr_sqs_msg_receipt_handle, _init_script
 	_ec2_type = ec2_type
@@ -266,16 +266,16 @@ class InstLaunchProgMon():
 
 	@staticmethod
 	def DescInsts():
-		fmt = "%-15s %10s %10s %13s %15s %15s %10s %-20s"
+		fmt = "%-15s %10s %10s %13s %15s %10s"
 		ConsP(Util.BuildHeader(fmt,
 			"Placement:AvailabilityZone"
 			" InstanceId"
 			" InstanceType"
 			" LaunchTime"
-			" PrivateIpAddress"
+			#" PrivateIpAddress"
 			" PublicIpAddress"
 			" State:Name"
-			" Tags"
+			#" Tags"
 			))
 
 		for k, v in InstLaunchProgMon.progress.iteritems():
@@ -292,10 +292,10 @@ class InstLaunchProgMon():
 				, _Value(r, "InstanceId")
 				, _Value(r, "InstanceType")
 				, _Value(r, "LaunchTime").strftime("%y%m%d-%H%M%S")
-				, _Value(r, "PrivateIpAddress")
+				#, _Value(r, "PrivateIpAddress")
 				, _Value(r, "PublicIpAddress")
 				, _Value(_Value(r, "State"), "Name")
-				, ",".join(["%s:%s" % (k, v) for (k, v) in sorted(tags.items())])
+				#, ",".join(["%s:%s" % (k, v) for (k, v) in sorted(tags.items())])
 				))
 
 
