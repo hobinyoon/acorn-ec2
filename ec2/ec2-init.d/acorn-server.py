@@ -32,6 +32,7 @@ def _RunSubp(cmd, shell = False):
 	r = Util.RunSubp(cmd, shell = shell, print_cmd = False, print_result = False)
 	if len(r.strip()) > 0:
 		_Log(Util.Indent(r, 2))
+	return r
 
 
 _region = None
@@ -203,13 +204,14 @@ def _RunCass():
 
 
 def _WaitUntilYouSeeAllCassNodes():
-	_Log("Wait until you see all Cassandra nodes ...")
+	_Log("Wait until all Cassandra nodes are up ...")
 	# Keep checking until you see all nodes are up -- "UN" status.
 	while True:
 		# Get all IPs with the tags. Hope every node sees all other nodes by this
 		# time.
 		ips = GetIPs.GetByTags(_tags)
 		num_nodes = _RunSubp("/home/ubuntu/work/acorn/bin/nodetool status | grep \"^UN \" | wc -l", shell = True)
+		num_nodes = int(num_nodes)
 		if num_nodes == len(ips):
 			break
 		time.sleep(2)
