@@ -18,6 +18,8 @@ sys.path.insert(0, "..")
 import RunAndMonitorEc2Inst
 
 
+_bc = None
+_sqs = None
 sqs_region = "us-east-1"
 q_name_jr = "acorn-jobs-requested"
 msg_body = "acorn-exp-req"
@@ -25,9 +27,11 @@ msg_body = "acorn-exp-req"
 
 def main(argv):
 	try:
-		bc = boto3.client("sqs", region_name = sqs_region)
-		sqs = boto3.resource("sqs", region_name = sqs_region)
-		q = GetQ(bc, sqs)
+		global _bc, _sqs
+		_bc = boto3.client("sqs", region_name = sqs_region)
+		_sqs = boto3.resource("sqs", region_name = sqs_region)
+
+		q = GetQ()
 		DeqReq(q)
 
 		# TODO: poll and process job request messages and job completed messages
@@ -39,10 +43,10 @@ def main(argv):
 
 
 # Get the queue. Create one if not exists.
-def GetQ(bc, sqs):
+def GetQ():
 	with Cons.MT("Getting the queue ..."):
 		try:
-			queue = sqs.get_queue_by_name(
+			queue = _sqs.get_queue_by_name(
 					QueueName = q_name_jr,
 					# QueueOwnerAWSAccountId='string'
 					)
@@ -62,7 +66,7 @@ def GetQ(bc, sqs):
 		while True:
 			response = None
 			try:
-				response = bc.create_queue(QueueName = q_name_jr)
+				response = _bc.create_queue(QueueName = q_name_jr)
 				# Default message retention period is 4 days.
 				print ""
 				break
@@ -77,7 +81,7 @@ def GetQ(bc, sqs):
 				else:
 					raise e
 
-		return sqs.get_queue_by_name(QueueName = q_name_jr)
+		return _sqs.get_queue_by_name(QueueName = q_name_jr)
 
 
 def DeqReq(q):
@@ -381,7 +385,6 @@ def _Value(dict_, key):
 
 _print_lock = threading.Lock()
 
-# Serialization is not needed in this file. Leave it for now.
 def ConsP(msg):
 	with _print_lock:
 		Cons.P(msg)
