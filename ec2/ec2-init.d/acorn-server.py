@@ -261,7 +261,6 @@ def _UploadResult():
 
 
 def _DeqJobReqMsgEnqJobDoneMsg():
-	# TODO: Dequeue the experiment request from SQS
 	_DeqJobReqMsg()
 	_EnqJobDoneMsg()
 
@@ -286,11 +285,10 @@ def _DeqJobReqMsg():
 
 
 def _EnqJobDoneMsg():
-	_Log("Posting a job completion message ...")
-
 	# Post a "job done" message to the job completed queue, so that the
 	# controller node can shutdown the cluster.
 
+	_Log("Posting a job completion message ...")
 	q = _GetJcQ()
 	_EnqJcMsg(q)
 
