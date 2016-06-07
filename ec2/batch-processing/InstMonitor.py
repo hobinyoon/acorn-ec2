@@ -14,6 +14,8 @@ _fmt_desc_inst = "%13s %-15s %10s %15s %13s"
 
 
 class IM:
+	monitor_interval_in_sec = 10
+
 	def __init__(self):
 		self.cv = threading.Condition()
 
@@ -24,25 +26,20 @@ class IM:
 		self.t.start()
 
 	def DescInst(self):
-		self.bt = time.time()
-		self.lines_printed = 0
+		self.desc_inst_start_time = time.time()
+		self.stdout_msg = ""
 		while self.stop_requested == False:
 			bt = time.time()
-
 			self._DescInst()
-
 			if self.stop_requested:
 				break
-
-			wait_time = 10 - (time.time() - bt)
+			wait_time = IM.monitor_interval_in_sec - (time.time() - bt)
 			if wait_time > 0:
 				with self.cv:
 					self.cv.wait(wait_time)
 
 	def _DescInst(self):
-		sys.stdout.write("Describing instances:")
-		sys.stdout.flush()
-		self.lines_printed += 1
+		DIO.P("Describing instances:")
 
 		dis = []
 		regions_all = [
@@ -69,26 +66,14 @@ class IM:
 
 		for t in self.threads:
 			t.join()
-		print ""
-
-		# Clear previous lines
-		for i in range(self.lines_printed):
-			# Clear current line
-			sys.stdout.write(chr(27) + "[2K")
-			# Move the cursor up
-			sys.stdout.write(chr(27) + "[1A")
-			# Move the cursor to column 1
-			sys.stdout.write(chr(27) + "[1G")
-		# Clear current line
-		sys.stdout.write(chr(27) + "[2K")
-		self.lines_printed = 0
+		DIO.P("\n\n")
+		self.last_desc_inst_time = time.time()
 
 		num_insts = 0
 		for di in dis:
 			num_insts += di.NumInsts()
 		if num_insts == 0:
-			ConsMt.P("No instances found.")
-			self.lines_printed += 1
+			DIO.P("No instances found.\n")
 			return
 
 		header = Util.BuildHeader(_fmt_desc_inst,
@@ -98,20 +83,16 @@ class IM:
 			" PublicIpAddress"
 			" State:Name"
 			)
-		ConsMt.P(header)
-		self.lines_printed += len(header.split("\n"))
+		DIO.P(header + "\n")
 
 		results = []
 		for di in dis:
 			results += di.GetResults()
 		for r in sorted(results):
-			ConsMt.P(r)
-			self.lines_printed += 1
+			DIO.P(r + "\n")
 
-		ConsMt.P("")
-		ConsMt.P("Time since the last msg: %s" % (str(datetime.timedelta(seconds=(time.time() - self.bt)))))
-		ConsMt.P("")
-		self.lines_printed += 3
+		DIO.P("\nTime since the last msg: %s" % (str(datetime.timedelta(seconds=(time.time() - self.desc_inst_start_time)))))
+		DIO.Flush()
 
 	def __exit__(self, type, value, traceback):
 		self.ReqStop()
@@ -128,6 +109,36 @@ class IM:
 				pass
 
 
+# Describe instance output
+class DIO:
+	msg = ""
+	msg_lock = threading.Lock()
+	lines_printed = 0
+
+	@staticmethod
+	def P(msg):
+		with DIO.msg_lock:
+			DIO.msg += msg
+
+	@staticmethod
+	def Flush():
+		with DIO.msg_lock:
+			# Clear previous printed lines
+			for i in range(DIO.lines_printed):
+				# Clear current line
+				sys.stdout.write(chr(27) + "[2K")
+				# Move the cursor up
+				sys.stdout.write(chr(27) + "[1A")
+				# Move the cursor to column 1
+				sys.stdout.write(chr(27) + "[1G")
+			# Clear current line
+			sys.stdout.write(chr(27) + "[2K")
+
+			ConsMt.Pnnl(DIO.msg)
+			DIO.lines_printed = len(DIO.msg.split("\n")) - 1
+			DIO.msg = ""
+
+
 class DescInstPerRegion:
 	def __init__(self, region):
 		self.region = region
@@ -135,7 +146,7 @@ class DescInstPerRegion:
 	def Run(self):
 		boto_client = boto3.session.Session().client("ec2", region_name=self.region)
 		self.response = boto_client.describe_instances()
-		ConsMt.sys_stdout_write(" %s" % self.region)
+		DIO.P(" %s" % self.region)
 
 	def NumInsts(self):
 		num = 0
