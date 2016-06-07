@@ -38,7 +38,6 @@ def PollJrJcMsgs():
 			while True:
 				try:
 					r = _q.get(timeout=100000)
-					print "interrupted 0"
 				except Queue.Empty:
 					pass
 

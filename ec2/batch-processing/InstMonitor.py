@@ -16,11 +16,9 @@ _fmt_desc_inst = "%13s %-15s %10s %15s %13s"
 class IM:
 	monitor_interval_in_sec = 10
 
-	def __init__(self):
-		self.cv = threading.Condition()
-
 	def __enter__(self):
 		self.stop_requested = False
+		self.cv = threading.Condition()
 		self.t = threading.Thread(target=self.DescInst)
 		self.t.daemon = True
 		self.t.start()
