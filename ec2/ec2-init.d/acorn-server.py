@@ -2,6 +2,7 @@
 
 import base64
 import boto3
+import botocore
 import datetime
 import imp
 import os
@@ -39,15 +40,12 @@ def _RunSubp(cmd, shell = False):
 	return r
 
 
+_az = None
 _region = None
 
 def _SetHostname():
-	az = Util.RunSubp("curl -s http://169.254.169.254/latest/meta-data/placement/availability-zone", print_cmd = False, print_result = False)
-	global _region
-	_region = az[:-1]
-
 	# Hostname consists of availability zone name and launch req datetime
-	hn = "%s-%s" % (az, _tags["job_id"])
+	hn = "%s-%s" % (_az, _tags["job_id"])
 
 	# http://askubuntu.com/questions/9540/how-do-i-change-the-computer-name
 	cmd = "sudo sh -c 'echo \"%s\" > /etc/hostname'" % hn
@@ -338,7 +336,7 @@ def _EnqJcMsg(q):
 	msg_attrs = {}
 	for k, v in _tags.iteritems():
 		msg_attrs[k] = {"StringValue": v, "DataType": "String"}
-	q.send_message(MessageBody=msg_body_jc, MessageAttributes={msg_attrs})
+	q.send_message(MessageBody=msg_body_jc, MessageAttributes=msg_attrs)
 
 
 def _CacheEbsDataFileIntoMemory():
@@ -375,7 +373,10 @@ def main(argv):
 
 		global _job_id
 		_job_id = _tags["job_id"]
-		_Log("job_id=%s" % _job_id)
+
+		global _az, _region
+		_az = Util.RunSubp("curl -s http://169.254.169.254/latest/meta-data/placement/availability-zone", print_cmd = False, print_result = False)
+		_region = _az[:-1]
 
 		# Loading the Youtube data file form EBS takes long, like up to 5 mins, and
 		# could make a big difference among nodes in different regions, which
