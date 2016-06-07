@@ -74,14 +74,15 @@ def _RunInitByTags():
 			continue
 		if _inst_id == res_id:
 			tags[r0["Key"]] = r0["Value"]
-	_Log("tags:\n%s" % "\n".join(["  %s:%s" % (k, v) for (k, v) in sorted(tags.items())]))
+	tags_str = ",".join(["%s:%s" % (k, v) for (k, v) in sorted(tags.items())])
+	_Log("tags_str: %s" % tags_str)
 
 	fn_module = "%s/ec2-init.d/%s.py" % (os.path.dirname(__file__), _fn_init_script)
 	mod_name,file_ext = os.path.splitext(os.path.split(fn_module)[-1])
 	if file_ext.lower() != '.py':
 		raise RuntimeError("Unexpected file_ext: %s" % file_ext)
 	py_mod = imp.load_source(mod_name, fn_module)
-	getattr(py_mod, "main")([fn_module, _jr_sqs_url, _jr_sqs_msg_receipt_handle, tags])
+	getattr(py_mod, "main")([fn_module, _jr_sqs_url, _jr_sqs_msg_receipt_handle, tags_str])
 
 
 _fn_init_script = None

@@ -1,13 +1,16 @@
 #!/usr/bin/env python
 
 import base64
+import boto3
 import datetime
 import imp
 import os
+import pprint
 import sys
 import threading
 import time
 import traceback
+import zipfile
 
 sys.path.insert(0, "%s/../../util/python" % os.path.dirname(__file__))
 import Cons
@@ -25,6 +28,7 @@ def _Log(msg):
 		_fo_log = open(fn, "a")
 	_fo_log.write("%s: %s\n" % (datetime.datetime.now().strftime("%y%m%d-%H%M%S"), msg))
 	_fo_log.flush()
+	Cons.P(msg)
 
 
 def _RunSubp(cmd, shell = False):
@@ -218,10 +222,6 @@ def _WaitUntilYouSeeAllCassNodes():
 
 
 def _RunYoutubeClient():
-	# Start the experiment from the master (or the leader) node.
-	if _region != "us-east-1":
-		return
-
 	_Log("Running Youtube client ...")
 	fn_module = "%s/work/acorn/acorn/clients/youtube/run-youtube-cluster.py" % os.path.expanduser('~')
 	mod_name,file_ext = os.path.splitext(os.path.split(fn_module)[-1])
@@ -231,15 +231,45 @@ def _RunYoutubeClient():
 	getattr(py_mod, "main")([fn_module])
 
 
-def _DeqJobReqMsgEnqJobDoneMsg():
-	if _region != "us-east-1":
-		return
+s3_bucket_name = "acorn-youtube"
 
+
+def _UploadResult():
+	prev_dir = os.getcwd()
+	os.chdir("%s/work/acorn/acorn/clients/youtube/.run" % os.path.expanduser('~'))
+
+	# Zip .run
+	# http://stackoverflow.com/questions/1855095/how-to-create-a-zip-archive-of-a-directory
+	dn_in = "."
+	fn_out = "../acorn-youtube-result-%s.zip" % _job_id
+	with zipfile.ZipFile(fn_out, "w", zipfile.ZIP_DEFLATED) as zf:
+		for root, dirs, files in os.walk(dn_in):
+			for f in files:
+				zf.write(os.path.join(root, f))
+		zf.write("/var/log/acorn/ec2-init.log")
+	_Log("Created %s %d" % (os.path.abspath(fn_out), os.path.getsize(fn_out)))
+
+	# Upload to S3
+	_Log("Uploading data to S3 ...")
+	s3 = boto3.resource("s3", region_name = _s3_region)
+	# If you don't specify a region, the bucket will be created in US Standard.
+	#  http://boto3.readthedocs.io/en/latest/reference/services/s3.html#S3.Client.create_bucket
+	r = s3.create_bucket(Bucket=s3_bucket_name)
+	_Log(pprint.pformat(r))
+	r = s3.Object(s3_bucket_name, "%s.zip" % _job_id).put(Body=open(fn_out, "rb"))
+	_Log(pprint.pformat(r))
+
+	os.chdir(prev_dir)
+
+
+def _DeqJobReqMsgEnqJobDoneMsg():
+	# TODO: Dequeue the experiment request from SQS
 	_DeqJobReqMsg()
 	_EnqJobDoneMsg()
 
 
 _sqs_region = "us-east-1"
+_s3_region  = "us-east-1"
 _bc = None
 
 def _DeqJobReqMsg():
@@ -321,6 +351,7 @@ def _CacheEbsDataFileIntoMemory():
 _jr_sqs_url = None
 _jr_sqs_msg_receipt_handle = None
 _tags = {}
+_job_id = None
 
 def main(argv):
 	try:
@@ -332,9 +363,19 @@ def main(argv):
 		global _jr_sqs_url, _jr_sqs_msg_receipt_handle
 		_jr_sqs_url = argv[1]
 		_jr_sqs_msg_receipt_handle = argv[2]
+		tags_str = argv[3]
 
 		global _tags
-		_tags = argv[3]
+		for t in tags_str.split(","):
+			t1 = t.split(":")
+			if len(t1) != 2:
+				raise RuntimeError("Unexpected format %s" % t1)
+			_tags[t1[0]] = t1[1]
+		_Log("tags:\n%s" % "\n".join(["  %s:%s" % (k, v) for (k, v) in sorted(_tags.items())]))
+
+		global _job_id
+		_job_id = _tags["job_id"]
+		_Log("job_id=%s" % _job_id)
 
 		# Loading the Youtube data file form EBS takes long, like up to 5 mins, and
 		# could make a big difference among nodes in different regions, which
@@ -356,12 +397,15 @@ def main(argv):
 		t.join()
 
 		_WaitUntilYouSeeAllCassNodes()
-		_RunYoutubeClient()
-		_DeqJobReqMsgEnqJobDoneMsg()
+
+		# Start the experiment from the master (or the leader) node.
+		if _region == "us-east-1":
+			_RunYoutubeClient()
+			_UploadResult()
+			_DeqJobReqMsgEnqJobDoneMsg()
 	except Exception as e:
 		msg = "Exception: %s\n%s" % (e, traceback.format_exc())
 		_Log(msg)
-		Cons.P(msg)
 
 
 if __name__ == "__main__":
