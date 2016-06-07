@@ -30,7 +30,7 @@ def RunTermInst(tags):
 
 	threads = []
 
-	sys.stdout.write("terminating all running instances:")
+	sys.stdout.write("terminating running instances:")
 	sys.stdout.flush()
 
 	tis = []
