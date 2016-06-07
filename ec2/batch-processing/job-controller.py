@@ -3,6 +3,7 @@
 import base64
 import boto3
 import botocore
+import datetime
 import os
 import pprint
 import sys
@@ -26,26 +27,15 @@ def main(argv):
 	try:
 		bc = boto3.client("sqs", region_name = sqs_region)
 		sqs = boto3.resource("sqs", region_name = sqs_region)
-		#DeleteQ(bc)
 		q = GetQ(bc, sqs)
-
 		DeqReq(q)
 
-		# TODO: rename the file. poll and process job request messages and job
-		# completed messages
+		# TODO: poll and process job request messages and job completed messages
 		# TODO: implement job completed msg processing.
 
 	except KeyboardInterrupt as e:
-		Cons.P("Got a keyboard interrupt. Stopping ...")
+		ConsP("Got a keyboard interrupt. Stopping ...")
 		AllWaitTimers.ReqStop()
-
-
-def DeleteQ(bc):
-	with Cons.MT("Deleting queue ..."):
-		response = bc.delete_queue(
-				QueueUrl="https://queue.amazonaws.com/998754746880/acorn-exps"
-				)
-		Cons.P(pprint.pformat(response, indent=2))
 
 
 # Get the queue. Create one if not exists.
@@ -56,19 +46,19 @@ def GetQ(bc, sqs):
 					QueueName = q_name_jr,
 					# QueueOwnerAWSAccountId='string'
 					)
-			#Cons.P(pprint.pformat(vars(queue), indent=2))
+			#ConsP(pprint.pformat(vars(queue), indent=2))
 			#{ '_url': 'https://queue.amazonaws.com/998754746880/acorn-exps',
 			#		  'meta': ResourceMeta('sqs', identifiers=[u'url'])}
 			return queue
 		except botocore.exceptions.ClientError as e:
-			#Cons.P(pprint.pformat(e, indent=2))
-			#Cons.P(pprint.pformat(vars(e), indent=2))
+			#ConsP(pprint.pformat(e, indent=2))
+			#ConsP(pprint.pformat(vars(e), indent=2))
 			if e.response["Error"]["Code"] == "AWS.SimpleQueueService.NonExistentQueue":
 				pass
 			else:
 				raise e
 
-		Cons.Pnnl("The queue doesn't exists. Creating one ")
+		ConsPnnl("The queue doesn't exists. Creating one ")
 		while True:
 			response = None
 			try:
@@ -90,117 +80,109 @@ def GetQ(bc, sqs):
 		return sqs.get_queue_by_name(QueueName = q_name_jr)
 
 
-def EnqReq(q):
-	with Cons.MT("Enq a message ..."):
-		q.send_message(MessageBody=msg_body, MessageAttributes={
-			"rep_model": {"StringValue": "full", "DataType": "String"},
-			"exchange_acorn_metadata": {"StringValue": "true", "DataType": "String"},
-			})
-
-
 def DeqReq(q):
-	with Cons.MT("Deq messages ..."):
-		while True:
-			messages = None
-			with WaitTimer():
-				while True:
-					try:
-						messages = None
-						messages = q.receive_messages(
-								#AttributeNames=[
-								#	'Policy'|'VisibilityTimeout'|'MaximumMessageSize'|'MessageRetentionPeriod'|'ApproximateNumberOfMessages'|'ApproximateNumberOfMessagesNotVisible'|'CreatedTimestamp'|'LastModifiedTimestamp'|'QueueArn'|'ApproximateNumberOfMessagesDelayed'|'DelaySeconds'|'ReceiveMessageWaitTimeSeconds'|'RedrivePolicy',
-								#	],
-								MessageAttributeNames=["All"],
-								MaxNumberOfMessages=1,
+	ConsP("Start serving ...")
+	ConsP("")
+	while True:
+		messages = None
+		with InstMonitor():
+			while True:
+				try:
+					messages = None
+					messages = q.receive_messages(
+							#AttributeNames=[
+							#	'Policy'|'VisibilityTimeout'|'MaximumMessageSize'|'MessageRetentionPeriod'|'ApproximateNumberOfMessages'|'ApproximateNumberOfMessagesNotVisible'|'CreatedTimestamp'|'LastModifiedTimestamp'|'QueueArn'|'ApproximateNumberOfMessagesDelayed'|'DelaySeconds'|'ReceiveMessageWaitTimeSeconds'|'RedrivePolicy',
+							#	],
+							MessageAttributeNames=["All"],
+							MaxNumberOfMessages=1,
 
-								# Should be bigger than one experiment duration so that another
-								# of the same experiment doesn't get picked up while one is
-								# running.
-								VisibilityTimeout=3600,
+							# Should be bigger than one experiment duration so that another
+							# of the same experiment doesn't get picked up while one is
+							# running.
+							VisibilityTimeout=3600,
 
-								WaitTimeSeconds=5
-								)
-					except botocore.exceptions.EndpointConnectionError as e:
-						# Could not connect to the endpoint URL: "https://queue.amazonaws.com/"
-						Cons.P("%s. Retrying ..." % e)
-						time.sleep(2)
-					if (messages is not None) and (len(messages)) > 0:
-						break
+							WaitTimeSeconds=5
+							)
+				except botocore.exceptions.EndpointConnectionError as e:
+					# Could not connect to the endpoint URL: "https://queue.amazonaws.com/"
+					ConsP("%s. Retrying ..." % e)
+					time.sleep(2)
+				if (messages is not None) and (len(messages)) > 0:
+					break
 
-			for m in messages:
-				if m.body != msg_body:
-					raise RuntimeError("Unexpected. m.body=[%s]" % m.body)
+		for m in messages:
+			if m.body != msg_body:
+				raise RuntimeError("Unexpected. m.body=[%s]" % m.body)
 
-				if m.receipt_handle is None:
+			if m.receipt_handle is None:
+				raise RuntimeError("Unexpected")
+
+			if m.message_attributes is None:
+				raise RuntimeError("Unexpected")
+
+			tags = {}
+			for k, v in m.message_attributes.iteritems():
+				if v["DataType"] != "String":
 					raise RuntimeError("Unexpected")
+				v1 = v["StringValue"]
+				tags[k] = v1
+				#ConsP("  %s: %s" % (k, v1))
 
-				if m.message_attributes is None:
-					raise RuntimeError("Unexpected")
+			# TODO: May want some admission control here, like one based on how many
+			# free instance slots are available.
 
-				tags = {}
-				for k, v in m.message_attributes.iteritems():
-					if v["DataType"] != "String":
-						raise RuntimeError("Unexpected")
-					v1 = v["StringValue"]
-					tags[k] = v1
-					#Cons.P("  %s: %s" % (k, v1))
+			ConsP("Got an experiment request. tags:")
+			for k, v in sorted(tags.iteritems()):
+				ConsP("  %s:%s" % (k, v))
 
-				# TODO: May want some admission control here, like one based on how
-				# many free instance slots are available.
+			# TODO
+			#regions = [
+			#		"us-east-1"
+			#		, "us-west-1"
+			#		, "us-west-2"
+			#		, "eu-west-1"
+			#		, "eu-central-1"
+			#		, "ap-southeast-1b"
+			#		, "ap-southeast-2"
 
-				Cons.P("Starting an experiment with the tags:")
-				for k, v in sorted(tags.iteritems()):
-					Cons.P("  %s:%s" % (k, v))
+			#		# Seoul. Terminates by itself. Turns out they don't have c3 instance types.
+			#		#, "ap-northeast-2"
 
-				# TODO
-				#regions = [
-				#		"us-east-1"
-				#		, "us-west-1"
-				#		, "us-west-2"
-				#		, "eu-west-1"
-				#		, "eu-central-1"
-				#		, "ap-southeast-1b"
-				#		, "ap-southeast-2"
+			#		, "ap-northeast-1"
+			#		, "sa-east-1"
+			#		]
+			regions = [
+					"us-east-1"
+					, "us-west-1"
+					]
 
-				#		# Seoul. Terminates by itself. Turns out they don't have c3 instance types.
-				#		#, "ap-northeast-2"
+			ec2_type = "c3.4xlarge"
 
-				#		, "ap-northeast-1"
-				#		, "sa-east-1"
-				#		]
-				regions = [
-						"us-east-1"
-						, "us-west-1"
-						]
+			# Pass these as the init script parameters. Decided not to use EC2 tag
+			# for these, due to its limitations.
+			#   http://docs.aws.amazon.com/awsaccountbilling/latest/aboutv2/allocation-tag-restrictions.html
+			jr_sqs_url = q._url
+			jr_sqs_msg_receipt_handle = m.receipt_handle
+			init_script = "acorn-server"
 
-				ec2_type = "c3.4xlarge"
+			# Cassandra cluster name. It's ok for multiple clusters to have the same
+			# cluster_name for Cassandra. It's ok for multiple clusters to have the
+			# same name as long as they don't see each other through the gossip
+			# protocol.  It's even okay to use the default one: test-cluster
+			#tags["cass_cluster_name"] = "acorn"
 
-				# Pass these as the init script parameters. Decided not to use EC2 tag
-				# for these, due to its limitations.
-				#   http://docs.aws.amazon.com/awsaccountbilling/latest/aboutv2/allocation-tag-restrictions.html
-				jr_sqs_url = q._url
-				jr_sqs_msg_receipt_handle = m.receipt_handle
-				init_script = "acorn-server"
+			RunAndMonitorEc2Inst.Run(
+					regions = regions
+					, ec2_type = ec2_type
+					, tags = tags
+					, jr_sqs_url = jr_sqs_url
+					, jr_sqs_msg_receipt_handle = jr_sqs_msg_receipt_handle
+					, init_script = init_script)
+			print ""
 
-				# Cassandra cluster name. It's ok for multiple clusters to have the same
-				# cluster_name for Cassandra. It's ok for multiple clusters to have the same
-				# name as long as they don't see each other through the gossip protocol.
-				# It's even okay to use the default one: test-cluster
-				# Better to save EC2 tags
-				#tags["cass_cluster_name"] = "acorn"
-
-				RunAndMonitorEc2Inst.Run(
-						regions = regions
-						, ec2_type = ec2_type
-						, tags = tags
-						, jr_sqs_url = jr_sqs_url
-						, jr_sqs_msg_receipt_handle = jr_sqs_msg_receipt_handle
-						, init_script = init_script)
-				print ""
-
-				# Sleep a bit so that each cluster has a unique ID, which is made of
-				# current datetime
-				time.sleep(1.5)
+			# Sleep a bit so that each cluster has a unique ID, which is made of
+			# current datetime
+			time.sleep(1.5)
 
 
 class AllWaitTimers:
@@ -216,42 +198,202 @@ class AllWaitTimers:
 			wt.ReqStop()
 
 
-class WaitTimer:
+_fmt_desc_inst = "%13s %-15s %10s %15s %13s"
+
+class InstMonitor:
 	def __enter__(self):
 		AllWaitTimers.Add(self)
 		self.stop_requested = False
 		self.cv = threading.Condition()
-		self.t = threading.Thread(target=self.Timer)
+		self.t = threading.Thread(target=self.DescInst)
 		self.t.start()
 
-	def Timer(self):
-		self.wait_time = 0
+	def DescInst(self):
+		self.bt = time.time()
+		self.lines_printed = 0
 		while self.stop_requested == False:
-			with self.cv:
-				self.cv.wait(1.0)
-			if self.stop_requested == True:
+			bt = time.time()
+
+			self._DescInst()
+
+			if self.stop_requested:
 				break
 
+			wait_time = 10 - (time.time() - bt)
+			if wait_time > 0:
+				with self.cv:
+					self.cv.wait(wait_time)
+
+	def _DescInst(self):
+		sys.stdout.write("Describing instances:")
+		sys.stdout.flush()
+		self.lines_printed += 1
+
+		dis = []
+		regions_all = [
+				"us-east-1"
+				, "us-west-1"
+				, "us-west-2"
+				, "eu-west-1"
+				, "eu-central-1"
+				, "ap-southeast-1"
+				, "ap-southeast-2"
+				, "ap-northeast-2"
+				, "ap-northeast-1"
+				, "sa-east-1"
+				]
+		for r in regions_all:
+			dis.append(DescInstPerRegion(r))
+
+		self.threads = []
+		for di in dis:
+			t = threading.Thread(target=di.Run)
+			self.threads.append(t)
+			t.start()
+
+		for t in self.threads:
+			t.join()
+		print ""
+
+		# Clear previous lines
+		for i in range(self.lines_printed):
 			# Clear current line
 			sys.stdout.write(chr(27) + "[2K")
+			# Move the cursor up
+			sys.stdout.write(chr(27) + "[1A")
 			# Move the cursor to column 1
 			sys.stdout.write(chr(27) + "[1G")
+		# Clear current line
+		sys.stdout.write(chr(27) + "[2K")
+		self.lines_printed = 0
 
-			Cons.Pnnl("Waiting for a reply %s" % (self.wait_time + 1))
-			self.wait_time += 1
+		num_insts = 0
+		for di in dis:
+			num_insts += di.NumInsts()
+		if num_insts == 0:
+			ConsP("No instances found.")
+			self.lines_printed += 1
+			return
+
+		header = Util.BuildHeader(_fmt_desc_inst,
+			"job_id"
+			" Placement:AvailabilityZone"
+			" InstanceId"
+			" PublicIpAddress"
+			" State:Name"
+			)
+		ConsP(header)
+		self.lines_printed += len(header.split("\n"))
+
+		results = []
+		for di in dis:
+			results += di.GetResults()
+		for r in sorted(results):
+			ConsP(r)
+			self.lines_printed += 1
+
+		ConsP("")
+		ConsP("Time since the last job request: %s" % (str(datetime.timedelta(seconds=(time.time() - self.bt)))))
+		ConsP("")
+		self.lines_printed += 3
 
 	def __exit__(self, type, value, traceback):
 		self.ReqStop()
 
 	def ReqStop(self):
-		if self.wait_time > 0:
-			print ""
-
 		self.stop_requested = True
 		with self.cv:
 			self.cv.notifyAll()
 		if self.t != None:
 			self.t.join()
+			# It doesn't kill the running threads immediately, which is fine. There
+			# is only like 1 - 2 secs of delay.
+
+
+class DescInstPerRegion:
+	def __init__(self, region):
+		self.region = region
+		self.key_error = None
+
+	def Run(self):
+		try:
+			boto_client = boto3.session.Session().client("ec2", region_name=self.region)
+			self.response = boto_client.describe_instances()
+		except KeyError as e:
+			#ConsP("region=%s KeyError=[%s]" % (self.region, e))
+			self.key_error = e
+
+		sys_stdout_write(" %s" % self.region)
+
+	def NumInsts(self):
+		if self.key_error is not None:
+			return 0
+		num = 0
+		for r in self.response["Reservations"]:
+			for r1 in r["Instances"]:
+				num += 1
+		return num
+
+	def GetInstDesc(self):
+		ids = []
+		if self.key_error is not None:
+			return ids
+		for r in self.response["Reservations"]:
+			ids += r["Instances"]
+		return ids
+
+
+	def GetResults(self):
+		if self.key_error is not None:
+			return ["region=%s KeyError=[%s]" % (self.region, self.key_error)]
+
+		#ConsP(pprint.pformat(self.response, indent=2, width=100))
+		results = []
+		for r in self.response["Reservations"]:
+			for r1 in r["Instances"]:
+				if _Value(_Value(r1, "State"), "Name") == "terminated":
+					continue
+
+				tags = {}
+				if "Tags" in r1:
+					for t in r1["Tags"]:
+						tags[t["Key"]] = t["Value"]
+
+				results.append(_fmt_desc_inst % (
+					tags.get("job_id")
+					, _Value(_Value(r1, "Placement"), "AvailabilityZone")
+					, _Value(r1, "InstanceId")
+					, _Value(r1, "PublicIpAddress")
+					, _Value(_Value(r1, "State"), "Name")
+					))
+		return results
+
+
+def _Value(dict_, key):
+	if key == "":
+		return ""
+
+	if key in dict_:
+		return dict_[key]
+	else:
+		return ""
+
+
+_print_lock = threading.Lock()
+
+# Serialization is not needed in this file. Leave it for now.
+def ConsP(msg):
+	with _print_lock:
+		Cons.P(msg)
+
+def ConsPnnl(msg):
+	with _print_lock:
+		Cons.Pnnl(msg)
+
+def sys_stdout_write(msg):
+	with _print_lock:
+		sys.stdout.write(msg)
+		sys.stdout.flush()
 
 
 if __name__ == "__main__":
