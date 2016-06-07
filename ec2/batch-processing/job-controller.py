@@ -16,18 +16,11 @@ import JobReqQ
 import InstMonitor
 
 
-# TODO: sigint not working
-
 def main(argv):
 	try:
 		PollJrJcMsgs()
-
-		# TODO: poll and process job request messages and job completed messages
-		# TODO: implement job completed msg processing.
-
 	except KeyboardInterrupt as e:
-		ConsMt.P("Got a keyboard interrupt. Stopping ...")
-		InstMonitor.StopAll()
+		ConsMt.P("\nGot a keyboard interrupt. Stopping ...")
 
 
 _q = Queue.Queue()
@@ -37,10 +30,18 @@ def PollJrJcMsgs():
 	JobCompletionQ.PollBackground(_q)
 
 	while True:
-		# TODO: Let InstMonitor stop immediately on exit
 		with InstMonitor.IM():
 			# Blocked waiting until a request is available
-			r = _q.get(True)
+			#
+			# Interruptable get
+			#   http://stackoverflow.com/questions/212797/keyboard-interruptable-blocking-queue-in-python
+			while True:
+				try:
+					r = _q.get(timeout=100000)
+					print "interrupted 0"
+				except Queue.Empty:
+					pass
+
 		if isinstance(r, JobReq):
 			ProcessJobReq(r)
 		elif isinstance(r, JobCompleted):

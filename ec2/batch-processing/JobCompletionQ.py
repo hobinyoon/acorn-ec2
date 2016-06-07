@@ -132,7 +132,6 @@ def _GetQ():
 	return _sqs.get_queue_by_name(QueueName = q_name_jc)
 
 
-
 # TODO: init
 _bc = None
 

@@ -12,18 +12,13 @@ import Util
 
 _fmt_desc_inst = "%13s %-15s %10s %15s %13s"
 
-_monitors = set()
-
-def StopAll():
-	for m in _monitors:
-		m.ReqStop()
-
 
 class IM:
-	def __enter__(self):
-		_monitors.add(self)
-		self.stop_requested = False
+	def __init__(self):
 		self.cv = threading.Condition()
+
+	def __enter__(self):
+		self.stop_requested = False
 		self.t = threading.Thread(target=self.DescInst)
 		self.t.daemon = True
 		self.t.start()
@@ -126,29 +121,23 @@ class IM:
 		with self.cv:
 			self.cv.notifyAll()
 		if self.t != None:
-			self.t.join()
-			# It doesn't kill the running threads immediately, which is fine. There
-			# is only like 1 - 2 secs of delay.
+			#self.t.join() doesn't kill the running threads immediately.
+			try:
+				self.t.exit()
+			except AttributeError:
+				pass
 
 
 class DescInstPerRegion:
 	def __init__(self, region):
 		self.region = region
-		self.key_error = None
 
 	def Run(self):
-		try:
-			boto_client = boto3.session.Session().client("ec2", region_name=self.region)
-			self.response = boto_client.describe_instances()
-		except KeyError as e:
-			#ConsMt.P("region=%s KeyError=[%s]" % (self.region, e))
-			self.key_error = e
-
+		boto_client = boto3.session.Session().client("ec2", region_name=self.region)
+		self.response = boto_client.describe_instances()
 		ConsMt.sys_stdout_write(" %s" % self.region)
 
 	def NumInsts(self):
-		if self.key_error is not None:
-			return 0
 		num = 0
 		for r in self.response["Reservations"]:
 			for r1 in r["Instances"]:
@@ -157,17 +146,11 @@ class DescInstPerRegion:
 
 	def GetInstDesc(self):
 		ids = []
-		if self.key_error is not None:
-			return ids
 		for r in self.response["Reservations"]:
 			ids += r["Instances"]
 		return ids
 
-
 	def GetResults(self):
-		if self.key_error is not None:
-			return ["region=%s KeyError=[%s]" % (self.region, self.key_error)]
-
 		#ConsMt.P(pprint.pformat(self.response, indent=2, width=100))
 		results = []
 		for r in self.response["Reservations"]:
@@ -198,5 +181,3 @@ def _Value(dict_, key):
 		return dict_[key]
 	else:
 		return ""
-
-
