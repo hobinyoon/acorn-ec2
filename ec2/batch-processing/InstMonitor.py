@@ -162,6 +162,8 @@ class DescInstPerRegion:
 		num = 0
 		for r in self.response["Reservations"]:
 			for r1 in r["Instances"]:
+				if _Value(_Value(r1, "State"), "Name") == "terminated":
+					continue
 				num += 1
 		return num
 
