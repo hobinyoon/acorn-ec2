@@ -19,7 +19,9 @@ def main(argv):
 	bc = boto3.client("sqs", region_name = sqs_region)
 	sqs = boto3.resource("sqs", region_name = sqs_region)
 	q = GetQ(bc, sqs)
-	EnqReq(q)
+
+	# Measure xDC traffic of object replication and metadata
+	MeasureMetadataXdcTraffic(q)
 
 
 # Get the queue. Create one if not exists.
@@ -35,7 +37,7 @@ def GetQ(bc, sqs):
 		return queue
 
 
-def EnqReq(q):
+def MeasureMetadataXdcTraffic(q):
 	#regions = [
 	#		"us-east-1"
 	#		, "us-west-1"
@@ -58,20 +60,19 @@ def EnqReq(q):
 
 	Cons.P("regions: %s" % ",".join(regions))
 
-	# Measure xDC traffic of object replication and metadata
-	_EnqReq(q, {
-		"regions": ",".join(regions)
-		, "acorn_options.full_replication": "true"
-		, "acorn-youtube.replication_type": "partial"
-		, "acorn-youtube.fn_youtube_reqs": "tweets-010"
-		, "acorn-youtube.max_requests": "5000"
-		, "acorn-youtube.simulation_time_dur_in_ms": "10000"
-		})
+	req_attrs = {
+			"regions": ",".join(regions)
+			, "acorn_options.full_replication": "true"
+			, "acorn-youtube.replication_type": "partial"
+			, "acorn-youtube.fn_youtube_reqs": "tweets-010"
+			, "acorn-youtube.max_requests": "5000"
+			, "acorn-youtube.simulation_time_dur_in_ms": "10000"
+			}
+	_EnqReq(q, req_attrs)
 
-	#_EnqReq(q, {
-	#	"acorn_options.full_replication": "false"
-	#	, "acorn-youtube.replication_type": "partial"
-	#	})
+	req_attrs["acorn_options.full_replication"] = "false"
+	req_attrs["acorn-youtube.replication_type"] = "partial"
+	_EnqReq(q, req_attrs)
 
 
 def _EnqReq(q, attrs):
