@@ -69,6 +69,11 @@ def ProcessJobReq(jr):
 	jr_sqs_msg_receipt_handle = jr.msg.receipt_handle
 	init_script = "acorn-server"
 
+	regions = jr.attrs["regions"].split(",")
+	# Delete "regions" from the dict to avoid messing up the parameter parsing
+	# caused by the commas
+	jr.attrs.pop("regions", None)
+
 	# Cassandra cluster name. It's ok for multiple clusters to have the same
 	# cluster_name for Cassandra. It's ok for multiple clusters to have the
 	# same name as long as they don't see each other through the gossip
@@ -76,7 +81,7 @@ def ProcessJobReq(jr):
 	#tags["cass_cluster_name"] = "acorn"
 
 	RunAndMonitorEc2Inst.Run(
-			regions = jr.attrs["regions"].split(",")
+			regions = regions
 			, ec2_type = ec2_type
 			, tags = jr.attrs
 			, jr_sqs_url = jr_sqs_url
@@ -88,22 +93,6 @@ def ProcessJobReq(jr):
 	# current datetime
 	time.sleep(1.5)
 
-
-regions_all = [
-		"us-east-1"
-		, "us-west-1"
-		, "us-west-2"
-		, "eu-west-1"
-		, "eu-central-1"
-		, "ap-southeast-1b"
-		, "ap-southeast-2"
-
-		# Seoul. Terminates by itself. Turns out they don't have c3 instance types.
-		#, "ap-northeast-2"
-
-		, "ap-northeast-1"
-		, "sa-east-1"
-		]
 
 def ProcessJobCompletion(jc):
 	job_id = jc.tags["job_id"]
