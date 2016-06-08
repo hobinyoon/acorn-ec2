@@ -23,11 +23,11 @@ def main(argv):
 		ConsMt.P("\nGot a keyboard interrupt. Stopping ...")
 
 
-_q = Queue.Queue()
+_req_q = Queue.Queue()
 
 def PollJrJcMsgs():
-	JobReqQ.PollBackground(_q)
-	JobCompletionQ.PollBackground(_q)
+	JobReqQ.PollBackground(_req_q)
+	JobCompletionQ.PollBackground(_req_q)
 
 	while True:
 		with InstMonitor.IM():
@@ -37,16 +37,17 @@ def PollJrJcMsgs():
 			#   http://stackoverflow.com/questions/212797/keyboard-interruptable-blocking-queue-in-python
 			while True:
 				try:
-					r = _q.get(timeout=100000)
+					req = _req_q.get(timeout=100000)
+					break
 				except Queue.Empty:
 					pass
 
-		if isinstance(r, JobReq):
-			ProcessJobReq(r)
-		elif isinstance(r, JobCompleted):
-			ProcessJobCompletion(r)
+		if isinstance(req, JobReqQ.JobReq):
+			ProcessJobReq(req)
+		elif isinstance(req, JobCompletionQ.JobCompleted):
+			ProcessJobCompletion(req)
 		else:
-			raise RuntimeError("Unexpected type %s" % type(r))
+			raise RuntimeError("Unexpected type %s" % type(req))
 
 
 def ProcessJobReq(jr):

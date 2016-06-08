@@ -18,10 +18,14 @@ class IM:
 
 	def __enter__(self):
 		self.stop_requested = False
+		self.dio = DIO()
 		self.cv = threading.Condition()
 		self.t = threading.Thread(target=self.DescInst)
 		self.t.daemon = True
 		self.t.start()
+
+	def __exit__(self, type, value, traceback):
+		self.Stop()
 
 	def DescInst(self):
 		self.desc_inst_start_time = time.time()
@@ -37,7 +41,7 @@ class IM:
 					self.cv.wait(wait_time)
 
 	def _DescInst(self):
-		DIO.P("Describing instances:")
+		self.dio.P("Describing instances:")
 
 		dis = []
 		regions_all = [
@@ -53,74 +57,77 @@ class IM:
 				, "sa-east-1"
 				]
 		for r in regions_all:
-			dis.append(DescInstPerRegion(r))
+			dis.append(DescInstPerRegion(r, self.dio))
 
-		self.threads = []
+		self.per_region_threads = []
 		for di in dis:
 			t = threading.Thread(target=di.Run)
-			self.threads.append(t)
+			self.per_region_threads.append(t)
 			t.daemon = True
 			t.start()
 
-		for t in self.threads:
-			t.join()
-		DIO.P("\n\n")
-		self.last_desc_inst_time = time.time()
+		# Exit immediately when requested
+		for t in self.per_region_threads:
+			while t.isAlive():
+				if self.stop_requested:
+					return
+				t.join(0.1)
+
+		self.dio.P("\n\n")
 
 		num_insts = 0
 		for di in dis:
 			num_insts += di.NumInsts()
 		if num_insts == 0:
-			DIO.P("No instances found.\n")
-			return
+			self.dio.P("No instances found.\n")
+		else:
+			header = Util.BuildHeader(_fmt_desc_inst,
+				"job_id"
+				" Placement:AvailabilityZone"
+				" InstanceId"
+				" PublicIpAddress"
+				" State:Name"
+				)
+			self.dio.P(header + "\n")
 
-		header = Util.BuildHeader(_fmt_desc_inst,
-			"job_id"
-			" Placement:AvailabilityZone"
-			" InstanceId"
-			" PublicIpAddress"
-			" State:Name"
-			)
-		DIO.P(header + "\n")
+			results = []
+			for di in dis:
+				results += di.GetResults()
+			for r in sorted(results):
+				self.dio.P(r + "\n")
 
-		results = []
-		for di in dis:
-			results += di.GetResults()
-		for r in sorted(results):
-			DIO.P(r + "\n")
+		self.dio.P("\nTime since the last msg: %s" % (str(datetime.timedelta(seconds=(time.time() - self.desc_inst_start_time)))))
+		self.dio.Flush()
 
-		DIO.P("\nTime since the last msg: %s" % (str(datetime.timedelta(seconds=(time.time() - self.desc_inst_start_time)))))
-		DIO.Flush()
-
-	def __exit__(self, type, value, traceback):
-		self.ReqStop()
-
-	def ReqStop(self):
+	def Stop(self):
 		self.stop_requested = True
 		with self.cv:
 			self.cv.notifyAll()
 		if self.t != None:
-			#self.t.join() doesn't kill the running threads immediately.
-			try:
-				self.t.exit()
-			except AttributeError:
-				pass
+			# There doesn't seem to be a good way of immediately stopping a running
+			# thread by calling a non-existing function. thread module has exit(),
+			# but it's a low level-API, not enough documentation, seems to be getting
+			# deprecated.
+			#
+			# Worked around by specifying timeout to join() to each per-region thread
+			# above
+			self.t.join()
 
 
 # Describe instance output
 class DIO:
-	msg = ""
-	msg_lock = threading.Lock()
 	lines_printed = 0
 
-	@staticmethod
-	def P(msg):
-		with DIO.msg_lock:
-			DIO.msg += msg
+	def __init__(self):
+		self.msg = ""
+		self.msg_lock = threading.Lock()
 
-	@staticmethod
-	def Flush():
-		with DIO.msg_lock:
+	def P(self, msg):
+		with self.msg_lock:
+			self.msg += msg
+
+	def Flush(self):
+		with self.msg_lock:
 			# Clear previous printed lines
 			for i in range(DIO.lines_printed):
 				# Clear current line
@@ -132,19 +139,20 @@ class DIO:
 			# Clear current line
 			sys.stdout.write(chr(27) + "[2K")
 
-			ConsMt.Pnnl(DIO.msg)
-			DIO.lines_printed = len(DIO.msg.split("\n")) - 1
-			DIO.msg = ""
+			ConsMt.Pnnl(self.msg)
+			DIO.lines_printed = len(self.msg.split("\n")) - 1
+			self.msg = ""
 
 
 class DescInstPerRegion:
-	def __init__(self, region):
+	def __init__(self, region, dio):
 		self.region = region
+		self.dio = dio
 
 	def Run(self):
 		boto_client = boto3.session.Session().client("ec2", region_name=self.region)
 		self.response = boto_client.describe_instances()
-		DIO.P(" %s" % self.region)
+		self.dio.P(" %s" % self.region)
 
 	def NumInsts(self):
 		num = 0

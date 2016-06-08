@@ -39,6 +39,7 @@ def RunTermInst(tags):
 
 	for ti in tis:
 		t = threading.Thread(target=ti.Run)
+		t.daemon = True
 		threads.append(t)
 		t.start()
 

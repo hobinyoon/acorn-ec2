@@ -1,5 +1,6 @@
 import boto3
 import botocore
+import pprint
 import threading
 
 import ConsMt
@@ -29,15 +30,14 @@ def _Init():
 
 
 def DeleteMsg(jc):
-	_Log("Deleting the job completion msg: receipt_handle: %s" % jc.msg.receipt_handle)
-	global _bc
+	ConsMt.P("Deleting the job completion msg ...")
 	_bc = boto3.client("sqs", region_name = _sqs_region)
-	response = _bc.delete_message(
-			# TODO
-			QueueUrl = _jr_sqs_url,
+	ConsMt.P(pprint.pformat(jc.msg))
+	r = _bc.delete_message(
+			QueueUrl = jc.msg.queue_url,
 			ReceiptHandle = jc.msg.receipt_handle
 			)
-	_Log(pprint.pformat(response, indent=2))
+	#ConsMt.P(pprint.pformat(r, indent=2))
 
 
 def _Poll(jc_q):
@@ -51,13 +51,8 @@ def _Poll(jc_q):
 					#	],
 					MessageAttributeNames=["All"],
 					MaxNumberOfMessages=1,
-
-					# Should be bigger than one experiment duration so that another
-					# of the same experiment doesn't get picked up while one is
-					# running.
-					VisibilityTimeout=3600,
-
-					WaitTimeSeconds=5
+					VisibilityTimeout=10,
+					WaitTimeSeconds=1
 					)
 			for m in msgs:
 				jc_q.put(JobCompleted(m))
@@ -130,18 +125,3 @@ def _GetQ():
 				raise e
 
 	return _sqs.get_queue_by_name(QueueName = q_name_jc)
-
-
-# TODO: init
-_bc = None
-
-def Delete(jc):
-	# TODO: delete the job completion msg
-	global _bc
-	_bc = boto3.client("sqs", region_name = _sqs_region)
-	response = _bc.delete_message(
-			# TODO: these can be stored in jc
-			QueueUrl = _jr_sqs_url,
-			ReceiptHandle = _jr_sqs_msg_receipt_handle
-			)
-	ConsMt.P(pprint.pformat(response, indent=2))
