@@ -275,7 +275,6 @@ class InstLaunchProgMon():
 
 			# Update status every so often
 			time.sleep(0.1)
-
 		print ""
 
 		InstLaunchProgMon.DescInsts()

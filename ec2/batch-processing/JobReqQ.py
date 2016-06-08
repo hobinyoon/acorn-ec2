@@ -1,5 +1,7 @@
 import boto3
 import botocore
+import pprint
+import sys
 import threading
 
 import ConsMt
@@ -16,6 +18,17 @@ def PollBackground(jr_q):
 	_thr_poll = threading.Thread(target=_Poll, args=[jr_q])
 	_thr_poll.daemon = True
 	_thr_poll.start()
+
+
+def DeleteQ():
+	_Init()
+
+	ConsMt.P("\nDeleting the job request queue so that requests don't reappear next time the job controller starts ...")
+	q = _sqs.get_queue_by_name(
+			QueueName = q_name_jr,
+			)
+	r = _bc.delete_queue(QueueUrl = q._url)
+	ConsMt.P(pprint.pformat(r, indent=2))
 
 
 _initialized = False
@@ -117,7 +130,7 @@ def _GetQ():
 			if e.response["Error"]["Code"] == "AWS.SimpleQueueService.QueueDeletedRecently":
 				sys.stdout.write(".")
 				sys.stdout.flush()
-				time.sleep(2)
+				time.sleep(1)
 			else:
 				raise e
 

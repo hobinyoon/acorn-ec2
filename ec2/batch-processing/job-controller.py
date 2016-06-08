@@ -23,6 +23,7 @@ def main(argv):
 		PollJrJcMsgs()
 	except KeyboardInterrupt as e:
 		ConsMt.P("\nGot a keyboard interrupt. Stopping ...")
+	JobReqQ.DeleteQ()
 
 
 _req_q = Queue.Queue()
@@ -87,7 +88,6 @@ def ProcessJobReq(jr):
 			, jr_sqs_url = jr_sqs_url
 			, jr_sqs_msg_receipt_handle = jr_sqs_msg_receipt_handle
 			, init_script = init_script)
-	ConsMt.P("\n")
 
 	# Sleep a bit so that each cluster has a unique ID, which is made of
 	# current datetime
