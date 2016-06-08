@@ -157,6 +157,6 @@ def RunSubp(cmd, env_ = os.environ.copy(), shell = False, print_cmd = True, prin
 	rc = p.returncode
 	if rc != 0:
 		raise RuntimeError("Error: cmd=[%s] rc=%d stdouterr=[%s]" % (cmd, rc, stdouterr))
-	if print_result and (len(stdouterr) > 0):
+	if print_result and (len(stdouterr.strip()) > 0):
 		Cons.P(stdouterr)
 	return stdouterr

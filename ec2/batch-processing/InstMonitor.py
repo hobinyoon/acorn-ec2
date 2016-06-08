@@ -73,7 +73,7 @@ class IM:
 					return
 				t.join(0.1)
 
-		self.dio.P("\n\n")
+		self.dio.P("\n")
 
 		num_insts = 0
 		for di in dis:
@@ -96,7 +96,7 @@ class IM:
 			for r in sorted(results):
 				self.dio.P(r + "\n")
 
-		self.dio.P("\nTime since the last msg: %s" % (str(datetime.timedelta(seconds=(time.time() - self.desc_inst_start_time)))))
+		self.dio.P("Time since the last msg: %s" % (str(datetime.timedelta(seconds=(time.time() - self.desc_inst_start_time)))))
 		self.dio.Flush()
 
 	def ReqStop(self):

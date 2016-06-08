@@ -35,7 +35,8 @@ def DeleteQ():
 
 
 def DeleteMsg(msg_receipt_handle):
-	ConsMt.P("Deleting a job request message: receipt_handle: %s" % msg_receipt_handle)
+	ConsMt.P("Deleting a job request message:")
+	#ConsMt.P("  receipt_handle: %s" % msg_receipt_handle)
 	response = _bc.delete_message(
 			QueueUrl = _q._url,
 			ReceiptHandle = msg_receipt_handle
