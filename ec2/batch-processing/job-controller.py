@@ -19,7 +19,7 @@ import InstMonitor
 
 def main(argv):
 	try:
-		ConsMt.P("Starting ...\n")
+		ConsMt.P("Starting ...")
 		PollJrJcMsgs()
 	except KeyboardInterrupt as e:
 		ConsMt.P("\nGot a keyboard interrupt. Stopping ...")
@@ -56,7 +56,7 @@ def ProcessJobReq(jr):
 	# TODO: May want some admission control here, like one based on how many
 	# free instance slots are available.
 
-	ConsMt.P("Got a job request msg. attrs:")
+	ConsMt.P("\nGot a job request msg. attrs:")
 	for k, v in sorted(jr.attrs.iteritems()):
 		ConsMt.P("  %s:%s" % (k, v))
 
@@ -96,7 +96,7 @@ def ProcessJobReq(jr):
 
 def ProcessJobCompletion(jc):
 	job_id = jc.tags["job_id"]
-	ConsMt.P("Got a job completion msg. job_id:%s" % job_id)
+	ConsMt.P("\nGot a job completion msg. job_id:%s" % job_id)
 
 	fn_module = "%s/../term-insts.py" % os.path.dirname(__file__)
 	mod_name,file_ext = os.path.splitext(os.path.split(fn_module)[-1])

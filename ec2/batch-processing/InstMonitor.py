@@ -41,7 +41,7 @@ class IM:
 					self.cv.wait(wait_time)
 
 	def _DescInst(self):
-		self.dio.P("Describing instances:")
+		self.dio.P("\nDescribing instances:")
 
 		dis = []
 		regions_all = [
@@ -147,7 +147,7 @@ class DIO:
 	@staticmethod
 	def MayPrintNewlines():
 		if DIO.lines_printed > 0:
-			ConsMt.P("\n")
+			ConsMt.P("")
 
 
 class DescInstPerRegion:
