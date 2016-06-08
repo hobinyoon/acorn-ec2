@@ -273,8 +273,6 @@ class InstLaunchProgMon():
 			if all_done:
 				break
 
-			time.sleep(0.1)
-		print ""
 		print ""
 
 		InstLaunchProgMon.DescInsts()

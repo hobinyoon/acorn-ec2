@@ -70,12 +70,12 @@ class JobReq:
 		if msg.message_attributes is None:
 			raise RuntimeError("Unexpected")
 
-		self.tags = {}
+		self.attrs = {}
 		for k, v in msg.message_attributes.iteritems():
 			if v["DataType"] != "String":
 				raise RuntimeError("Unexpected")
 			v1 = v["StringValue"]
-			self.tags[k] = v1
+			self.attrs[k] = v1
 			#ConsMt.P("  %s: %s" % (k, v1))
 
 		self.msg = msg

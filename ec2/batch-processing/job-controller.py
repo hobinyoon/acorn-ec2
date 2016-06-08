@@ -3,6 +3,7 @@
 import datetime
 import imp
 import os
+import pprint
 import Queue
 import sys
 import time
@@ -18,6 +19,7 @@ import InstMonitor
 
 def main(argv):
 	try:
+		ConsMt.P("Starting ...\n")
 		PollJrJcMsgs()
 	except KeyboardInterrupt as e:
 		ConsMt.P("\nGot a keyboard interrupt. Stopping ...")
@@ -51,44 +53,19 @@ def PollJrJcMsgs():
 
 
 def ProcessJobReq(jr):
-	# TODO
-	#	ConsMt.P("Start serving ...")
-	#	ConsMt.P("")
-
 	# TODO: May want some admission control here, like one based on how many
 	# free instance slots are available.
 
-	ConsMt.P("Processing a job request msg. tags:")
-	for k, v in sorted(jr.tags.iteritems()):
+	ConsMt.P("Got a job request msg. attrs:")
+	for k, v in sorted(jr.attrs.iteritems()):
 		ConsMt.P("  %s:%s" % (k, v))
-
-	# TODO: make it a part of the job request
-	#regions = [
-	#		"us-east-1"
-	#		, "us-west-1"
-	#		, "us-west-2"
-	#		, "eu-west-1"
-	#		, "eu-central-1"
-	#		, "ap-southeast-1b"
-	#		, "ap-southeast-2"
-
-	#		# Seoul. Terminates by itself. Turns out they don't have c3 instance types.
-	#		#, "ap-northeast-2"
-
-	#		, "ap-northeast-1"
-	#		, "sa-east-1"
-	#		]
-	regions = [
-			"us-east-1"
-			, "us-west-1"
-			]
 
 	ec2_type = "c3.4xlarge"
 
 	# Pass these as the init script parameters. Decided not to use EC2 tag
 	# for these, due to its limitations.
 	#   http://docs.aws.amazon.com/awsaccountbilling/latest/aboutv2/allocation-tag-restrictions.html
-	jr_sqs_url = q._url
+	jr_sqs_url = jr.msg.queue_url
 	jr_sqs_msg_receipt_handle = jr.msg.receipt_handle
 	init_script = "acorn-server"
 
@@ -99,13 +76,13 @@ def ProcessJobReq(jr):
 	#tags["cass_cluster_name"] = "acorn"
 
 	RunAndMonitorEc2Inst.Run(
-			regions = regions
+			regions = jr.attrs["regions"].split(",")
 			, ec2_type = ec2_type
-			, tags = jr.tags
+			, tags = jr.attrs
 			, jr_sqs_url = jr_sqs_url
 			, jr_sqs_msg_receipt_handle = jr_sqs_msg_receipt_handle
 			, init_script = init_script)
-	print ""
+	ConsMt.P("\n")
 
 	# Sleep a bit so that each cluster has a unique ID, which is made of
 	# current datetime
@@ -130,7 +107,7 @@ regions_all = [
 
 def ProcessJobCompletion(jc):
 	job_id = jc.tags["job_id"]
-	ConsMt.P("Processing a job completion msg. job_id:%s" % job_id)
+	ConsMt.P("Got a job completion msg. job_id:%s" % job_id)
 
 	fn_module = "%s/../term-insts.py" % os.path.dirname(__file__)
 	mod_name,file_ext = os.path.splitext(os.path.split(fn_module)[-1])

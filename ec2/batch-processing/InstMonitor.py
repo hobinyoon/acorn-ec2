@@ -25,7 +25,7 @@ class IM:
 		self.t.start()
 
 	def __exit__(self, type, value, traceback):
-		self.Stop()
+		self.ReqStop()
 
 	def DescInst(self):
 		self.desc_inst_start_time = time.time()
@@ -99,7 +99,7 @@ class IM:
 		self.dio.P("\nTime since the last msg: %s" % (str(datetime.timedelta(seconds=(time.time() - self.desc_inst_start_time)))))
 		self.dio.Flush()
 
-	def Stop(self):
+	def ReqStop(self):
 		self.stop_requested = True
 		with self.cv:
 			self.cv.notifyAll()
@@ -112,6 +112,7 @@ class IM:
 			# Worked around by specifying timeout to join() to each per-region thread
 			# above
 			self.t.join()
+		DIO.MayPrintNewlines()
 
 
 # Describe instance output
@@ -142,6 +143,11 @@ class DIO:
 			ConsMt.Pnnl(self.msg)
 			DIO.lines_printed = len(self.msg.split("\n")) - 1
 			self.msg = ""
+
+	@staticmethod
+	def MayPrintNewlines():
+		if DIO.lines_printed > 0:
+			ConsMt.P("\n")
 
 
 class DescInstPerRegion:
