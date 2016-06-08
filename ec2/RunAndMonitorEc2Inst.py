@@ -273,6 +273,9 @@ class InstLaunchProgMon():
 			if all_done:
 				break
 
+			# Update status every so often
+			time.sleep(0.1)
+
 		print ""
 
 		InstLaunchProgMon.DescInsts()

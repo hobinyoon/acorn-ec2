@@ -112,16 +112,15 @@ class IM:
 			# Worked around by specifying timeout to join() to each per-region thread
 			# above
 			self.t.join()
-		DIO.MayPrintNewlines()
+		self.dio.MayPrintNewlines()
 
 
 # Describe instance output
 class DIO:
-	lines_printed = 0
-
 	def __init__(self):
 		self.msg = ""
 		self.msg_lock = threading.Lock()
+		self.lines_printed = 0
 
 	def P(self, msg):
 		with self.msg_lock:
@@ -130,7 +129,7 @@ class DIO:
 	def Flush(self):
 		with self.msg_lock:
 			# Clear previous printed lines
-			for i in range(DIO.lines_printed):
+			for i in range(self.lines_printed):
 				# Clear current line
 				sys.stdout.write(chr(27) + "[2K")
 				# Move the cursor up
@@ -141,12 +140,11 @@ class DIO:
 			sys.stdout.write(chr(27) + "[2K")
 
 			ConsMt.Pnnl(self.msg)
-			DIO.lines_printed = len(self.msg.split("\n")) - 1
+			self.lines_printed = len(self.msg.split("\n")) - 1
 			self.msg = ""
 
-	@staticmethod
 	def MayPrintNewlines():
-		if DIO.lines_printed > 0:
+		if self.lines_printed > 0:
 			ConsMt.P("")
 
 
