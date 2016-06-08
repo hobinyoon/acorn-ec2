@@ -34,7 +34,7 @@ def Run(regions, ec2_type, tags, jr_sqs_url, jr_sqs_msg_receipt_handle, init_scr
 	req_datetime = datetime.datetime.now()
 	global _job_id
 	_job_id = req_datetime.strftime("%y%m%d-%H%M%S")
-	Cons.P("job_id:%s (used for describing or terminating the cluster)" % _job_id)
+	Cons.P("job_id:%s (for describing and terminating the cluster)" % _job_id)
 
 	global _ec2_type, _tags, _jr_sqs_url, _jr_sqs_msg_receipt_handle, _init_script
 	_ec2_type = ec2_type
