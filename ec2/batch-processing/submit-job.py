@@ -62,16 +62,23 @@ def MeasureMetadataXdcTraffic(q):
 
 	req_attrs = {
 			"regions": ",".join(regions)
-			, "acorn_options.full_replication": "true"
+
+			# Partial replication metadata is exchanged
 			, "acorn-youtube.replication_type": "partial"
+
+			# Objects are fully replicated
+			, "acorn_options.full_replication": "true"
+
 			, "acorn-youtube.fn_youtube_reqs": "tweets-010"
 			, "acorn-youtube.max_requests": "5000"
 			, "acorn-youtube.simulation_time_dur_in_ms": "10000"
 			}
 	_EnqReq(q, req_attrs)
 
-	req_attrs["acorn_options.full_replication"] = "false"
-	req_attrs["acorn-youtube.replication_type"] = "partial"
+	# Full replication, of course without any acorn metadata exchange
+	req_attrs["acorn-youtube.replication_type"] = "full"
+	req_attrs["acorn_options.use_attr_user"] = "false"
+	req_attrs["acorn_options.use_attr_topic"] = "false"
 	_EnqReq(q, req_attrs)
 
 
