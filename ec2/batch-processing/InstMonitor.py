@@ -143,7 +143,7 @@ class DIO:
 			self.lines_printed = len(self.msg.split("\n")) - 1
 			self.msg = ""
 
-	def MayPrintNewlines():
+	def MayPrintNewlines(self):
 		if self.lines_printed > 0:
 			ConsMt.P("")
 
