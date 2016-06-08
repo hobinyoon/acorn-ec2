@@ -23,7 +23,7 @@ def main(argv):
 		ConsMt.P("Starting ...")
 		PollJrJcMsgs()
 	except KeyboardInterrupt as e:
-		ConsMt.P("\nGot a keyboard interrupt. Stopping ...")
+		ConsMt.P("\n%s Got a keyboard interrupt. Stopping ..." % time.strftime("%y%m%d-%H%M%S"))
 	JobReqQ.DeleteQ()
 
 
@@ -58,7 +58,7 @@ def ProcessJobReq(jr):
 	# TODO: May want some admission control here, like one based on how many
 	# free instance slots are available.
 
-	ConsMt.P("\nGot a job request msg. attrs:")
+	ConsMt.P("\n%s Got a job request msg. attrs:" % time.strftime("%y%m%d-%H%M%S"))
 	for k, v in sorted(jr.attrs.iteritems()):
 		ConsMt.P("  %s:%s" % (k, v))
 
@@ -97,7 +97,7 @@ def ProcessJobReq(jr):
 
 def ProcessJobCompletion(jc):
 	job_id = jc.attrs["job_id"]
-	ConsMt.P("\nGot a job completion msg. job_id:%s" % job_id)
+	ConsMt.P("\n%s Got a job completion msg. job_id:%s" % (time.strftime("%y%m%d-%H%M%S"), job_id))
 
 	fn_module = "%s/../term-insts.py" % os.path.dirname(__file__)
 	mod_name,file_ext = os.path.splitext(os.path.split(fn_module)[-1])

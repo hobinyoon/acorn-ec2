@@ -30,7 +30,7 @@ def RunTermInst(tags):
 
 	threads = []
 
-	sys.stdout.write("terminating running instances:")
+	sys.stdout.write("Terminating running instances:")
 	sys.stdout.flush()
 
 	tis = []
@@ -45,7 +45,6 @@ def RunTermInst(tags):
 
 	for t in threads:
 		t.join()
-	print ""
 	print ""
 
 	ConsP(Util.BuildHeader(_fmt,
