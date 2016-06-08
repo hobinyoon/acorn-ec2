@@ -260,37 +260,17 @@ def _UploadResult():
 	os.chdir(prev_dir)
 
 
-def _DeqJobReqMsgEnqJobDoneMsg():
-	_DeqJobReqMsg()
-	_EnqJobDoneMsg()
+def _PostJobDoneMsg():
+	# Post a "job done" message, so that the controller node can delete the job
+	# req msg and shutdown the cluster.
+	_Log("Posting a job completion message ...")
+	q = _GetJcQ()
+	_EnqJcMsg(q)
 
 
 _sqs_region = "us-east-1"
 _s3_region  = "us-east-1"
 _bc = None
-
-def _DeqJobReqMsg():
-	# Delete the request message from the request queue. Should be done here. The
-	# controller node, which launches a cluster, doesn't know when an experiment
-	# is done.
-
-	_Log("Deleting the job request message: url: %s, receipt_handle: %s" % (_jr_sqs_url, _jr_sqs_msg_receipt_handle))
-	global _bc
-	_bc = boto3.client("sqs", region_name = _sqs_region)
-	response = _bc.delete_message(
-			QueueUrl = _jr_sqs_url,
-			ReceiptHandle = _jr_sqs_msg_receipt_handle 
-			)
-	_Log(pprint.pformat(response, indent=2))
-
-
-def _EnqJobDoneMsg():
-	# Post a "job done" message to the job completed queue, so that the
-	# controller node can shutdown the cluster.
-
-	_Log("Posting a job completion message ...")
-	q = _GetJcQ()
-	_EnqJcMsg(q)
 
 
 q_name_jc = "acorn-jobs-completed"
@@ -329,11 +309,17 @@ def _GetJcQ():
 msg_body_jc = "acorn-job-completion"
 
 def _EnqJcMsg(q):
-	# _tags contains job_id, which is used to terminate the cluster
 	_Log("Enq a job completion message ...")
 	msg_attrs = {}
+	# _tags contains job_id, which is used to terminate the cluster
 	for k, v in _tags.iteritems():
 		msg_attrs[k] = {"StringValue": v, "DataType": "String"}
+
+	# Include a job req msg handle so that the controller can delete the msg
+	for k, v in {"job_req_sqs_url": _jr_sqs_url
+			, "job_req_msg_recript_handle": _jr_sqs_msg_receipt_handle}.iteritems():
+		msg_attrs[k] = {"StringValue": v, "DataType": "String"}
+
 	q.send_message(MessageBody=msg_body_jc, MessageAttributes=msg_attrs)
 
 
@@ -401,7 +387,7 @@ def main(argv):
 		if _region == "us-east-1":
 			_RunYoutubeClient()
 			_UploadResult()
-			_DeqJobReqMsgEnqJobDoneMsg()
+			_PostJobDoneMsg()
 	except Exception as e:
 		msg = "Exception: %s\n%s" % (e, traceback.format_exc())
 		_Log(msg)
