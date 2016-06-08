@@ -32,12 +32,12 @@ def _Init():
 def DeleteMsg(jc):
 	ConsMt.P("Deleting the job completion msg ...")
 	_bc = boto3.client("sqs", region_name = _sqs_region)
-	ConsMt.P(pprint.pformat(jc.msg))
+	#ConsMt.P(pprint.pformat(jc.msg))
 	r = _bc.delete_message(
 			QueueUrl = jc.msg.queue_url,
 			ReceiptHandle = jc.msg.receipt_handle
 			)
-	#ConsMt.P(pprint.pformat(r, indent=2))
+	ConsMt.P(pprint.pformat(r, indent=2))
 
 
 def _Poll(jc_q):
@@ -73,12 +73,12 @@ class JobCompleted:
 		if msg.message_attributes is None:
 			raise RuntimeError("Unexpected")
 
-		self.tags = {}
+		self.attrs = {}
 		for k, v in msg.message_attributes.iteritems():
 			if v["DataType"] != "String":
 				raise RuntimeError("Unexpected")
 			v1 = v["StringValue"]
-			self.tags[k] = v1
+			self.attrs[k] = v1
 			#ConsMt.P("  %s: %s" % (k, v1))
 
 		self.msg = msg

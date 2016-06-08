@@ -15,6 +15,7 @@ import ConsMt
 import JobCompletionQ
 import JobReqQ
 import InstMonitor
+import S3
 
 
 def main(argv):
@@ -95,7 +96,7 @@ def ProcessJobReq(jr):
 
 
 def ProcessJobCompletion(jc):
-	job_id = jc.tags["job_id"]
+	job_id = jc.attrs["job_id"]
 	ConsMt.P("\nGot a job completion msg. job_id:%s" % job_id)
 
 	fn_module = "%s/../term-insts.py" % os.path.dirname(__file__)
@@ -105,7 +106,10 @@ def ProcessJobCompletion(jc):
 	py_mod = imp.load_source(mod_name, fn_module)
 	getattr(py_mod, "main")([fn_module, "job_id:%s" % job_id])
 
+	JobReqQ.DeleteMsg(jc.attrs["job_req_msg_recript_handle"])
+
 	JobCompletionQ.DeleteMsg(jc)
+	S3.Sync()
 
 
 if __name__ == "__main__":

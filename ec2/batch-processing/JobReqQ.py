@@ -3,6 +3,7 @@ import botocore
 import pprint
 import sys
 import threading
+import time
 
 import ConsMt
 
@@ -20,37 +21,48 @@ def PollBackground(jr_q):
 	_thr_poll.start()
 
 
+_q_name_jr = "acorn-jobs-requested"
+
 def DeleteQ():
 	_Init()
 
 	ConsMt.P("\nDeleting the job request queue so that requests don't reappear next time the job controller starts ...")
 	q = _sqs.get_queue_by_name(
-			QueueName = q_name_jr,
+			QueueName = _q_name_jr,
 			)
 	r = _bc.delete_queue(QueueUrl = q._url)
 	ConsMt.P(pprint.pformat(r, indent=2))
+
+
+def DeleteMsg(msg_receipt_handle):
+	ConsMt.P("Deleting a job request message: receipt_handle: %s" % msg_receipt_handle)
+	response = _bc.delete_message(
+			QueueUrl = _q._url,
+			ReceiptHandle = msg_receipt_handle
+			)
+	ConsMt.P(pprint.pformat(response, indent=2))
 
 
 _initialized = False
 _bc = None
 _sqs = None
 _sqs_region = "us-east-1"
+_q = None
 
 def _Init():
 	global _initialized
 	if _initialized == False:
-		global _bc, _sqs
+		global _bc, _sqs, _q
 		_bc = boto3.client("sqs", region_name = _sqs_region)
 		_sqs = boto3.resource("sqs", region_name = _sqs_region)
 		_initialized = True
+		_q = _GetQ()
 
 
 def _Poll(jr_q):
-	q = _GetQ()
-
 	while True:
 		try:
-			msgs = q.receive_messages(
+			msgs = _q.receive_messages(
 					#AttributeNames=[
 					#	'Policy'|'VisibilityTimeout'|'MaximumMessageSize'|'MessageRetentionPeriod'|'ApproximateNumberOfMessages'|'ApproximateNumberOfMessagesNotVisible'|'CreatedTimestamp'|'LastModifiedTimestamp'|'QueueArn'|'ApproximateNumberOfMessagesDelayed'|'DelaySeconds'|'ReceiveMessageWaitTimeSeconds'|'RedrivePolicy',
 					#	],
@@ -94,13 +106,11 @@ class JobReq:
 		self.msg = msg
 
 
-q_name_jr = "acorn-jobs-requested"
-
 def _GetQ():
 	# Get the queue. Create one if not exists.
 	try:
 		queue = _sqs.get_queue_by_name(
-				QueueName = q_name_jr,
+				QueueName = _q_name_jr,
 				# QueueOwnerAWSAccountId='string'
 				)
 		#ConsMt.P(pprint.pformat(vars(queue), indent=2))
@@ -119,7 +129,7 @@ def _GetQ():
 	while True:
 		response = None
 		try:
-			response = _bc.create_queue(QueueName = q_name_jr)
+			response = _bc.create_queue(QueueName = _q_name_jr)
 			# Default message retention period is 4 days.
 			print ""
 			break
@@ -134,4 +144,4 @@ def _GetQ():
 			else:
 				raise e
 
-	return _sqs.get_queue_by_name(QueueName = q_name_jr)
+	return _sqs.get_queue_by_name(QueueName = _q_name_jr)
