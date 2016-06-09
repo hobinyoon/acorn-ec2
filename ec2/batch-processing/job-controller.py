@@ -90,9 +90,10 @@ def ProcessJobReq(jr):
 			, jr_sqs_msg_receipt_handle = jr_sqs_msg_receipt_handle
 			, init_script = init_script)
 
-	# Sleep a bit so that each cluster has a unique ID, which is made of
-	# current datetime
-	time.sleep(1.5)
+	# No need to sleep here. Launching a cluster takes like 30 secs.  Used to
+	# sleep a bit so that each cluster has a unique ID, which is made of current
+	# datetime
+	#time.sleep(1.5)
 
 
 def ProcessJobCompletion(jc):
