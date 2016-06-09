@@ -108,21 +108,32 @@ sudo -i -u ubuntu /home/ubuntu/work/acorn-tools/ec2/ec2-init.py {0} {1} {2}
 		if self.az != None:
 			placement['AvailabilityZone'] = self.az
 
-		response = self.boto_client.run_instances(
-				DryRun = False
-				, ImageId = self.ami_id
-				, MinCount=1
-				, MaxCount=1
-				, SecurityGroups=["cass-server"]
-				, EbsOptimized=True
-				, InstanceType = _ec2_type
-				, Placement=placement
+		response = None
+		while True:
+			try:
+				response = self.boto_client.run_instances(
+						DryRun = False
+						, ImageId = self.ami_id
+						, MinCount=1
+						, MaxCount=1
+						, SecurityGroups=["cass-server"]
+						, EbsOptimized=True
+						, InstanceType = _ec2_type
+						, Placement=placement
 
-				# User data is passed as a string. I don't see an option of specifying a file.
-				, UserData=user_data
+						# User data is passed as a string. I don't see an option of specifying a file.
+						, UserData=user_data
 
-				, InstanceInitiatedShutdownBehavior='terminate'
-				)
+						, InstanceInitiatedShutdownBehavior='terminate'
+						)
+				break
+			except botocore.exceptions.ClientError as e:
+				if e.response["Error"]["Code"] == "RequestLimitExceeded":
+					ConsP("%s. Retrying in 5 sec ..." % e)
+					time.sleep(5)
+				else:
+					raise e
+
 		#ConsP("Response:")
 		#ConsP(Util.Indent(pprint.pformat(response, indent=2, width=100), 2))
 		if len(response["Instances"]) != 1:
