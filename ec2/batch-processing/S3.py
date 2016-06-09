@@ -16,7 +16,7 @@ def Sync():
 	out = Util.RunSubp(cmd, shell = True, print_cmd = True, print_result = False)
 	for line in out.split("\n"):
 		if len(line.strip()) > 0:
-			ContMt.P("  %s" % line)
+			ConsMt.P("  %s" % line)
 
 
 def Test():
