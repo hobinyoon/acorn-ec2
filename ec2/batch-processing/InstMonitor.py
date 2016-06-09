@@ -154,9 +154,17 @@ class DescInstPerRegion:
 		self.dio = dio
 
 	def Run(self):
-		boto_client = boto3.session.Session().client("ec2", region_name=self.region)
-		self.response = boto_client.describe_instances()
-		self.dio.P(" %s" % self.region)
+		while True:
+			try:
+				bc = BcMgr.Get(self.region)
+				self.response = bc.describe_instances()
+				self.dio.P(" %s" % self.region)
+				break
+			except Exception as e:
+				ConsMt.P("Got an exception: %s" % e)
+				ConsMt.P("Resetting boto client after 1 sec ...")
+				time.sleep(1)
+				BcMgr.Reset(self.region)
 
 	def NumInsts(self):
 		num = 0
@@ -204,3 +212,20 @@ def _Value(dict_, key):
 		return dict_[key]
 	else:
 		return ""
+
+
+# Boto session client manager
+class BcMgr:
+	region_bc = {}
+
+	@staticmethod
+	def Get(region):
+		bc = BcMgr.region_bc.get(region, None)
+		if bc == None:
+			bc = boto3.session.Session().client("ec2", region_name=region)
+			BcMgr.region_bc[region] = bc
+		return bc
+
+	@staticmethod
+	def Reset(region):
+		BcMgr.region_bc[region] = None
