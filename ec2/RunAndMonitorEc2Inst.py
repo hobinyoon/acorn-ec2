@@ -1,5 +1,5 @@
 import boto3
-# Boto: http://boto3.readthedocs.org/en/latest/
+import botocore
 import datetime
 import os
 import pprint
