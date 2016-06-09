@@ -20,8 +20,11 @@ def main(argv):
 	sqs = boto3.resource("sqs", region_name = sqs_region)
 	q = GetQ(bc, sqs)
 
+	# To dig why some requests are running behind
+	MeasureClientOverhead(q)
+
 	# Measure xDC traffic of object replication and metadata
-	MeasureMetadataXdcTraffic(q)
+	#MeasureMetadataXdcTraffic(q)
 
 
 # Get the queue. Create one if not exists.
@@ -56,6 +59,22 @@ _regions = [
 		, "ap-northeast-1"
 		, "sa-east-1"
 		]
+
+
+def MeasureClientOverhead(q):
+	req_attrs = {
+			# Swap the coordinates of us-east-1 and eu-west-1 to see how much
+			# overhead is there in eu-west-1
+			"regions": ",".join(["us-east-1"])
+			, "acorn-youtube.fn_youtube_reqs": "tweets-100"
+			, "acorn-youtube.youtube_extra_data_size": "512"
+
+			# Request all
+			, "acorn-youtube.max_requests": "-1"
+
+			, "acorn-youtube.simulation_time_dur_in_ms": "1800000"
+			}
+	_EnqReq(q, req_attrs)
 
 
 def MeasureMetadataXdcTraffic(q):
