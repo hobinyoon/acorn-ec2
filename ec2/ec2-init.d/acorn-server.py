@@ -311,12 +311,11 @@ msg_body_jc = "acorn-job-completion"
 def _EnqJcMsg(q):
 	_Log("Enq a job completion message ...")
 	msg_attrs = {}
-	# _tags contains job_id, which is used to terminate the cluster
-	for k, v in _tags.iteritems():
-		msg_attrs[k] = {"StringValue": v, "DataType": "String"}
 
-	# Include a job req msg handle so that the controller can delete the msg
-	for k, v in {"job_req_sqs_url": _jr_sqs_url
+	for k, v in {
+			# job_id for notifying the completion of the job to the job controller
+			"job_id": _job_id
+			# Job request msg handle to be deleted
 			, "job_req_msg_recript_handle": _jr_sqs_msg_receipt_handle}.iteritems():
 		msg_attrs[k] = {"StringValue": v, "DataType": "String"}
 
