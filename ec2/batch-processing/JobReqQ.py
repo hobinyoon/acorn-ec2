@@ -27,11 +27,17 @@ def DeleteQ():
 	_Init()
 
 	ConsMt.P("\nDeleting the job request queue so that requests don't reappear next time the job controller starts ...")
-	q = _sqs.get_queue_by_name(
-			QueueName = _q_name_jr,
-			)
-	r = _bc.delete_queue(QueueUrl = q._url)
-	ConsMt.P(pprint.pformat(r, indent=2))
+	try:
+		q = _sqs.get_queue_by_name(
+				QueueName = _q_name_jr,
+				)
+		r = _bc.delete_queue(QueueUrl = q._url)
+		ConsMt.P(pprint.pformat(r, indent=2))
+	except botocore.exceptions.ClientError as e:
+		if e.response["Error"]["Code"] == "AWS.SimpleQueueService.NonExistentQueue":
+			ConsMt.P("No such queue exists.")
+		else:
+			raise e
 
 
 def DeleteMsg(msg_receipt_handle):
