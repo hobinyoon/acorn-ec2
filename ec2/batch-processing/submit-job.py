@@ -37,31 +37,62 @@ def GetQ(bc, sqs):
 		return queue
 
 
+#_regions = [
+#		"us-east-1"
+#		, "us-west-1"
+#		]
+_regions = [
+		"us-east-1"
+		, "us-west-1"
+		, "us-west-2"
+		, "eu-west-1"
+		, "eu-central-1"
+		, "ap-southeast-1b"
+		, "ap-southeast-2"
+
+		# Seoul. Terminates by itself. Turns out they don't have c3 instance types.
+		#, "ap-northeast-2"
+
+		, "ap-northeast-1"
+		, "sa-east-1"
+		]
+
+
 def MeasureMetadataXdcTraffic(q):
-	#regions = [
-	#		"us-east-1"
-	#		, "us-west-1"
-	#		, "us-west-2"
-	#		, "eu-west-1"
-	#		, "eu-central-1"
-	#		, "ap-southeast-1b"
-	#		, "ap-southeast-2"
-
-	#		# Seoul. Terminates by itself. Turns out they don't have c3 instance types.
-	#		#, "ap-northeast-2"
-
-	#		, "ap-northeast-1"
-	#		, "sa-east-1"
-	#		]
-	regions = [
-			"us-east-1"
-			, "us-west-1"
-			]
-
-	Cons.P("regions: %s" % ",".join(regions))
+	Cons.P("regions: %s" % ",".join(_regions))
 
 	req_attrs = {
-			"regions": ",".join(regions)
+			"regions": ",".join(_regions)
+
+			# Partial replication metadata is exchanged
+			, "acorn-youtube.replication_type": "partial"
+
+			# Objects are fully replicated
+			, "acorn_options.full_replication": "true"
+
+			, "acorn-youtube.fn_youtube_reqs": "tweets-100"
+
+			, "acorn-youtube.youtube_extra_data_size": "512"
+
+			# Request all
+			, "acorn-youtube.max_requests": "-1"
+
+			, "acorn-youtube.simulation_time_dur_in_ms": "1800000"
+			}
+	_EnqReq(q, req_attrs)
+
+	# Full replication, of course without any acorn metadata exchange
+	req_attrs["acorn-youtube.replication_type"] = "full"
+	req_attrs["acorn_options.use_attr_user"] = "false"
+	req_attrs["acorn_options.use_attr_topic"] = "false"
+	_EnqReq(q, req_attrs)
+
+
+def MeasureMetadataXdcTrafficSmallScale(q):
+	Cons.P("regions: %s" % ",".join(_regions))
+
+	req_attrs = {
+			"_regions": ",".join(_regions)
 
 			# Partial replication metadata is exchanged
 			, "acorn-youtube.replication_type": "partial"
