@@ -26,10 +26,10 @@ def P(o, ind = 0, fo = sys.stdout, prefix = None):
 			else:
 				fo.write(prefix + _ind + lines[i] + "\n")
 	else:
-		if prefix is None:
-			fo.write(o + "\n")
-		else:
-			fo.write(prefix + o + "\n")
+		if prefix is not None:
+			fo.write(prefix)
+		fo.write(o)
+		fo.write("\n")
 
 	if ind > 0:
 		_ind_len -= ind
