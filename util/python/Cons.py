@@ -8,7 +8,7 @@ _ind_len = 0
 _ind = ""
 
 
-def P(o, ind = 0):
+def P(o, ind = 0, fo = sys.stdout, prefix = None):
 	global _ind_len, _ind
 	if ind > 0:
 		_ind_len += ind
@@ -21,9 +21,15 @@ def P(o, ind = 0):
 		for i in range(len(lines)):
 			if (i == len(lines) - 1) and (len(lines[i]) == 0):
 				continue
-			print _ind + lines[i]
+			if prefix is None:
+				fo.write(_ind + lines[i] + "\n")
+			else:
+				fo.write(prefix + _ind + lines[i] + "\n")
 	else:
-		print o
+		if prefix is None:
+			fo.write(o + "\n")
+		else:
+			fo.write(prefix + o + "\n")
 
 	if ind > 0:
 		_ind_len -= ind
@@ -61,8 +67,8 @@ class MT:
 		self.msg = msg
 
 	def __enter__(self):
+		self.P(self.msg)
 		global _ind_len, _ind
-		P(self.msg)
 		_ind_len += 2
 		_ind += "  "
 		self.start_time = time.time()
@@ -71,9 +77,12 @@ class MT:
 	def __exit__(self, type, value, traceback):
 		global _ind_len, _ind
 		dur = time.time() - self.start_time
-		P("%.0f ms" % (dur * 1000.0))
+		self.P("%.0f ms" % (dur * 1000.0))
 		_ind_len -= 2
 		_ind = _ind[: len(_ind) - 2]
+
+	def P(self, m):
+		P(m)
 
 
 # No new-line
