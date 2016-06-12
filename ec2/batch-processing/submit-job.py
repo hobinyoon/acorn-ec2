@@ -21,10 +21,10 @@ def main(argv):
 	q = GetQ(bc, sqs)
 
 	# To dig why some requests are running behind
-	MeasureClientOverhead(q)
+	#MeasureClientOverhead(q)
 
 	# Measure xDC traffic of object replication and metadata
-	#MeasureMetadataXdcTraffic(q)
+	MeasureMetadataXdcTraffic(q)
 
 
 # Get the queue. Create one if not exists.
@@ -62,6 +62,7 @@ _regions = [
 
 
 def MeasureClientOverhead(q):
+	# Maximum 5%. Most of the time negligible.
 	req_attrs = {
 			# Swap the coordinates of us-east-1 and eu-west-1 to see how much
 			# overhead is there in eu-west-1
@@ -89,9 +90,9 @@ def MeasureMetadataXdcTraffic(q):
 			# Objects are fully replicated
 			, "acorn_options.full_replication": "true"
 
-			, "acorn-youtube.fn_youtube_reqs": "tweets-100"
+			, "acorn-youtube.fn_youtube_reqs": "tweets-010"
 
-			, "acorn-youtube.youtube_extra_data_size": "512"
+			, "acorn-youtube.youtube_extra_data_size": "10240"
 
 			# Request all
 			, "acorn-youtube.max_requests": "-1"

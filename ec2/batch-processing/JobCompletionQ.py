@@ -58,8 +58,10 @@ def _Poll(jc_q):
 				jc_q.put(JobCompleted(m))
 		except botocore.exceptions.EndpointConnectionError as e:
 			# Could not connect to the endpoint URL: "https://queue.amazonaws.com/"
-			ConsMt.P("%s. Retrying ..." % e)
-			time.sleep(2)
+			# Retrying after 1 sec doesn't seem to help. Might be the server being
+			# unreliable. Just kill the server.
+			ConsMt.P(e)
+			sys.exit(1)
 
 
 class JobCompleted:
