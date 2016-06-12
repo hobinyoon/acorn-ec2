@@ -28,7 +28,7 @@ def P(o, ind = 0, fo = sys.stdout, prefix = None):
 	else:
 		if prefix is not None:
 			fo.write(prefix)
-		fo.write(o)
+		fo.write(str(o))
 		fo.write("\n")
 
 	if ind > 0:
