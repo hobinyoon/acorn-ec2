@@ -79,7 +79,11 @@ def _Poll(jr_q):
 					# Should be bigger than one experiment duration so that another
 					# of the same experiment doesn't get picked up while one is
 					# running.
-					VisibilityTimeout=3600,
+					#
+					# 12 hours. You don't want to spend a lot of money by an error in the
+					# experiment script overnight. If something goes wrong within 12
+					# hours, re-execute manually.
+					VisibilityTimeout=12*3600,
 
 					WaitTimeSeconds=5
 					)
