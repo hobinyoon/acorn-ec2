@@ -72,7 +72,7 @@ def SingleDevNode(q):
 	# UT
 	req_attrs = {
 			"init-script": "acorn-dev"
-			"regions": ",".join([_regions_1)
+			, "regions": ",".join(_regions_1)
 			}
 	_EnqReq(q, req_attrs)
 
