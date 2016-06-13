@@ -20,7 +20,9 @@ def main(argv):
 	sqs = boto3.resource("sqs", region_name = sqs_region)
 	q = GetQ(bc, sqs)
 
-	ByRepModels(q)
+	SingleDevNode(q)
+
+	#ByRepModels(q)
 
 	# To dig why some requests are running behind
 	#MeasureClientOverhead(q)
@@ -57,10 +59,22 @@ _regions = [
 		, "ap-northeast-1"
 		, "sa-east-1"
 		]
+_regions_1 = [
+		"us-east-1"
+		]
 _regions_2 = [
 		"us-east-1"
 		, "us-west-1"
 		]
+
+
+def SingleDevNode(q):
+	# UT
+	req_attrs = {
+			"init-script": "acorn-dev"
+			"regions": ",".join([_regions_1)
+			}
+	_EnqReq(q, req_attrs)
 
 
 def ByRepModels(q):
@@ -102,6 +116,12 @@ def ByRepModels(q):
 	req_attrs["acorn_options.use_attr_user"] = "false"
 	req_attrs["acorn_options.use_attr_topic"] = "false"
 	_EnqReq(q, req_attrs)
+
+#	# Full
+#	req_attrs["acorn-youtube.replication_type"] = "full"
+#	req_attrs["acorn_options.use_attr_user"] = "false"
+#	req_attrs["acorn_options.use_attr_topic"] = "false"
+#	_EnqReq(q, req_attrs)
 
 
 def MeasureClientOverhead(q):

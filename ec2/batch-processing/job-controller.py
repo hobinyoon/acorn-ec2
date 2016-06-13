@@ -72,7 +72,9 @@ def ProcessJobReq(jr):
 	#   http://docs.aws.amazon.com/awsaccountbilling/latest/aboutv2/allocation-tag-restrictions.html
 	jr_sqs_url = jr.msg.queue_url
 	jr_sqs_msg_receipt_handle = jr.msg.receipt_handle
-	init_script = "acorn-server"
+
+	init_script = jr.attrs["init-script"]
+	jr.attrs.pop("init_script", None)
 
 	regions = jr.attrs["regions"].split(",")
 	# Delete "regions" from the dict to avoid messing up the parameter parsing
