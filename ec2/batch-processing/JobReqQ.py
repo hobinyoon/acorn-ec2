@@ -43,11 +43,17 @@ def DeleteQ():
 def DeleteMsg(msg_receipt_handle):
 	ConsMt.P("Deleting a job request message:")
 	#ConsMt.P("  receipt_handle: %s" % msg_receipt_handle)
-	response = _bc.delete_message(
-			QueueUrl = _q._url,
-			ReceiptHandle = msg_receipt_handle
-			)
-	ConsMt.P(pprint.pformat(response, indent=2))
+	try:
+		response = _bc.delete_message(
+				QueueUrl = _q._url,
+				ReceiptHandle = msg_receipt_handle
+				)
+		ConsMt.P(pprint.pformat(response, indent=2))
+	except botocore.exceptions.ClientError as e:
+		if e.response["Error"]["Code"] == "AWS.SimpleQueueService.NonExistentQueue":
+			ConsMt.P("No such queue exists.")
+		else:
+			raise e
 
 
 _initialized = False
