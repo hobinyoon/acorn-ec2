@@ -20,11 +20,13 @@ def main(argv):
 	sqs = boto3.resource("sqs", region_name = sqs_region)
 	q = GetQ(bc, sqs)
 
+	ByRepModels(q)
+
 	# To dig why some requests are running behind
 	#MeasureClientOverhead(q)
 
 	# Measure xDC traffic of object replication and metadata
-	MeasureMetadataXdcTraffic(q)
+	#MeasureMetadataXdcTraffic(q)
 
 
 # Get the queue. Create one if not exists.
@@ -40,10 +42,6 @@ def GetQ(bc, sqs):
 		return queue
 
 
-#_regions = [
-#		"us-east-1"
-#		, "us-west-1"
-#		]
 _regions = [
 		"us-east-1"
 		, "us-west-1"
@@ -59,6 +57,51 @@ _regions = [
 		, "ap-northeast-1"
 		, "sa-east-1"
 		]
+_regions_2 = [
+		"us-east-1"
+		, "us-west-1"
+		]
+
+
+def ByRepModels(q):
+	# UT
+	req_attrs = {
+			"regions": ",".join(_regions)
+
+			# Partial replication metadata is exchanged
+			, "acorn-youtube.replication_type": "partial"
+
+			, "acorn-youtube.fn_youtube_reqs": "tweets-010"
+
+			# Default is 10240
+			#, "acorn-youtube.youtube_extra_data_size": "10240"
+
+			# Default is -1 (request all)
+			#, "acorn-youtube.max_requests": "-1"
+
+			# Default is 1800000
+			#, "acorn-youtube.simulation_time_dur_in_ms": "1800000"
+
+			# Default is true, true
+			, "acorn_options.use_attr_user": "true"
+			, "acorn_options.use_attr_topic": "true"
+			}
+	_EnqReq(q, req_attrs)
+
+	# T
+	req_attrs["acorn_options.use_attr_user"] = "true"
+	req_attrs["acorn_options.use_attr_topic"] = "false"
+	_EnqReq(q, req_attrs)
+
+	# U
+	req_attrs["acorn_options.use_attr_user"] = "true"
+	req_attrs["acorn_options.use_attr_topic"] = "false"
+	_EnqReq(q, req_attrs)
+
+	# NA
+	req_attrs["acorn_options.use_attr_user"] = "false"
+	req_attrs["acorn_options.use_attr_topic"] = "false"
+	_EnqReq(q, req_attrs)
 
 
 def MeasureClientOverhead(q):
