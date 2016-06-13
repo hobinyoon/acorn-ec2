@@ -20,24 +20,9 @@ import Util
 sys.path.insert(0, "%s" % os.path.dirname(__file__))
 import GetIPs
 
-_fo_log = None
 
 def _Log(msg):
-	fn = "/var/log/acorn/ec2-init.log"
-	global _fo_log
-	if _fo_log is None:
-		_fo_log = open(fn, "a")
-	_fo_log.write("%s: %s\n" % (datetime.datetime.now().strftime("%y%m%d-%H%M%S"), msg))
-	_fo_log.flush()
-	Cons.P(msg)
-
-
-def _RunSubp(cmd, shell = False):
-	_Log(cmd)
-	r = Util.RunSubp(cmd, shell = shell, print_cmd = False, print_result = False)
-	if len(r.strip()) > 0:
-		_Log(Util.Indent(r, 2))
-	return r
+	Cons.P("%s: %s" % (time.strftime("%y%m%d-%H%M%S"), msg))
 
 
 _az = None
@@ -48,33 +33,30 @@ def _SetHostname():
 	hn = "%s-%s" % (_az, _tags["job_id"])
 
 	# http://askubuntu.com/questions/9540/how-do-i-change-the-computer-name
-	cmd = "sudo sh -c 'echo \"%s\" > /etc/hostname'" % hn
-	Util.RunSubp(cmd, shell=True)
-	cmd = "sudo sed -i '/^127.0.0.1 localhost.*/c\\127.0.0.1 localhost %s' /etc/hosts" % hn
-	Util.RunSubp(cmd, shell=True)
-	cmd = "sudo service hostname restart"
-	Util.RunSubp(cmd)
+	Util.RunSubp("sudo sh -c 'echo \"%s\" > /etc/hostname'" % hn)
+	Util.RunSubp("sudo sed -i '/^127.0.0.1 localhost.*/c\\127.0.0.1 localhost %s' /etc/hosts" % hn)
+	Util.RunSubp("sudo service hostname restart")
 
 
 def _SyncTime():
 	# Sync time. Important for Cassandra.
 	# http://askubuntu.com/questions/254826/how-to-force-a-clock-update-using-ntp
 	_Log("Synching time ...")
-	_RunSubp("sudo service ntp stop")
+	Util.RunSubp("sudo service ntp stop")
 
 	# Fails with a rc 1 in the init script. Mask with true for now.
-	_RunSubp("sudo /usr/sbin/ntpd -gq || true", shell = True)
+	Util.RunSubp("sudo /usr/sbin/ntpd -gq || true")
 
-	_RunSubp("sudo service ntp start")
+	Util.RunSubp("sudo service ntp start")
 
 
 def _InstallPkgs():
-	_RunSubp("sudo apt-get update && sudo apt-get install -y pssh dstat", shell = True)
+	Util.RunSubp("sudo apt-get update && sudo apt-get install -y pssh dstat")
 
 
 def _MountAndFormatLocalSSDs():
 	# Make sure we are using the known machine types
-	inst_type = Util.RunSubp("curl -s http://169.254.169.254/latest/meta-data/instance-type", print_cmd = False, print_result = False)
+	inst_type = Util.RunSubp("curl -s http://169.254.169.254/latest/meta-data/instance-type", print_cmd = False, print_output = False)
 	if not inst_type.startswith("c3."):
 		raise RuntimeError("Unexpected instance type %s" % inst_type)
 
@@ -83,28 +65,28 @@ def _MountAndFormatLocalSSDs():
 
 	for i in range(2):
 		_Log("Setting up Local %s ..." % ssds[i])
-		_RunSubp("sudo umount /dev/%s || true" % devs[i], shell=True)
-		_RunSubp("sudo mkdir -p /mnt/local-%s" % ssds[i])
+		Util.RunSubp("sudo umount /dev/%s || true" % devs[i])
+		Util.RunSubp("sudo mkdir -p /mnt/local-%s" % ssds[i])
 
 		# Instance store volumes come TRIMmed when they are allocated. Without
 		# nodiscard, it takes about 80 secs for a 800GB SSD.
-		_RunSubp("sudo mkfs.ext4 -m 0 -E nodiscard -L local-%s /dev/%s" % (ssds[i], devs[i]), shell=True)
+		Util.RunSubp("sudo mkfs.ext4 -m 0 -E nodiscard -L local-%s /dev/%s" % (ssds[i], devs[i]))
 
 		# -o discard for TRIM
-		_RunSubp("sudo mount -t ext4 -o discard /dev/%s /mnt/local-%s" % (devs[i], ssds[i]), shell=True)
-		_RunSubp("sudo chown -R ubuntu /mnt/local-%s" % ssds[i], shell=True)
+		Util.RunSubp("sudo mount -t ext4 -o discard /dev/%s /mnt/local-%s" % (devs[i], ssds[i]))
+		Util.RunSubp("sudo chown -R ubuntu /mnt/local-%s" % ssds[i])
 
 
 def _CloneAcornSrcAndBuild():
-	_RunSubp("mkdir -p /mnt/local-ssd0/work")
-	_RunSubp("rm -rf /mnt/local-ssd0/work/acorn")
-	_RunSubp("git clone https://github.com/hobinyoon/apache-cassandra-3.0.5-src.git /mnt/local-ssd0/work/apache-cassandra-3.0.5-src")
-	_RunSubp("rm -rf /home/ubuntu/work/acorn")
-	_RunSubp("ln -s /mnt/local-ssd0/work/apache-cassandra-3.0.5-src /home/ubuntu/work/acorn")
+	Util.RunSubp("mkdir -p /mnt/local-ssd0/work")
+	Util.RunSubp("rm -rf /mnt/local-ssd0/work/acorn")
+	Util.RunSubp("git clone https://github.com/hobinyoon/apache-cassandra-3.0.5-src.git /mnt/local-ssd0/work/apache-cassandra-3.0.5-src")
+	Util.RunSubp("rm -rf /home/ubuntu/work/acorn")
+	Util.RunSubp("ln -s /mnt/local-ssd0/work/apache-cassandra-3.0.5-src /home/ubuntu/work/acorn")
 	# Note: report progress. clone done.
 
 	# http://stackoverflow.com/questions/26067350/unmappable-character-for-encoding-ascii-but-my-files-are-in-utf-8
-	_RunSubp("cd /home/ubuntu/work/acorn && (JAVA_TOOL_OPTIONS=-Dfile.encoding=UTF8 ant)", shell = True)
+	Util.RunSubp("cd /home/ubuntu/work/acorn && (JAVA_TOOL_OPTIONS=-Dfile.encoding=UTF8 ant)")
 	# Note: report progress. build done.
 
 
@@ -119,70 +101,60 @@ def _EditCassConf():
 	# Update cassandra cluster name if specified.
 	if "cass_cluster_name" in _tags:
 		# http://stackoverflow.com/questions/7517632/how-do-i-escape-double-and-single-quotes-in-sed-bash
-		_RunSubp("sed -i 's/^cluster_name: .*/cluster_name: '\"'\"'%s'\"'\"'/g' %s"
-				% (_tags["cass_cluster_name"], fn_cass_yaml)
-				, shell = True)
+		Util.RunSubp("sed -i 's/^cluster_name: .*/cluster_name: '\"'\"'%s'\"'\"'/g' %s"
+				% (_tags["cass_cluster_name"], fn_cass_yaml))
 
-	cmd = "sed -i 's/" \
+	Util.RunSubp("sed -i 's/" \
 			"^          - seeds: .*" \
 			"/          - seeds: \"%s\"" \
-			"/g' %s" % (",".join(ips), fn_cass_yaml)
-	_RunSubp(cmd, shell = True)
+			"/g' %s" % (",".join(ips), fn_cass_yaml))
 
-	cmd = "sed -i 's/" \
+	Util.RunSubp("sed -i 's/" \
 			"^listen_address: localhost" \
 			"/#listen_address: localhost" \
-			"/g' %s" % fn_cass_yaml
-	_RunSubp(cmd, shell = True)
+			"/g' %s" % fn_cass_yaml)
 
-	cmd = "sed -i 's/" \
+	Util.RunSubp("sed -i 's/" \
 			"^# listen_interface: eth0" \
 			"/listen_interface: eth0" \
-			"/g' %s" % fn_cass_yaml
-	_RunSubp(cmd, shell = True)
+			"/g' %s" % fn_cass_yaml)
 
 	# sed doesn't support "?"
 	#   http://stackoverflow.com/questions/4348166/using-with-sed
-	cmd = "sed -i 's/" \
+	Util.RunSubp("sed -i 's/" \
 			"^\(# \|\)broadcast_address: .*" \
 			"/broadcast_address: %s" \
-			"/g' %s" % (GetIPs.GetMyPubIp(), fn_cass_yaml)
-	_RunSubp(cmd, shell = True)
+			"/g' %s" % (GetIPs.GetMyPubIp(), fn_cass_yaml))
 
-	cmd = "sed -i 's/" \
+	Util.RunSubp("sed -i 's/" \
 			"^rpc_address: localhost" \
 			"/#rpc_address: localhost" \
-			"/g' %s" % fn_cass_yaml
-	_RunSubp(cmd, shell = True)
+			"/g' %s" % fn_cass_yaml)
 
-	cmd = "sed -i 's/" \
+	Util.RunSubp("sed -i 's/" \
 			"^# rpc_interface: eth1" \
 			"/rpc_interface: eth0" \
-			"/g' %s" % fn_cass_yaml
-	_RunSubp(cmd, shell = True)
+			"/g' %s" % fn_cass_yaml)
 
-	cmd = "sed -i 's/" \
+	Util.RunSubp("sed -i 's/" \
 			"^\(# \|\)broadcast_rpc_address: .*" \
 			"/broadcast_rpc_address: %s" \
-			"/g' %s" % (GetIPs.GetMyPubIp(), fn_cass_yaml)
-	_RunSubp(cmd, shell = True)
+			"/g' %s" % (GetIPs.GetMyPubIp(), fn_cass_yaml))
 
-	cmd = "sed -i 's/" \
+	Util.RunSubp("sed -i 's/" \
 			"^endpoint_snitch:.*" \
 			"/endpoint_snitch: Ec2MultiRegionSnitch" \
-			"/g' %s" % fn_cass_yaml
-	_RunSubp(cmd, shell = True)
+			"/g' %s" % fn_cass_yaml)
 
 	# Edit parameters requested from tags
 	for k, v in _tags.iteritems():
 		if k.startswith("acorn_options."):
 			#              01234567890123
 			k1 = k[14:]
-			cmd = "sed -i 's/" \
+			Util.RunSubp("sed -i 's/" \
 					"^    %s:.*" \
 					"/    %s: %s" \
-					"/g' %s" % (k1, k1, v, fn_cass_yaml)
-			_RunSubp(cmd, shell = True)
+					"/g' %s" % (k1, k1, v, fn_cass_yaml))
 
 
 def _EditYoutubeClientConf():
@@ -192,17 +164,16 @@ def _EditYoutubeClientConf():
 		if k.startswith("acorn-youtube."):
 			#              01234567890123
 			k1 = k[14:]
-			cmd = "sed -i 's/" \
+			Util.RunSubp("sed -i 's/" \
 					"^%s:.*" \
 					"/%s: %s" \
-					"/g' %s" % (k1, k1, v, fn)
-			_RunSubp(cmd, shell = True)
+					"/g' %s" % (k1, k1, v, fn))
 
 
 def _RunCass():
 	_Log("Running Cassandra ...")
-	_RunSubp("rm -rf ~/work/acorn/data")
-	_RunSubp("/home/ubuntu/work/acorn/bin/cassandra")
+	Util.RunSubp("rm -rf ~/work/acorn/data")
+	Util.RunSubp("/home/ubuntu/work/acorn/bin/cassandra")
 
 
 def _WaitUntilYouSeeAllCassNodes():
@@ -212,7 +183,7 @@ def _WaitUntilYouSeeAllCassNodes():
 		# Get all IPs with the tags. Hope every node sees all other nodes by this
 		# time.
 		ips = GetIPs.GetByTags(_tags)
-		num_nodes = _RunSubp("/home/ubuntu/work/acorn/bin/nodetool status | grep \"^UN \" | wc -l", shell = True)
+		num_nodes = Util.RunSubp("/home/ubuntu/work/acorn/bin/nodetool status | grep \"^UN \" | wc -l", shell = True)
 		num_nodes = int(num_nodes)
 		if num_nodes == len(ips):
 			break
@@ -326,7 +297,7 @@ def _CacheEbsDataFileIntoMemory():
 	fn = "/home/ubuntu/work/acorn-data/tweets-010"
 	if "acorn-youtube.fn_youtube_reqs" in _tags:
 		fn = "/home/ubuntu/work/acorn-data/%s" % _tags["acorn-youtube.fn_youtube_reqs"]
-	_RunSubp("/usr/local/bin/vmtouch -t -f %s" % fn)
+	Util.RunSubp("/usr/local/bin/vmtouch -t -f %s" % fn)
 
 
 _jr_sqs_url = None
@@ -358,7 +329,7 @@ def main(argv):
 		_job_id = _tags["job_id"]
 
 		global _az, _region
-		_az = Util.RunSubp("curl -s http://169.254.169.254/latest/meta-data/placement/availability-zone", print_cmd = False, print_result = False)
+		_az = Util.RunSubp("curl -s http://169.254.169.254/latest/meta-data/placement/availability-zone", print_cmd = False, print_output = False)
 		_region = _az[:-1]
 
 		# Loading the Youtube data file form EBS takes long, like up to 5 mins, and
@@ -371,7 +342,7 @@ def main(argv):
 
 		_SetHostname()
 		_SyncTime()
-		_InstallPkgs()
+		#_InstallPkgs()
 		_MountAndFormatLocalSSDs()
 		_CloneAcornSrcAndBuild()
 		_EditCassConf()
