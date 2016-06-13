@@ -215,7 +215,9 @@ def _UploadResult():
 		for root, dirs, files in os.walk(dn_in):
 			for f in files:
 				zf.write(os.path.join(root, f))
-		zf.write("/var/log/acorn/ec2-init.log")
+		zf.write("/var/log/cloud-init-output.log")
+		zf.write("/var/log/cloud-init.log")
+
 	_Log("Created %s %d" % (os.path.abspath(fn_out), os.path.getsize(fn_out)))
 
 	# Upload to S3
