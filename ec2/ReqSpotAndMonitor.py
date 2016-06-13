@@ -298,7 +298,7 @@ class InstLaunchProgMon():
 						output += (" %s" % status)
 					elif prev_status != status:
 						if same_status_cnt > 0:
-							output += (" x%d %s" % ((same_status_cnt + 1), status))
+							output += (" x%2d %s" % ((same_status_cnt + 1), status))
 						else:
 							output += (" %s" % status)
 						same_status_cnt = 0
@@ -307,7 +307,7 @@ class InstLaunchProgMon():
 					prev_status = status
 
 				if same_status_cnt > 0:
-					output += (" x%d" % (same_status_cnt + 1))
+					output += (" x%2d" % (same_status_cnt + 1))
 
 				# Inst state
 				if v.inst_id != None:
@@ -324,7 +324,7 @@ class InstLaunchProgMon():
 							output += (" %s" % state)
 						elif prev_state != state:
 							if same_state_cnt > 0:
-								output += (" x%d %s" % ((same_state_cnt + 1), state))
+								output += (" x%2d %s" % ((same_state_cnt + 1), state))
 							else:
 								output += (" %s" % state)
 							same_state_cnt = 0
@@ -333,7 +333,7 @@ class InstLaunchProgMon():
 						prev_state = state
 
 					if same_state_cnt > 0:
-						output += (" x%d" % (same_state_cnt + 1))
+						output += (" x%2d" % (same_state_cnt + 1))
 
 			# Clear prev output
 			if output_lines_written > 0:
