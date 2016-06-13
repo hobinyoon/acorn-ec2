@@ -9,7 +9,7 @@ import threading
 import time
 
 sys.path.insert(0, "%s/../util/python" % os.path.dirname(__file__))
-import Cons
+import ConsMt
 import Util
 
 import Ec2Util
@@ -34,7 +34,7 @@ def Run(regions, ec2_type, tags, jr_sqs_url, jr_sqs_msg_receipt_handle, init_scr
 	req_datetime = datetime.datetime.now()
 	global _job_id
 	_job_id = req_datetime.strftime("%y%m%d-%H%M%S")
-	Cons.P("job_id:%s (for describing and terminating the cluster)" % _job_id)
+	ConsMt.P("job_id:%s (for describing and terminating the cluster)" % _job_id)
 
 	global _ec2_type, _tags, _jr_sqs_url, _jr_sqs_msg_receipt_handle, _init_script
 	_ec2_type = ec2_type
@@ -50,6 +50,7 @@ def Run(regions, ec2_type, tags, jr_sqs_url, jr_sqs_msg_receipt_handle, init_scr
 
 	for ram in rams:
 		t = threading.Thread(target=ram.RunEc2Inst)
+		t.daemon = True
 		_threads.append(t)
 		t.start()
 
@@ -88,61 +89,61 @@ class RunAndMonitor():
 
 
 	def RunEc2Inst(self):
-		# This is run as root
-		user_data = \
+		try:
+			# This is run as root
+			user_data = \
 """#!/bin/bash
 cd /home/ubuntu/work
 rm -rf /home/ubuntu/work/acorn-tools
 sudo -i -u ubuntu bash -c 'git clone https://github.com/hobinyoon/acorn-tools.git /home/ubuntu/work/acorn-tools'
 sudo -i -u ubuntu /home/ubuntu/work/acorn-tools/ec2/ec2-init.py {0} {1} {2}
 """
-		user_data = user_data.format(_init_script, _jr_sqs_url, _jr_sqs_msg_receipt_handle)
+			user_data = user_data.format(_init_script, _jr_sqs_url, _jr_sqs_msg_receipt_handle)
 
-#cd /home/ubuntu/work/acorn-tools
-#sudo -u ubuntu bash -c 'git pull'
-# http://unix.stackexchange.com/questions/4342/how-do-i-get-sudo-u-user-to-use-the-users-env
+			self.boto_client = boto3.session.Session().client("ec2", region_name = self.region_name)
 
-		self.boto_client = boto3.session.Session().client("ec2", region_name = self.region_name)
+			placement = {}
+			if self.az != None:
+				placement['AvailabilityZone'] = self.az
 
-		placement = {}
-		if self.az != None:
-			placement['AvailabilityZone'] = self.az
+			response = None
+			while True:
+				try:
+					response = self.boto_client.run_instances(
+							DryRun = False
+							, ImageId = self.ami_id
+							, MinCount=1
+							, MaxCount=1
+							, SecurityGroups=["cass-server"]
+							, EbsOptimized=True
+							, InstanceType = _ec2_type
+							, Placement=placement
 
-		response = None
-		while True:
-			try:
-				response = self.boto_client.run_instances(
-						DryRun = False
-						, ImageId = self.ami_id
-						, MinCount=1
-						, MaxCount=1
-						, SecurityGroups=["cass-server"]
-						, EbsOptimized=True
-						, InstanceType = _ec2_type
-						, Placement=placement
+							# User data is passed as a string. I don't see an option of specifying a file.
+							, UserData=user_data
 
-						# User data is passed as a string. I don't see an option of specifying a file.
-						, UserData=user_data
+							, InstanceInitiatedShutdownBehavior='terminate'
+							)
+					break
+				except botocore.exceptions.ClientError as e:
+					if e.response["Error"]["Code"] == "RequestLimitExceeded":
+						ConsMt.P("%s. Retrying in 5 sec ..." % e)
+						time.sleep(5)
+					else:
+						raise e
 
-						, InstanceInitiatedShutdownBehavior='terminate'
-						)
-				break
-			except botocore.exceptions.ClientError as e:
-				if e.response["Error"]["Code"] == "RequestLimitExceeded":
-					ConsP("%s. Retrying in 5 sec ..." % e)
-					time.sleep(5)
-				else:
-					raise e
+			#ConsMt.P("Response:")
+			#ConsMt.P(Util.Indent(pprint.pformat(response, indent=2, width=100), 2))
+			if len(response["Instances"]) != 1:
+				raise RuntimeError("len(response[\"Instances\"])=%d" % len(response["Instances"]))
+			self.inst_id = response["Instances"][0]["InstanceId"]
+			#ConsMt.P("region=%s inst_id=%s" % (self.region_name, self.inst_id))
+			InstLaunchProgMon.SetRegion(self.inst_id, self.region_name)
 
-		#ConsP("Response:")
-		#ConsP(Util.Indent(pprint.pformat(response, indent=2, width=100), 2))
-		if len(response["Instances"]) != 1:
-			raise RuntimeError("len(response[\"Instances\"])=%d" % len(response["Instances"]))
-		self.inst_id = response["Instances"][0]["InstanceId"]
-		#ConsP("region=%s inst_id=%s" % (self.region_name, self.inst_id))
-		InstLaunchProgMon.SetRegion(self.inst_id, self.region_name)
-
-		self._KeepCheckingInst()
+			self._KeepCheckingInst()
+		except Exception as e:
+			ConsMt.P(e)
+			sys.exit(1)
 
 
 	def _KeepCheckingInst(self):
@@ -164,19 +165,19 @@ sudo -i -u ubuntu /home/ubuntu/work/acorn-tools/ec2/ec2-init.py {0} {1} {2}
 					#   DescribeInstances operation: The instance ID 'i-dbb11a47' does n ot
 					#   exist
 					if e.response["Error"]["Code"] == "InvalidInstanceID.NotFound":
-						ConsP("inst_id %s doesn't exist. retrying in 1 sec" % self.inst_id)
+						ConsMt.P("inst_id %s doesn't exist. retrying in 1 sec" % self.inst_id)
 						time.sleep(1)
 					else:
 						raise e
 
 			InstLaunchProgMon.Update(self.inst_id, response)
 			state = response["Reservations"][0]["Instances"][0]["State"]["Name"]
-			# Create a tag
+			# Create tags
 			if state == "pending" and tagged == False:
 				tags_boto = []
 				for k, v in _tags.iteritems():
 					tags_boto.append({"Key": k, "Value": v})
-					#ConsP("[%s]=[%s]" %(k, v))
+					#ConsMt.P("[%s]=[%s]" %(k, v))
 
 				self.boto_client.create_tags(Resources = [self.inst_id], Tags = tags_boto)
 				tagged = True
@@ -258,6 +259,7 @@ class InstLaunchProgMon():
 				if same_state_cnt > 0:
 					output += (" x%d" % (same_state_cnt + 1))
 
+			# Clear prev output
 			if output_lines_written > 0:
 				for l in range(output_lines_written - 1):
 					# Clear current line
@@ -293,7 +295,7 @@ class InstLaunchProgMon():
 	@staticmethod
 	def DescInsts():
 		fmt = "%-15s %10s %10s %13s %15s %10s"
-		ConsP(Util.BuildHeader(fmt,
+		ConsMt.P(Util.BuildHeader(fmt,
 			"Placement:AvailabilityZone"
 			" InstanceId"
 			" InstanceType"
@@ -314,8 +316,8 @@ class InstLaunchProgMon():
 				for t in r["Tags"]:
 					tags[t["Key"]] = t["Value"]
 
-			#ConsP(Util.Indent(pprint.pformat(r, indent=2, width=100), 2))
-			ConsP(fmt % (
+			#ConsMt.P(Util.Indent(pprint.pformat(r, indent=2, width=100), 2))
+			ConsMt.P(fmt % (
 				_Value(_Value(r, "Placement"), "AvailabilityZone")
 				, _Value(r, "InstanceId")
 				, _Value(r, "InstanceType")
@@ -325,13 +327,6 @@ class InstLaunchProgMon():
 				, _Value(_Value(r, "State"), "Name")
 				#, ",".join(["%s:%s" % (k, v) for (k, v) in sorted(tags.items())])
 				))
-
-
-_print_lock = threading.Lock()
-
-def ConsP(msg):
-	with _print_lock:
-		Cons.P(msg)
 
 
 def _Value(dict_, key):
@@ -374,8 +369,8 @@ def _Value(dict_, key):
 #			#
 #			# "stop" when not specified.
 #			#   InstanceInitiatedShutdownBehavior='stop'|'terminate',
-#	ConsP("Response:")
-#	ConsP(Util.Indent(pprint.pformat(response, indent=2, width=100), 2))
+#	ConsMt.P("Response:")
+#	ConsMt.P(Util.Indent(pprint.pformat(response, indent=2, width=100), 2))
 #	if len(response["Instances"]) != 1:
 #		raise RuntimeError("len(response[\"Instances\"])=%d" % len(response["Instances"]))
 #	inst_id = response["Instances"][0]["InstanceId"]

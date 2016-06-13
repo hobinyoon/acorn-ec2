@@ -56,12 +56,13 @@ def main(argv):
 	# For fast development
 	ec2_type = "c3.4xlarge"
 
-	ReqSpotAndMonitor.Run(
-			regions = regions
-			, tag_name = "acorn-server"
-			, ec2_type = ec2_type
-			, price = "1.0"
-			)
+	# It is not useful by itself anymore. Revisit when needed.
+	#ReqSpotAndMonitor.Run(
+	#		regions = regions
+	#		, tag_name = "acorn-server"
+	#		, ec2_type = ec2_type
+	#		, price = 1.0
+	#		)
 
 
 if __name__ == "__main__":

@@ -9,6 +9,7 @@ import sys
 import time
 
 sys.path.insert(0, "..")
+import ReqSpotAndMonitor
 import RunAndMonitorEc2Inst
 
 import ConsMt
@@ -24,6 +25,8 @@ def main(argv):
 		PollJrJcMsgs()
 	except KeyboardInterrupt as e:
 		ConsMt.P("\n%s Got a keyboard interrupt. Stopping ..." % time.strftime("%y%m%d-%H%M%S"))
+	except Exception as e:
+		ConsMt.P("\n%s Got an exception: %s. Stopping ..." % (time.strftime("%y%m%d-%H%M%S"), e))
 	JobReqQ.DeleteQ()
 
 
@@ -82,13 +85,25 @@ def ProcessJobReq(jr):
 	# protocol.  It's even okay to use the default one: test-cluster
 	#tags["cass_cluster_name"] = "acorn"
 
-	RunAndMonitorEc2Inst.Run(
-			regions = regions
-			, ec2_type = ec2_type
-			, tags = jr.attrs
-			, jr_sqs_url = jr_sqs_url
-			, jr_sqs_msg_receipt_handle = jr_sqs_msg_receipt_handle
-			, init_script = init_script)
+	if False:
+		# On-demand instances are too expensive.
+		RunAndMonitorEc2Inst.Run(
+				regions = regions
+				, ec2_type = ec2_type
+				, tags = jr.attrs
+				, jr_sqs_url = jr_sqs_url
+				, jr_sqs_msg_receipt_handle = jr_sqs_msg_receipt_handle
+				, init_script = init_script)
+	else:
+		ReqSpotAndMonitor.Run(
+				regions = regions
+				, ec2_type = ec2_type
+				, tags = jr.attrs
+				, jr_sqs_url = jr_sqs_url
+				, jr_sqs_msg_receipt_handle = jr_sqs_msg_receipt_handle
+				, init_script = init_script
+				, price = 1.0
+				)
 
 	# No need to sleep here. Launching a cluster takes like 30 secs.  Used to
 	# sleep a bit so that each cluster has a unique ID, which is made of current

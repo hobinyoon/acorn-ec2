@@ -1,6 +1,7 @@
 import base64
 import boto3
-# Boto: http://boto3.readthedocs.org/en/latest/
+import botocore
+import datetime
 import os
 import pprint
 import re
@@ -8,29 +9,55 @@ import sys
 import threading
 import time
 
-sys.path.insert(0, "%s/../util/python" % os.path.dirname(os.path.realpath(__file__)))
-import Cons
+sys.path.insert(0, "%s/../util/python" % os.path.dirname(__file__))
+import ConsMt
 import Util
 
 import Ec2Util
 
 
 _threads = []
-_dn_tmp = "%s/../.tmp" % os.path.dirname(os.path.realpath(__file__))
+_dn_tmp = "%s/../.tmp" % os.path.dirname(__file__)
+_job_id = None
+
+_ec2_type = None
+_tags = None
+_jr_sqs_url = None
+_jr_sqs_msg_receipt_handle = None
+_init_script = None
+_price = None
 
 
-def Run(regions = ["us-east-1"], tag_name = None, ec2_type = None, price = None):
+def Run(regions, ec2_type, tags, jr_sqs_url, jr_sqs_msg_receipt_handle, init_script, price = None):
 	if price == None:
 		raise RuntimeError("Need a price")
 
+	Reset()
+
+	# TODO: Update RunSubp
 	Util.RunSubp("mkdir -p %s" % _dn_tmp, print_cmd = False)
+
+	req_datetime = datetime.datetime.now()
+	global _job_id
+	_job_id = req_datetime.strftime("%y%m%d-%H%M%S")
+	ConsMt.P("job_id:%s (for describing and terminating the cluster)" % _job_id)
+
+	global _ec2_type, _tags, _jr_sqs_url, _jr_sqs_msg_receipt_handle, _init_script, _price
+	_ec2_type = ec2_type
+	_tags = tags
+	_tags["job_id"] = _job_id
+	_jr_sqs_url = jr_sqs_url
+	_jr_sqs_msg_receipt_handle = jr_sqs_msg_receipt_handle
+	_init_script = init_script
+	_price = price
 
 	rams = []
 	for r in regions:
-		rams.append(ReqAndMonitor(r, tag_name, ec2_type, price))
+		rams.append(ReqAndMonitor(r))
 
 	for ram in rams:
 		t = threading.Thread(target=ram.Run)
+		t.daemon = True
 		_threads.append(t)
 		t.start()
 
@@ -39,9 +66,30 @@ def Run(regions = ["us-east-1"], tag_name = None, ec2_type = None, price = None)
 	for t in _threads:
 		t.join()
 
+	for ram in rams:
+		if ram.exit_success == False:
+			raise RuntimeError("ReqAndMonitor %s failed" % ram)
+
+
+# This module can be called repeatedly
+def Reset():
+	global _threads, _job_id
+	global _ec2_type, _tags, _jr_sqs_url, _jr_sqs_msg_receipt_handle, _init_script
+
+	_threads = []
+	_job_id = None
+
+	_ec2_type = None
+	_tags = None
+	_jr_sqs_url = None
+	_jr_sqs_msg_receipt_handle = None
+	_init_script = None
+
+	InstLaunchProgMon.Reset()
+
 
 class ReqAndMonitor():
-	def __init__(self, az_or_region, tag_name, ec2_type, price):
+	def __init__(self, az_or_region):
 		if re.match(r".*[a-z]$", az_or_region):
 			self.az = az_or_region
 			self.region_name = self.az[:-1]
@@ -50,67 +98,73 @@ class ReqAndMonitor():
 			self.region_name = az_or_region
 		self.ami_id = Ec2Util.GetLatestAmiId(self.region_name)
 
-		self.tag_name = tag_name
-		self.ec2_type = ec2_type
-		self.price = price
-
 		self.inst_id = None
+
+		self.exit_success = False
 
 
 	def Run(self):
-		# This is run as root
-		init_script = \
+		try:
+			# This is run as root
+			user_data = \
 """#!/bin/bash
 cd /home/ubuntu/work
 rm -rf /home/ubuntu/work/acorn-tools
 sudo -i -u ubuntu bash -c 'git clone https://github.com/hobinyoon/acorn-tools.git /home/ubuntu/work/acorn-tools'
-sudo -i -u ubuntu /home/ubuntu/work/acorn-tools/ec2/ec2-init.py
+sudo -i -u ubuntu /home/ubuntu/work/acorn-tools/ec2/ec2-init.py {0} {1} {2}
 """
-#cd /home/ubuntu/work/acorn-tools
-#sudo -u ubuntu bash -c 'git pull'
-# http://unix.stackexchange.com/questions/4342/how-do-i-get-sudo-u-user-to-use-the-users-env
+			user_data = user_data.format(_init_script, _jr_sqs_url, _jr_sqs_msg_receipt_handle)
 
-		self.boto_client = boto3.session.Session().client("ec2", region_name = self.region_name)
+	#cd /home/ubuntu/work/acorn-tools
+	#sudo -u ubuntu bash -c 'git pull'
+	# http://unix.stackexchange.com/questions/4342/how-do-i-get-sudo-u-user-to-use-the-users-env
 
-		ls = {'ImageId': self.ami_id,
-				#'KeyName': 'string',
-				'SecurityGroups': ["cass-server"],
-				'UserData': base64.b64encode(init_script),
-				#'AddressingType': 'string',
-				'InstanceType': self.ec2_type,
-				'EbsOptimized': True,
-				}
-		if self.az != None:
-			ls['Placement'] = {}
-			ls['Placement']['AvailabilityZone'] = self.az
+			self.boto_client = boto3.session.Session().client("ec2", region_name = self.region_name)
 
-		response = self.boto_client.request_spot_instances(
-				SpotPrice=self.price,
-				#ClientToken='string',
-				InstanceCount=1,
-				Type='one-time',
-				#ValidFrom=datetime(2015, 1, 1),
-				#ValidUntil=datetime(2015, 1, 1),
-				#LaunchGroup='string',
-				#AvailabilityZoneGroup='string',
+			ls = {'ImageId': self.ami_id,
+					#'KeyName': 'string',
+					'SecurityGroups': ["cass-server"],
+					'UserData': base64.b64encode(user_data),
+					#'AddressingType': 'string',
+					'InstanceType': _ec2_type,
+					'EbsOptimized': True,
+					}
+			if self.az != None:
+				ls['Placement'] = {}
+				ls['Placement']['AvailabilityZone'] = self.az
 
-				# https://aws.amazon.com/blogs/aws/new-ec2-spot-blocks-for-defined-duration-workloads/
-				#BlockDurationMinutes=123,
+			response = self.boto_client.request_spot_instances(
+					SpotPrice=str(_price),
+					#ClientToken='string',
+					InstanceCount=1,
+					Type='one-time',
+					#ValidFrom=datetime(2015, 1, 1),
+					#ValidUntil=datetime(2015, 1, 1),
+					#LaunchGroup='string',
+					#AvailabilityZoneGroup='string',
 
-				LaunchSpecification = ls,
-				)
-		#ConsP("Response:")
-		#ConsP(Util.Indent(pprint.pformat(response, indent=2, width=100), 2))
+					# https://aws.amazon.com/blogs/aws/new-ec2-spot-blocks-for-defined-duration-workloads/
+					#BlockDurationMinutes=123,
 
-		if len(response["SpotInstanceRequests"]) != 1:
-			raise RuntimeError("len(response[\"SpotInstanceRequests\"])=%d" % len(response["SpotInstanceRequests"]))
-		self.spot_req_id = response["SpotInstanceRequests"][0]["SpotInstanceRequestId"]
-		#ConsP("region=%s spot_req_id=%s" % (self.region_name, self.spot_req_id))
+					LaunchSpecification = ls,
+					)
+			#ConsMt.P("Response:")
+			#ConsMt.P(Util.Indent(pprint.pformat(response, indent=2, width=100), 2))
 
-		InstLaunchProgMon.SetRegion(self.spot_req_id, self.region_name)
+			if len(response["SpotInstanceRequests"]) != 1:
+				raise RuntimeError("len(response[\"SpotInstanceRequests\"])=%d" % len(response["SpotInstanceRequests"]))
+			self.spot_req_id = response["SpotInstanceRequests"][0]["SpotInstanceRequestId"]
+			#ConsMt.P("region=%s spot_req_id=%s" % (self.region_name, self.spot_req_id))
 
-		self._KeepCheckingSpotReq()
-		self._KeepCheckingInst()
+			InstLaunchProgMon.SetRegion(self.spot_req_id, self.region_name)
+
+			self._KeepCheckingSpotReq()
+			self._KeepCheckingInst()
+
+			self.exit_success = True
+		except Exception as e:
+			ConsMt.P(e)
+			sys.exit(1)
 
 
 	def _KeepCheckingSpotReq(self):
@@ -120,7 +174,7 @@ sudo -i -u ubuntu /home/ubuntu/work/acorn-tools/ec2/ec2-init.py
 					SpotInstanceRequestIds=[self.spot_req_id])
 			if len(response["SpotInstanceRequests"]) != 1:
 				raise RuntimeError("len(response[\"SpotInstanceRequests\"])=%d" % len(response["SpotInstanceRequests"]))
-			#ConsP(Util.Indent(pprint.pformat(response, indent=2, width=100), 2))
+			#ConsMt.P(Util.Indent(pprint.pformat(response, indent=2, width=100), 2))
 
 			InstLaunchProgMon.UpdateSpotReq(self.spot_req_id, response)
 			status_code = response["SpotInstanceRequests"][0]["Status"]["Code"]
@@ -129,7 +183,7 @@ sudo -i -u ubuntu /home/ubuntu/work/acorn-tools/ec2/ec2-init.py
 			time.sleep(1)
 
 		# Get inst_id
-		#ConsP(Util.Indent(pprint.pformat(response, indent=2, width=100), 2))
+		#ConsMt.P(Util.Indent(pprint.pformat(response, indent=2, width=100), 2))
 		self.inst_id = response["SpotInstanceRequests"][0]["InstanceId"]
 		InstLaunchProgMon.SetInstID(self.spot_req_id, self.inst_id)
 
@@ -150,15 +204,14 @@ sudo -i -u ubuntu /home/ubuntu/work/acorn-tools/ec2/ec2-init.py
 
 			InstLaunchProgMon.UpdateDescInst(self.spot_req_id, response)
 			state = response["Reservations"][0]["Instances"][0]["State"]["Name"]
-			# Create a tag
+			# Create tags
 			if state == "pending" and tagged == False:
-				self.boto_client.create_tags(
-						Resources = [self.inst_id],
-						Tags = [{
-							"Key": "Name",
-							"Value": self.tag_name
-							}]
-						)
+				tags_boto = []
+				for k, v in _tags.iteritems():
+					tags_boto.append({"Key": k, "Value": v})
+					#ConsMt.P("[%s]=[%s]" %(k, v))
+
+				self.boto_client.create_tags(Resources = [self.inst_id], Tags = tags_boto)
 				tagged = True
 
 			elif state == "terminated" or state == "running":
@@ -199,6 +252,11 @@ class InstLaunchProgMon():
 
 		def SetInstID(self, inst_id):
 			self.inst_id = inst_id
+
+	@staticmethod
+	def Reset():
+		with InstLaunchProgMon.progress_lock:
+			InstLaunchProgMon.progress = {}
 
 	@staticmethod
 	def SetRegion(spot_req_id, region_name):
@@ -304,53 +362,47 @@ class InstLaunchProgMon():
 			if all_done:
 				break
 
+			# Update status every so often
 			time.sleep(0.1)
-		print ""
 		print ""
 
 		InstLaunchProgMon.DescInsts()
 
 	@staticmethod
 	def DescInsts():
-		fmt = "%-15s %10s %10s %13s %15s %15s %10s %20s"
-		ConsP(Util.BuildHeader(fmt,
+		fmt = "%-15s %10s %10s %13s %15s %10s"
+		ConsMt.P(Util.BuildHeader(fmt,
 			"Placement:AvailabilityZone"
 			" InstanceId"
 			" InstanceType"
 			" LaunchTime"
-			" PrivateIpAddress"
+			#" PrivateIpAddress"
 			" PublicIpAddress"
 			" State:Name"
-			" Tag:Name"
+			#" Tags"
 			))
 
 		for spot_req_id, v in InstLaunchProgMon.progress.iteritems():
+			if len(v.resp_desc_inst) == 0:
+				continue
 			r = v.resp_desc_inst[-1]["Reservations"][0]["Instances"][0]
 
-			tag_name = None
+			tags = {}
 			if "Tags" in r:
 				for t in r["Tags"]:
-					if t["Key"] == "Name":
-						tag_name = t["Value"]
+					tags[t["Key"]] = t["Value"]
 
-			#ConsP(Util.Indent(pprint.pformat(r, indent=2, width=100), 2))
-			ConsP(fmt % (
+			#ConsMt.P(Util.Indent(pprint.pformat(r, indent=2, width=100), 2))
+			ConsMt.P(fmt % (
 				_Value(_Value(r, "Placement"), "AvailabilityZone")
 				, _Value(r, "InstanceId")
 				, _Value(r, "InstanceType")
 				, _Value(r, "LaunchTime").strftime("%y%m%d-%H%M%S")
-				, _Value(r, "PrivateIpAddress")
+				#, _Value(r, "PrivateIpAddress")
 				, _Value(r, "PublicIpAddress")
 				, _Value(_Value(r, "State"), "Name")
-				, tag_name
+				#, ",".join(["%s:%s" % (k, v) for (k, v) in sorted(tags.items())])
 				))
-
-
-_print_lock = threading.Lock()
-
-def ConsP(msg):
-	with _print_lock:
-		Cons.P(msg)
 
 
 def _Value(dict_, key):
