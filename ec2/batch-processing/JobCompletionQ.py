@@ -1,7 +1,9 @@
 import boto3
 import botocore
+import os
 import pprint
 import threading
+import traceback
 
 import ConsMt
 
@@ -62,7 +64,10 @@ def _Poll(jc_q):
 			# Retrying after 1 sec doesn't seem to help. Might be the server being
 			# unreliable. Just kill the server.
 			ConsMt.P(e)
-			sys.exit(1)
+			os._exit(1)
+		except Exception as e:
+			ConsMt.P("%s\n%s" % (e, traceback.format_exc()))
+			os._exit(1)
 
 
 class JobCompleted:

@@ -1,9 +1,11 @@
 import boto3
 import botocore
+import os
 import pprint
 import sys
 import threading
 import time
+import traceback
 
 import ConsMt
 
@@ -95,11 +97,16 @@ def _Poll(jr_q):
 					)
 			for m in msgs:
 				# put the job completion msg. Wait when the queue is full.
-				jc_q.put(JobReq(m), block=True, timeout=None)
+				jr_q.put(JobReq(m), block=True, timeout=None)
 		except botocore.exceptions.EndpointConnectionError as e:
 			# Could not connect to the endpoint URL: "https://queue.amazonaws.com/"
 			ConsMt.P(e)
-			sys.exit(1)
+			os._exit(1)
+		except Exception as e:
+			ConsMt.P("%s\n%s" % (e, traceback.format_exc()))
+			#sys.exit(1)
+			# http://stackoverflow.com/questions/1489669/how-to-exit-the-entire-application-from-a-python-thread
+			os._exit(1)
 
 
 class JobReq:

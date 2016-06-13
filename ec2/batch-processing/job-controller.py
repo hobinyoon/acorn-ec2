@@ -7,6 +7,7 @@ import pprint
 import Queue
 import sys
 import time
+import traceback
 
 sys.path.insert(0, "..")
 import ReqSpotAndMonitor
@@ -26,8 +27,8 @@ def main(argv):
 	except KeyboardInterrupt as e:
 		ConsMt.P("\n%s Got a keyboard interrupt. Stopping ..." % time.strftime("%y%m%d-%H%M%S"))
 	except Exception as e:
-		ConsMt.P("\n%s Got an exception: %s. Stopping ..." % (time.strftime("%y%m%d-%H%M%S"), e))
-	JobReqQ.DeleteQ()
+		ConsMt.P("\n%s Got an exception: %s\n%s" % (time.strftime("%y%m%d-%H%M%S"), e, traceback.format_exc()))
+	#JobReqQ.DeleteQ()
 
 
 _req_q = Queue.Queue(maxsize=2)
