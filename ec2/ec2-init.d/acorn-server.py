@@ -295,11 +295,29 @@ def _EnqJcMsg(q):
 	q.send_message(MessageBody=msg_body_jc, MessageAttributes=msg_attrs)
 
 
-def _CacheEbsDataFileIntoMemory():
-	fn = "/home/ubuntu/work/acorn-data/tweets-010"
-	if "acorn-youtube.fn_youtube_reqs" in _tags:
-		fn = "/home/ubuntu/work/acorn-data/%s" % _tags["acorn-youtube.fn_youtube_reqs"]
-	Util.RunSubp("/usr/local/bin/vmtouch -t -f %s" % fn)
+# Loading the Youtube data file form EBS takes long, like up to 5 mins, and
+# could make a big difference among nodes in different regions, which varies
+# the start times of Youtube clients in different regions.
+class CacheEbsFileIntoMem:
+	def __init__(self):
+		self.fn = "/home/ubuntu/work/acorn-data/tweets-010"
+		if "acorn-youtube.fn_youtube_reqs" in _tags:
+			self.fn = "/home/ubuntu/work/acorn-data/%s" % _tags["acorn-youtube.fn_youtube_reqs"]
+
+	def __enter__(self):
+		self.t = threading.Thread(target=self._VmTouch)
+		self.t.daemon = True
+		self.t.start()
+		_Log("Touching %s into memory ..." % self.fn)
+
+	def __exit__(self, type, value, traceback):
+		self.t.join()
+		_Log("Touched %s into memory ..." % self.fn)
+		_Log("  %s" % self.out)
+
+	def _VmTouch(self):
+		cmd = "/usr/local/bin/vmtouch -t -f %s" % self.fn
+		self.out = Util.RunSubp(cmd, print_cmd = False, print_output = False)
 
 
 _jr_sqs_url = None
@@ -334,24 +352,15 @@ def main(argv):
 		_az = Util.RunSubp("curl -s http://169.254.169.254/latest/meta-data/placement/availability-zone", print_cmd = False, print_output = False)
 		_region = _az[:-1]
 
-		# Loading the Youtube data file form EBS takes long, like up to 5 mins, and
-		# could make a big difference among nodes in different regions, which
-		# varies the start times of Youtube clients in different regions.
-		t = threading.Thread(target=_CacheEbsDataFileIntoMemory)
-		# So that it can (abruptly) terminate on SIGINT
-		t.daemon = True
-		t.start()
-
-		_SetHostname()
-		_SyncTime()
-		#_InstallPkgs()
-		_MountAndFormatLocalSSDs()
-		_CloneAcornSrcAndBuild()
-		_EditCassConf()
-		_EditYoutubeClientConf()
-		_RunCass()
-
-		t.join()
+		with CacheEbsFileIntoMem():
+			_SetHostname()
+			_SyncTime()
+			#_InstallPkgs()
+			_MountAndFormatLocalSSDs()
+			_CloneAcornSrcAndBuild()
+			_EditCassConf()
+			_EditYoutubeClientConf()
+			_RunCass()
 
 		_WaitUntilYouSeeAllCassNodes()
 

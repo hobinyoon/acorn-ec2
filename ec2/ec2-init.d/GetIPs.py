@@ -90,5 +90,5 @@ def GetMyPubIp():
 	global _my_pub_ip
 	if _my_pub_ip == None:
 		_my_pub_ip = Util.RunSubp("curl -s http://169.254.169.254/latest/meta-data/public-ipv4"
-				, print_cmd = False, print_result = False)
+				, print_cmd = False, print_output = False)
 	return _my_pub_ip

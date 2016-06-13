@@ -25,16 +25,16 @@ def _Log(msg):
 
 
 def _LogInstInfo():
-	ami_id    = Util.RunSubp("curl -s http://169.254.169.254/latest/meta-data/ami-id", print_cmd = False, print_result = False)
+	ami_id    = Util.RunSubp("curl -s http://169.254.169.254/latest/meta-data/ami-id", print_cmd = False, print_output = False)
 	global _inst_id
-	_inst_id  = Util.RunSubp("curl -s http://169.254.169.254/latest/meta-data/instance-id", print_cmd = False, print_result = False)
-	inst_type = Util.RunSubp("curl -s http://169.254.169.254/latest/meta-data/instance-type", print_cmd = False, print_result = False)
-	az        = Util.RunSubp("curl -s http://169.254.169.254/latest/meta-data/placement/availability-zone", print_cmd = False, print_result = False)
-	pub_ip    = Util.RunSubp("curl -s http://169.254.169.254/latest/meta-data/public-ipv4", print_cmd = False, print_result = False)
-	local_ip  = Util.RunSubp("curl -s http://169.254.169.254/latest/meta-data/local-ipv4", print_cmd = False, print_result = False)
+	_inst_id  = Util.RunSubp("curl -s http://169.254.169.254/latest/meta-data/instance-id", print_cmd = False, print_output = False)
+	inst_type = Util.RunSubp("curl -s http://169.254.169.254/latest/meta-data/instance-type", print_cmd = False, print_output = False)
+	az        = Util.RunSubp("curl -s http://169.254.169.254/latest/meta-data/placement/availability-zone", print_cmd = False, print_output = False)
+	pub_ip    = Util.RunSubp("curl -s http://169.254.169.254/latest/meta-data/public-ipv4", print_cmd = False, print_output = False)
+	local_ip  = Util.RunSubp("curl -s http://169.254.169.254/latest/meta-data/local-ipv4", print_cmd = False, print_output = False)
 
 	# http://stackoverflow.com/questions/4249488/find-region-from-within-ec2-instance
-	doc       = Util.RunSubp("curl -s http://169.254.169.254/latest/dynamic/instance-identity/document", print_cmd = False, print_result = False)
+	doc       = Util.RunSubp("curl -s http://169.254.169.254/latest/dynamic/instance-identity/document", print_cmd = False, print_output = False)
 	for line in doc.split("\n"):
 		# "region" : "us-west-1"
 		tokens = filter(None, re.split(":| |,|\"", line))
@@ -100,7 +100,10 @@ def main(argv):
 	_jr_sqs_url = argv[2]
 	_jr_sqs_msg_receipt_handle = argv[3]
 
-	_Log("started")
+	_Log("_fn_init_script: %s" % _fn_init_script)
+	_Log("_jr_sqs_url: %s" % _jr_sqs_url)
+	_Log("_jr_sqs_msg_receipt_handle: %s" % _jr_sqs_msg_receipt_handle)
+
 	_LogInstInfo()
 	_RunInitByTags()
 
