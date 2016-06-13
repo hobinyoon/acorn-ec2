@@ -70,7 +70,4 @@ if __name__ == "__main__":
 		sys.exit(main(sys.argv))
 	except KeyboardInterrupt:
 		print "\nInterrupted"
-		# Requesting threads to stop doesn't work.
-		# ReqSpotAndMonitor.ReqStop()
-		os.kill(os.getpid(), signal.SIGTERM)
 		sys.exit(1)
