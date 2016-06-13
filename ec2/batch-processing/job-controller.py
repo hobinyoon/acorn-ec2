@@ -30,7 +30,7 @@ def main(argv):
 	JobReqQ.DeleteQ()
 
 
-_req_q = Queue.Queue()
+_req_q = Queue.Queue(maxsize=2)
 
 def PollJrJcMsgs():
 	JobReqQ.PollBackground(_req_q)

@@ -94,7 +94,8 @@ def _Poll(jr_q):
 					WaitTimeSeconds=5
 					)
 			for m in msgs:
-				jr_q.put(JobReq(m))
+				# put the job completion msg. Wait when the queue is full.
+				jc_q.put(JobReq(m), block=True, timeout=None)
 		except botocore.exceptions.EndpointConnectionError as e:
 			# Could not connect to the endpoint URL: "https://queue.amazonaws.com/"
 			ConsMt.P(e)
