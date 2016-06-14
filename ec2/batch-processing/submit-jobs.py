@@ -20,9 +20,9 @@ def main(argv):
 	sqs = boto3.resource("sqs", region_name = sqs_region)
 	q = GetQ(bc, sqs)
 
-	SingleDevNode(q)
+	#SingleDevNode(q)
 
-	#ByRepModels(q)
+	ByRepModels(q)
 
 	# To dig why some requests are running behind
 	#MeasureClientOverhead(q)
@@ -80,7 +80,8 @@ def SingleDevNode(q):
 def ByRepModels(q):
 	# UT
 	req_attrs = {
-			"regions": ",".join(_regions)
+			"init-script": "acorn-server"
+			, "regions": ",".join(_regions)
 
 			# Partial replication metadata is exchanged
 			, "acorn-youtube.replication_type": "partial"
@@ -103,8 +104,8 @@ def ByRepModels(q):
 	_EnqReq(q, req_attrs)
 
 	# T
-	req_attrs["acorn_options.use_attr_user"] = "true"
-	req_attrs["acorn_options.use_attr_topic"] = "false"
+	req_attrs["acorn_options.use_attr_user"] = "false"
+	req_attrs["acorn_options.use_attr_topic"] = "true"
 	_EnqReq(q, req_attrs)
 
 	# U
@@ -117,11 +118,11 @@ def ByRepModels(q):
 	req_attrs["acorn_options.use_attr_topic"] = "false"
 	_EnqReq(q, req_attrs)
 
-#	# Full
-#	req_attrs["acorn-youtube.replication_type"] = "full"
-#	req_attrs["acorn_options.use_attr_user"] = "false"
-#	req_attrs["acorn_options.use_attr_topic"] = "false"
-#	_EnqReq(q, req_attrs)
+	# Full
+	req_attrs["acorn-youtube.replication_type"] = "full"
+	req_attrs["acorn_options.use_attr_user"] = "false"
+	req_attrs["acorn_options.use_attr_topic"] = "false"
+	_EnqReq(q, req_attrs)
 
 
 def MeasureClientOverhead(q):
