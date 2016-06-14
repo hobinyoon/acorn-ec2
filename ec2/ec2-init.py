@@ -100,10 +100,6 @@ def main(argv):
 	_jr_sqs_url = argv[2]
 	_jr_sqs_msg_receipt_handle = argv[3]
 
-	_Log("_fn_init_script: %s" % _fn_init_script)
-	_Log("_jr_sqs_url: %s" % _jr_sqs_url)
-	_Log("_jr_sqs_msg_receipt_handle: %s" % _jr_sqs_msg_receipt_handle)
-
 	_LogInstInfo()
 	_RunInitByTags()
 
