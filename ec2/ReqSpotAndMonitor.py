@@ -8,6 +8,7 @@ import re
 import sys
 import threading
 import time
+import traceback
 
 sys.path.insert(0, "%s/../util/python" % os.path.dirname(__file__))
 import ConsMt
@@ -163,8 +164,8 @@ sudo -i -u ubuntu /home/ubuntu/work/acorn-tools/ec2/ec2-init.py {0} {1} {2}
 
 			self.exit_success = True
 		except Exception as e:
-			ConsMt.P(e)
-			sys.exit(1)
+			ConsMt.P("%s\n%s" % (e, traceback.format_exc()))
+			os._exit(1)
 
 
 	def _KeepCheckingSpotReq(self):

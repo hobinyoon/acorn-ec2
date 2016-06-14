@@ -29,8 +29,4 @@ def main(argv):
 
 
 if __name__ == "__main__":
-	try:
-		sys.exit(main(sys.argv))
-	except KeyboardInterrupt:
-		print "\nInterrupted"
-		sys.exit(1)
+	sys.exit(main(sys.argv))

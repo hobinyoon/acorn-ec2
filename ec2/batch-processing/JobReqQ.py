@@ -105,7 +105,6 @@ def _Poll(jr_q):
 			os._exit(1)
 		except Exception as e:
 			ConsMt.P("%s\n%s" % (e, traceback.format_exc()))
-			#sys.exit(1)
 			# http://stackoverflow.com/questions/1489669/how-to-exit-the-entire-application-from-a-python-thread
 			os._exit(1)
 
