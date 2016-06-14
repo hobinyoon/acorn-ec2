@@ -90,7 +90,8 @@ def _Poll(jr_q):
 					#
 					# 12 hours. You don't want to spend a lot of money by an error in the
 					# experiment script overnight. If something goes wrong within 12
-					# hours, re-execute manually.
+					# hours, re-execute manually. Maximum you can set is 12 hours.
+					# http://docs.aws.amazon.com/AWSSimpleQueueService/latest/APIReference/API_ChangeMessageVisibility.html
 					VisibilityTimeout=12*3600,
 
 					WaitTimeSeconds=5

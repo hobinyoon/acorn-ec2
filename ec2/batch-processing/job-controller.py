@@ -28,7 +28,9 @@ def main(argv):
 		ConsMt.P("\n%s Got a keyboard interrupt. Stopping ..." % time.strftime("%y%m%d-%H%M%S"))
 	except Exception as e:
 		ConsMt.P("\n%s Got an exception: %s\n%s" % (time.strftime("%y%m%d-%H%M%S"), e, traceback.format_exc()))
-	#JobReqQ.DeleteQ()
+	# Deleting the job request queue is useful for preventing the job request
+	# reappearing
+	JobReqQ.DeleteQ()
 
 
 _req_q = Queue.Queue(maxsize=2)
