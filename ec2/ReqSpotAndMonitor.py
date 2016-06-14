@@ -35,7 +35,6 @@ def Run(regions, ec2_type, tags, jr_sqs_url, jr_sqs_msg_receipt_handle, init_scr
 
 	Reset()
 
-	# TODO: Update RunSubp
 	Util.RunSubp("mkdir -p %s" % _dn_tmp, print_cmd = False)
 
 	req_datetime = datetime.datetime.now()
