@@ -12,11 +12,7 @@ def Sync():
 	Util.MkDirs(dn)
 
 	# http://docs.aws.amazon.com/cli/latest/reference/s3/sync.html
-	cmd = "aws s3 sync s3://acorn-youtube %s" % dn
-	out = Util.RunSubp(cmd, shell = True, print_cmd = True, print_result = False)
-	for line in out.split("\n"):
-		if len(line.strip()) > 0:
-			ConsMt.P("  %s" % line)
+	Util.RunSubp("aws s3 sync s3://acorn-youtube %s" % dn)
 
 
 def Test():
