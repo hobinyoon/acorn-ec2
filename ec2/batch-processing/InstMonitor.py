@@ -5,9 +5,8 @@ import sys
 import threading
 import time
 
-import ConsMt
-
 sys.path.insert(0, "%s/../../util/python" % os.path.dirname(__file__))
+import ConsMt
 import Util
 
 _fmt_desc_inst = "%13s %-15s %10s %15s %13s"

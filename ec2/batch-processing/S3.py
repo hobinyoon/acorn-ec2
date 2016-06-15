@@ -4,8 +4,6 @@ import sys
 sys.path.insert(0, "%s/../../util/python" % os.path.dirname(__file__))
 import Util
 
-import ConsMt
-
 
 def Sync():
 	dn = "%s/work/acorn-data" % os.path.expanduser("~")

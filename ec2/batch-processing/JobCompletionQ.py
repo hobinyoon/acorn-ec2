@@ -5,6 +5,7 @@ import pprint
 import threading
 import traceback
 
+sys.path.insert(0, "%s/../../util/python" % os.path.dirname(__file__))
 import ConsMt
 
 

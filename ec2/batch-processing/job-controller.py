@@ -9,11 +9,13 @@ import sys
 import time
 import traceback
 
+sys.path.insert(0, "%s/../../util/python" % os.path.dirname(__file__))
+import ConsMt
+
 sys.path.insert(0, "..")
 import ReqSpotAndMonitor
 import RunAndMonitorEc2Inst
 
-import ConsMt
 import JobCompletionQ
 import JobReqQ
 import InstMonitor

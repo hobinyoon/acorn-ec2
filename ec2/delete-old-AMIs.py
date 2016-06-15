@@ -11,7 +11,6 @@ import time
 import traceback
 
 sys.path.insert(0, "%s/../util/python" % os.path.dirname(__file__))
-# TODO: fix other files for the changed location
 import ConsMt
 import Util
 
@@ -50,7 +49,6 @@ def main(argv):
 
 	ConsMt.P("")
 	ConsMt.P("Deregistering Amis and deleting snapshots ...")
-	# TODO: parallelize
 	for i in iscs:
 		i.DeleteOldAmisSnapshots()
 	for i in iscs:
