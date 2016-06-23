@@ -22,7 +22,9 @@ def main(argv):
 
 	#SingleDevNode(q)
 
-	ByRepModels(q)
+	ByYoutubeWorkloadOfDifferentSizes(q)
+
+	#ByRepModels(q)
 
 	# To dig why some requests are running behind
 	#MeasureClientOverhead(q)
@@ -44,7 +46,7 @@ def GetQ(bc, sqs):
 		return queue
 
 
-_regions = [
+_regions_all = [
 		"us-east-1"
 		, "us-west-1"
 		, "us-west-2"
@@ -77,11 +79,11 @@ def SingleDevNode(q):
 	_EnqReq(q, req_attrs)
 
 
-def ByRepModels(q):
+def ByYoutubeWorkloadOfDifferentSizes(q):
 	# UT
 	req_attrs = {
 			"init-script": "acorn-server"
-			, "regions": ",".join(_regions)
+			, "regions": ",".join(_regions_all)
 
 			# Partial replication metadata is exchanged
 			, "acorn-youtube.replication_type": "partial"
@@ -98,31 +100,63 @@ def ByRepModels(q):
 			#, "acorn-youtube.simulation_time_dur_in_ms": "1800000"
 
 			# Default is true, true
+			#, "acorn_options.use_attr_user": "true"
+			#, "acorn_options.use_attr_topic": "true"
+			}
+
+	for wl in ["tweets-010", "tweets-017", "tweets-054", "tweets-076", "tweets-100"]:
+		req_attrs["acorn-youtube.fn_youtube_reqs"] = wl
+		_EnqReq(q, req_attrs)
+
+
+def ByRepModels(q):
+	# UT
+	req_attrs = {
+			"init-script": "acorn-server"
+			, "regions": ",".join(_regions_all)
+
+			# Partial replication metadata is exchanged
+			, "acorn-youtube.replication_type": "partial"
+
+			, "acorn-youtube.fn_youtube_reqs": "tweets-010"
+
+			# Default is 10240
+			#, "acorn-youtube.youtube_extra_data_size": "10240"
+
+			# Default is -1 (request all)
+			#, "acorn-youtube.max_requests": "-1"
+			, "acorn-youtube.max_requests": "100000"
+
+			# Default is 1800000
+			#, "acorn-youtube.simulation_time_dur_in_ms": "1800000"
+			, "acorn-youtube.simulation_time_dur_in_ms": "10000"
+
+			# Default is true, true
 			, "acorn_options.use_attr_user": "true"
 			, "acorn_options.use_attr_topic": "true"
 			}
 	_EnqReq(q, req_attrs)
 
-	# T
-	req_attrs["acorn_options.use_attr_user"] = "false"
-	req_attrs["acorn_options.use_attr_topic"] = "true"
-	_EnqReq(q, req_attrs)
-
-	# U
-	req_attrs["acorn_options.use_attr_user"] = "true"
-	req_attrs["acorn_options.use_attr_topic"] = "false"
-	_EnqReq(q, req_attrs)
-
-	# NA
-	req_attrs["acorn_options.use_attr_user"] = "false"
-	req_attrs["acorn_options.use_attr_topic"] = "false"
-	_EnqReq(q, req_attrs)
-
-	# Full
-	req_attrs["acorn-youtube.replication_type"] = "full"
-	req_attrs["acorn_options.use_attr_user"] = "false"
-	req_attrs["acorn_options.use_attr_topic"] = "false"
-	_EnqReq(q, req_attrs)
+#	# T
+#	req_attrs["acorn_options.use_attr_user"] = "false"
+#	req_attrs["acorn_options.use_attr_topic"] = "true"
+#	_EnqReq(q, req_attrs)
+#
+#	# U
+#	req_attrs["acorn_options.use_attr_user"] = "true"
+#	req_attrs["acorn_options.use_attr_topic"] = "false"
+#	_EnqReq(q, req_attrs)
+#
+#	# NA
+#	req_attrs["acorn_options.use_attr_user"] = "false"
+#	req_attrs["acorn_options.use_attr_topic"] = "false"
+#	_EnqReq(q, req_attrs)
+#
+#	# Full
+#	req_attrs["acorn-youtube.replication_type"] = "full"
+#	req_attrs["acorn_options.use_attr_user"] = "false"
+#	req_attrs["acorn_options.use_attr_topic"] = "false"
+#	_EnqReq(q, req_attrs)
 
 
 def MeasureClientOverhead(q):
@@ -143,10 +177,10 @@ def MeasureClientOverhead(q):
 
 
 def MeasureMetadataXdcTraffic(q):
-	Cons.P("regions: %s" % ",".join(_regions))
+	Cons.P("regions: %s" % ",".join(_regions_all))
 
 	req_attrs = {
-			"regions": ",".join(_regions)
+			"regions": ",".join(_regions_all)
 
 			# Partial replication metadata is exchanged
 			, "acorn-youtube.replication_type": "partial"
@@ -173,10 +207,10 @@ def MeasureMetadataXdcTraffic(q):
 
 
 def MeasureMetadataXdcTrafficSmallScale(q):
-	Cons.P("regions: %s" % ",".join(_regions))
+	Cons.P("regions: %s" % ",".join(_regions_all))
 
 	req_attrs = {
-			"_regions": ",".join(_regions)
+			"_regions_all": ",".join(_regions_all)
 
 			# Partial replication metadata is exchanged
 			, "acorn-youtube.replication_type": "partial"
