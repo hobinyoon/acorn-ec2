@@ -8,7 +8,7 @@ import time
 import traceback
 
 sys.path.insert(0, "%s/../../util/python" % os.path.dirname(__file__))
-import ConsMt
+import Cons
 
 # Note: no graceful termination
 
@@ -29,32 +29,32 @@ _q_name_jr = "acorn-jobs-requested"
 def DeleteQ():
 	_Init()
 
-	ConsMt.P("\nDeleting the job request queue so that requests don't reappear next time the job controller starts ...")
+	Cons.P("\nDeleting the job request queue so that requests don't reappear next time the job controller starts ...")
 	try:
 		q = _sqs.get_queue_by_name(
 				QueueName = _q_name_jr,
 				)
 		r = _bc.delete_queue(QueueUrl = q._url)
-		ConsMt.P(pprint.pformat(r, indent=2))
+		Cons.P(pprint.pformat(r, indent=2))
 	except botocore.exceptions.ClientError as e:
 		if e.response["Error"]["Code"] == "AWS.SimpleQueueService.NonExistentQueue":
-			ConsMt.P("No such queue exists.")
+			Cons.P("No such queue exists.")
 		else:
 			raise e
 
 
 def DeleteMsg(msg_receipt_handle):
-	ConsMt.P("Deleting a job request message:")
-	#ConsMt.P("  receipt_handle: %s" % msg_receipt_handle)
+	Cons.P("Deleting a job request message:")
+	#Cons.P("  receipt_handle: %s" % msg_receipt_handle)
 	try:
 		response = _bc.delete_message(
 				QueueUrl = _q._url,
 				ReceiptHandle = msg_receipt_handle
 				)
-		ConsMt.P(pprint.pformat(response, indent=2))
+		Cons.P(pprint.pformat(response, indent=2))
 	except botocore.exceptions.ClientError as e:
 		if e.response["Error"]["Code"] == "AWS.SimpleQueueService.NonExistentQueue":
-			ConsMt.P("No such queue exists.")
+			Cons.P("No such queue exists.")
 		else:
 			raise e
 
@@ -102,10 +102,10 @@ def _Poll(jr_q):
 				jr_q.put(JobReq(m), block=True, timeout=None)
 		except botocore.exceptions.EndpointConnectionError as e:
 			# Could not connect to the endpoint URL: "https://queue.amazonaws.com/"
-			ConsMt.P(e)
+			Cons.P(e)
 			os._exit(1)
 		except Exception as e:
-			ConsMt.P("%s\n%s" % (e, traceback.format_exc()))
+			Cons.P("%s\n%s" % (e, traceback.format_exc()))
 			# http://stackoverflow.com/questions/1489669/how-to-exit-the-entire-application-from-a-python-thread
 			os._exit(1)
 
@@ -127,7 +127,7 @@ class JobReq:
 				raise RuntimeError("Unexpected")
 			v1 = v["StringValue"]
 			self.attrs[k] = v1
-			#ConsMt.P("  %s: %s" % (k, v1))
+			#Cons.P("  %s: %s" % (k, v1))
 
 		self.msg = msg
 
@@ -139,19 +139,19 @@ def _GetQ():
 				QueueName = _q_name_jr,
 				# QueueOwnerAWSAccountId='string'
 				)
-		#ConsMt.P(pprint.pformat(vars(queue), indent=2))
+		#Cons.P(pprint.pformat(vars(queue), indent=2))
 		#{ '_url': 'https://queue.amazonaws.com/998754746880/acorn-exps',
 		#		  'meta': ResourceMeta('sqs', identifiers=[u'url'])}
 		return queue
 	except botocore.exceptions.ClientError as e:
-		#ConsMt.P(pprint.pformat(e, indent=2))
-		#ConsMt.P(pprint.pformat(vars(e), indent=2))
+		#Cons.P(pprint.pformat(e, indent=2))
+		#Cons.P(pprint.pformat(vars(e), indent=2))
 		if e.response["Error"]["Code"] == "AWS.SimpleQueueService.NonExistentQueue":
 			pass
 		else:
 			raise e
 
-	ConsMt.Pnnl("The queue doesn't exists. Creating one ")
+	Cons.Pnnl("The queue doesn't exists. Creating one ")
 	while True:
 		response = None
 		try:

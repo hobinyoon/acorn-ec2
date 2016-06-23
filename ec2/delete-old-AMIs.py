@@ -11,7 +11,7 @@ import time
 import traceback
 
 sys.path.insert(0, "%s/../util/python" % os.path.dirname(__file__))
-import ConsMt
+import Cons
 import Util
 
 
@@ -47,8 +47,8 @@ def main(argv):
 	for i in iscs:
 		i.PrintWhatToKeepAndDelete()
 
-	ConsMt.P("")
-	ConsMt.P("Deregistering Amis and deleting snapshots ...")
+	Cons.P("")
+	Cons.P("Deregistering Amis and deleting snapshots ...")
 	for i in iscs:
 		i.DeleteOldAmisSnapshots()
 	for i in iscs:
@@ -97,7 +97,7 @@ class ImageSnapshotCleaner:
 					#Filters=[]
 					)
 
-			#ConsMt.P(pprint.pformat(response["Images"]))
+			#Cons.P(pprint.pformat(response["Images"]))
 			# {u'Architecture': 'x86_64',
 			#  u'BlockDeviceMappings': [{u'DeviceName': '/dev/sda1',
 			#                            u'Ebs': {u'DeleteOnTermination': True,
@@ -144,7 +144,7 @@ class ImageSnapshotCleaner:
 					self.imgs_acorn_to_delete.append(img)
 
 		except Exception as e:
-			ConsMt.P("%s\n%s\nregion=%s" %
+			Cons.P("%s\n%s\nregion=%s" %
 					(e, traceback.format_exc(), self.region))
 			os._exit(1)
 
@@ -152,12 +152,12 @@ class ImageSnapshotCleaner:
 		self.t.join()
 
 	def PrintWhatToKeepAndDelete(self):
-		ConsMt.P("%s" % self.region)
+		Cons.P("%s" % self.region)
 
 		m = "  ami_acorn_to_keep  :"
 		for img in self.imgs_acorn_to_keep:
 			m += (" (%s, %s, %s)" % (img.name, SimpleDatetime(img.creation_date), img.image_id))
-		ConsMt.P(m)
+		Cons.P(m)
 
 		m = "  ami_acorn_to_delete:"
 		i = 0
@@ -166,12 +166,12 @@ class ImageSnapshotCleaner:
 				m += "\n                      "
 			m += (" (%s, %s, %s)" % (img.name, SimpleDatetime(img.creation_date), img.image_id))
 			i += 1
-		ConsMt.P(m)
+		Cons.P(m)
 
 		m = "  ami_others         :"
 		for img in self.imgs_others:
 			m += (" (%s, %s, %s)" % (img.name, SimpleDatetime(img.creation_date), img.image_id))
-		ConsMt.P(m)
+		Cons.P(m)
 
 		m = "  snapshots_to_keep  :"
 		i = 0
@@ -180,7 +180,7 @@ class ImageSnapshotCleaner:
 				m += "\n                      "
 			m += (" %s(%s)" % (sn.snapshot_id, sn.ami_id))
 			i += 1
-		ConsMt.P(m)
+		Cons.P(m)
 
 		m = "  snapshots_to_delete:"
 		i = 0
@@ -189,7 +189,7 @@ class ImageSnapshotCleaner:
 				m += "\n                      "
 			m += (" %s(%s)" % (sn.snapshot_id, sn.ami_id))
 			i += 1
-		ConsMt.P(m)
+		Cons.P(m)
 
 	def GetSnapshots(self):
 		self.t = threading.Thread(target=self._GetSnapshots)
@@ -235,7 +235,7 @@ class ImageSnapshotCleaner:
 				ss_all.append(ImageSnapshotCleaner.Snapshot(sn))
 
 			#for sn in ss_all:
-			#	ConsMt.P(sn)
+			#	Cons.P(sn)
 
 			for ss in ss_all:
 				to_keep = False
@@ -248,7 +248,7 @@ class ImageSnapshotCleaner:
 				else:
 					self.ss_to_delete.append(ss)
 		except Exception as e:
-			ConsMt.P("%s\n%s\nregion=%s" %
+			Cons.P("%s\n%s\nregion=%s" %
 					(e, traceback.format_exc(), self.region))
 			os._exit(1)
 
@@ -262,7 +262,7 @@ class ImageSnapshotCleaner:
 			for img in self.imgs_acorn_to_delete:
 				try:
 					r = self._Bc().deregister_image(ImageId=img.image_id)
-					ConsMt.P("%-20s deregistered AMI %s" % (self.region, img.image_id))
+					Cons.P("%-20s deregistered AMI %s" % (self.region, img.image_id))
 				except botocore.exceptions.ClientError as e:
 					if e.response["Error"]["Code"] == "InvalidAMIID.Unavailable":
 						pass
@@ -274,9 +274,9 @@ class ImageSnapshotCleaner:
 
 			for ss in self.ss_to_delete:
 				r= self._Bc().delete_snapshot(SnapshotId=ss.snapshot_id)
-				ConsMt.P("%-20s deleted snapshot %s" % (self.region, ss.snapshot_id))
+				Cons.P("%-20s deleted snapshot %s" % (self.region, ss.snapshot_id))
 		except Exception as e:
-			ConsMt.P("%s\n%s\nregion=%s" %
+			Cons.P("%s\n%s\nregion=%s" %
 					(e, traceback.format_exc(), self.region))
 			os._exit(1)
 

@@ -7,7 +7,7 @@ import threading
 import traceback
 
 sys.path.insert(0, "%s/../../util/python" % os.path.dirname(__file__))
-import ConsMt
+import Cons
 
 
 def PollBackground(jc_q):
@@ -34,14 +34,14 @@ def _Init():
 
 
 def DeleteMsg(jc):
-	ConsMt.P("Deleting the job completion msg ...")
+	Cons.P("Deleting the job completion msg ...")
 	_bc = boto3.client("sqs", region_name = _sqs_region)
-	#ConsMt.P(pprint.pformat(jc.msg))
+	#Cons.P(pprint.pformat(jc.msg))
 	r = _bc.delete_message(
 			QueueUrl = jc.msg.queue_url,
 			ReceiptHandle = jc.msg.receipt_handle
 			)
-	ConsMt.P(pprint.pformat(r, indent=2))
+	Cons.P(pprint.pformat(r, indent=2))
 
 
 def _Poll(jc_q):
@@ -65,10 +65,10 @@ def _Poll(jc_q):
 			# Could not connect to the endpoint URL: "https://queue.amazonaws.com/"
 			# Retrying after 1 sec doesn't seem to help. Might be the server being
 			# unreliable. Just kill the server.
-			ConsMt.P(e)
+			Cons.P(e)
 			os._exit(1)
 		except Exception as e:
-			ConsMt.P("%s\n%s" % (e, traceback.format_exc()))
+			Cons.P("%s\n%s" % (e, traceback.format_exc()))
 			os._exit(1)
 
 
@@ -89,7 +89,7 @@ class JobCompleted:
 				raise RuntimeError("Unexpected")
 			v1 = v["StringValue"]
 			self.attrs[k] = v1
-			#ConsMt.P("  %s: %s" % (k, v1))
+			#Cons.P("  %s: %s" % (k, v1))
 
 		self.msg = msg
 
@@ -103,19 +103,19 @@ def _GetQ():
 				QueueName = q_name_jc,
 				# QueueOwnerAWSAccountId='string'
 				)
-		#ConsMt.P(pprint.pformat(vars(queue), indent=2))
+		#Cons.P(pprint.pformat(vars(queue), indent=2))
 		#{ '_url': 'https://queue.amazonaws.com/998754746880/acorn-exps',
 		#		  'meta': ResourceMeta('sqs', identifiers=[u'url'])}
 		return queue
 	except botocore.exceptions.ClientError as e:
-		#ConsMt.P(pprint.pformat(e, indent=2))
-		#ConsMt.P(pprint.pformat(vars(e), indent=2))
+		#Cons.P(pprint.pformat(e, indent=2))
+		#Cons.P(pprint.pformat(vars(e), indent=2))
 		if e.response["Error"]["Code"] == "AWS.SimpleQueueService.NonExistentQueue":
 			pass
 		else:
 			raise e
 
-	ConsMt.Pnnl("The queue doesn't exists. Creating one ")
+	Cons.Pnnl("The queue doesn't exists. Creating one ")
 	while True:
 		response = None
 		try:

@@ -6,7 +6,7 @@ import threading
 import time
 
 sys.path.insert(0, "%s/../../util/python" % os.path.dirname(__file__))
-import ConsMt
+import Cons
 import Util
 
 _fmt_desc_inst = "%13s %-15s %10s %15s %13s"
@@ -138,13 +138,13 @@ class DIO:
 			# Clear current line
 			sys.stdout.write(chr(27) + "[2K")
 
-			ConsMt.Pnnl(self.msg)
+			Cons.Pnnl(self.msg)
 			self.lines_printed = len(self.msg.split("\n")) - 1
 			self.msg = ""
 
 	def MayPrintNewlines(self):
 		if self.lines_printed > 0:
-			ConsMt.P("")
+			Cons.P("")
 
 
 class DescInstPerRegion:
@@ -160,8 +160,8 @@ class DescInstPerRegion:
 				self.dio.P(" %s" % self.region)
 				break
 			except Exception as e:
-				ConsMt.P("Got an exception: %s" % e)
-				ConsMt.P("Resetting boto client after 1 sec ...")
+				Cons.P("Got an exception: %s" % e)
+				Cons.P("Resetting boto client after 1 sec ...")
 				time.sleep(1)
 				BcMgr.Reset(self.region)
 
@@ -181,7 +181,7 @@ class DescInstPerRegion:
 		return ids
 
 	def GetResults(self):
-		#ConsMt.P(pprint.pformat(self.response, indent=2, width=100))
+		#Cons.P(pprint.pformat(self.response, indent=2, width=100))
 		results = []
 		for r in self.response["Reservations"]:
 			for r1 in r["Instances"]:

@@ -11,7 +11,7 @@ import time
 import traceback
 
 sys.path.insert(0, "%s/../util/python" % os.path.dirname(__file__))
-import ConsMt
+import Cons
 import Util
 
 import RegionToAmi
@@ -21,7 +21,7 @@ _threads = []
 _dn_tmp = "%s/../.tmp" % os.path.dirname(__file__)
 _job_id = None
 
-_ec2_type = None
+_inst_type = None
 _tags = None
 _jr_sqs_url = None
 _jr_sqs_msg_receipt_handle = None
@@ -29,7 +29,7 @@ _init_script = None
 _price = None
 
 
-def Run(regions, ec2_type, tags, jr_sqs_url, jr_sqs_msg_receipt_handle, init_script, price = None):
+def Run(regions, inst_type, tags, jr_sqs_url, jr_sqs_msg_receipt_handle, init_script, price = None):
 	if price == None:
 		raise RuntimeError("Need a price")
 
@@ -40,10 +40,10 @@ def Run(regions, ec2_type, tags, jr_sqs_url, jr_sqs_msg_receipt_handle, init_scr
 	req_datetime = datetime.datetime.now()
 	global _job_id
 	_job_id = req_datetime.strftime("%y%m%d-%H%M%S")
-	ConsMt.P("job_id:%s (for describing and terminating the cluster)" % _job_id)
+	Cons.P("job_id:%s (for describing and terminating the cluster)" % _job_id)
 
-	global _ec2_type, _tags, _jr_sqs_url, _jr_sqs_msg_receipt_handle, _init_script, _price
-	_ec2_type = ec2_type
+	global _inst_type, _tags, _jr_sqs_url, _jr_sqs_msg_receipt_handle, _init_script, _price
+	_inst_type = inst_type
 	_tags = tags
 	_tags["job_id"] = _job_id
 	_jr_sqs_url = jr_sqs_url
@@ -74,12 +74,12 @@ def Run(regions, ec2_type, tags, jr_sqs_url, jr_sqs_msg_receipt_handle, init_scr
 # This module can be called repeatedly
 def Reset():
 	global _threads, _job_id
-	global _ec2_type, _tags, _jr_sqs_url, _jr_sqs_msg_receipt_handle, _init_script
+	global _inst_type, _tags, _jr_sqs_url, _jr_sqs_msg_receipt_handle, _init_script
 
 	_threads = []
 	_job_id = None
 
-	_ec2_type = None
+	_inst_type = None
 	_tags = None
 	_jr_sqs_url = None
 	_jr_sqs_msg_receipt_handle = None
@@ -121,12 +121,14 @@ sudo -i -u ubuntu /home/ubuntu/work/acorn-tools/ec2/ec2-init.py {0} {1} {2}
 
 			self.boto_client = boto3.session.Session().client("ec2", region_name = self.region_name)
 
+			#self._GetPriceHistory()
+
 			ls = {'ImageId': self.ami_id,
 					#'KeyName': 'string',
 					'SecurityGroups': ["cass-server"],
 					'UserData': base64.b64encode(user_data),
 					#'AddressingType': 'string',
-					'InstanceType': _ec2_type,
+					'InstanceType': _inst_type,
 					'EbsOptimized': True,
 					}
 			if self.az != None:
@@ -148,13 +150,13 @@ sudo -i -u ubuntu /home/ubuntu/work/acorn-tools/ec2/ec2-init.py {0} {1} {2}
 
 					LaunchSpecification = ls,
 					)
-			#ConsMt.P("Response:")
-			#ConsMt.P(Util.Indent(pprint.pformat(response, indent=2, width=100), 2))
+			#Cons.P("Response:")
+			#Cons.P(Util.Indent(pprint.pformat(response, indent=2, width=100), 2))
 
 			if len(response["SpotInstanceRequests"]) != 1:
 				raise RuntimeError("len(response[\"SpotInstanceRequests\"])=%d" % len(response["SpotInstanceRequests"]))
 			self.spot_req_id = response["SpotInstanceRequests"][0]["SpotInstanceRequestId"]
-			#ConsMt.P("region=%s spot_req_id=%s" % (self.region_name, self.spot_req_id))
+			#Cons.P("region=%s spot_req_id=%s" % (self.region_name, self.spot_req_id))
 
 			InstLaunchProgMon.SetRegion(self.spot_req_id, self.region_name)
 
@@ -163,8 +165,60 @@ sudo -i -u ubuntu /home/ubuntu/work/acorn-tools/ec2/ec2-init.py {0} {1} {2}
 
 			self.exit_success = True
 		except Exception as e:
-			ConsMt.P("%s\n%s" % (e, traceback.format_exc()))
+			Cons.P("%s\n%s" % (e, traceback.format_exc()))
 			os._exit(1)
+
+
+	# Note: InstMonitor would be a better place for this.
+	def _GetPriceHistory(self):
+		now = datetime.datetime.now()
+		one_day_ago = now - datetime.timedelta(days=1)
+
+		r = None
+		if self.az is None:
+			r = self.boto_client.describe_spot_price_history(
+					StartTime = one_day_ago,
+					EndTime = now,
+					ProductDescriptions = ["Linux/UNIX"],
+					InstanceTypes = [_inst_type],
+					)
+		else:
+			r = self.boto_client.describe_spot_price_history(
+					StartTime = one_day_ago,
+					EndTime = now,
+					ProductDescriptions = ["Linux/UNIX"],
+					InstanceTypes = [_inst_type],
+					AvailabilityZone = self.az
+					)
+		#Cons.P(pprint.pformat(r))
+
+		# {az: {timestamp: price} }
+		az_ts_price = {}
+		for sp in r["SpotPriceHistory"]:
+			az = sp["AvailabilityZone"]
+			ts = sp["Timestamp"]
+			sp = float(sp["SpotPrice"])
+			if az not in az_ts_price:
+				az_ts_price[az] = {}
+			az_ts_price[az][ts] = sp
+
+		for az, v in sorted(az_ts_price.iteritems()):
+			ts_prev = None
+			price_prev = None
+			dur_sum = 0
+			dur_price_sum = 0.0
+			price_max = 0.0
+			for ts, price in sorted(v.iteritems()):
+				if ts_prev is not None:
+					dur = (ts - ts_prev).total_seconds()
+					dur_sum += dur
+					dur_price_sum += (dur * price)
+
+				price_max = max(price, price_max)
+				ts_prev = ts
+				price_prev = price
+			price_avg = dur_price_sum / dur_sum
+			Cons.P("%s cur=%f avg=%f max=%f" % (az, price_prev, price_avg, price_max))
 
 
 	def _KeepCheckingSpotReq(self):
@@ -174,7 +228,7 @@ sudo -i -u ubuntu /home/ubuntu/work/acorn-tools/ec2/ec2-init.py {0} {1} {2}
 					SpotInstanceRequestIds=[self.spot_req_id])
 			if len(response["SpotInstanceRequests"]) != 1:
 				raise RuntimeError("len(response[\"SpotInstanceRequests\"])=%d" % len(response["SpotInstanceRequests"]))
-			#ConsMt.P(Util.Indent(pprint.pformat(response, indent=2, width=100), 2))
+			#Cons.P(Util.Indent(pprint.pformat(response, indent=2, width=100), 2))
 
 			InstLaunchProgMon.UpdateSpotReq(self.spot_req_id, response)
 			status_code = response["SpotInstanceRequests"][0]["Status"]["Code"]
@@ -183,11 +237,11 @@ sudo -i -u ubuntu /home/ubuntu/work/acorn-tools/ec2/ec2-init.py {0} {1} {2}
 			time.sleep(1)
 
 		# Get inst_id
-		#ConsMt.P(Util.Indent(pprint.pformat(response, indent=2, width=100), 2))
+		#Cons.P(Util.Indent(pprint.pformat(response, indent=2, width=100), 2))
 		self.inst_id = response["SpotInstanceRequests"][0]["InstanceId"]
 		InstLaunchProgMon.SetInstID(self.spot_req_id, self.inst_id)
 
-		# Note: may want to show the current pricing
+		# TODO: may want to show the current pricing
 
 
 	def _KeepCheckingInst(self):
@@ -209,7 +263,7 @@ sudo -i -u ubuntu /home/ubuntu/work/acorn-tools/ec2/ec2-init.py {0} {1} {2}
 				tags_boto = []
 				for k, v in _tags.iteritems():
 					tags_boto.append({"Key": k, "Value": v})
-					#ConsMt.P("[%s]=[%s]" %(k, v))
+					#Cons.P("[%s]=[%s]" %(k, v))
 
 				self.boto_client.create_tags(Resources = [self.inst_id], Tags = tags_boto)
 				tagged = True
@@ -317,7 +371,7 @@ class InstLaunchProgMon():
 					for r in v.resp_desc_inst:
 						state = r["Reservations"][0]["Instances"][0]["State"]["Name"]
 						if state == "shutting-down":
-							state_reason = response["Reservations"][0]["Instances"][0]["StateReason"]["Message"]
+							state_reason = r["Reservations"][0]["Instances"][0]["StateReason"]["Message"]
 							state = "%s:%s" % (state, state_reason)
 
 						if prev_state == None:
@@ -371,7 +425,7 @@ class InstLaunchProgMon():
 	@staticmethod
 	def DescInsts():
 		fmt = "%-15s %10s %10s %13s %15s %10s"
-		ConsMt.P(Util.BuildHeader(fmt,
+		Cons.P(Util.BuildHeader(fmt,
 			"Placement:AvailabilityZone"
 			" InstanceId"
 			" InstanceType"
@@ -392,8 +446,8 @@ class InstLaunchProgMon():
 				for t in r["Tags"]:
 					tags[t["Key"]] = t["Value"]
 
-			#ConsMt.P(Util.Indent(pprint.pformat(r, indent=2, width=100), 2))
-			ConsMt.P(fmt % (
+			#Cons.P(Util.Indent(pprint.pformat(r, indent=2, width=100), 2))
+			Cons.P(fmt % (
 				_Value(_Value(r, "Placement"), "AvailabilityZone")
 				, _Value(r, "InstanceId")
 				, _Value(r, "InstanceType")

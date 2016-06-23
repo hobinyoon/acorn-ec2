@@ -10,7 +10,7 @@ import time
 import traceback
 
 sys.path.insert(0, "%s/../util/python" % os.path.dirname(__file__))
-import ConsMt
+import Cons
 import Util
 
 import RegionToAmi
@@ -20,14 +20,14 @@ _threads = []
 _dn_tmp = "%s/../.tmp" % os.path.dirname(__file__)
 _job_id = None
 
-_ec2_type = None
+_inst_type = None
 _tags = None
 _jr_sqs_url = None
 _jr_sqs_msg_receipt_handle = None
 _init_script = None
 
 
-def Run(regions, ec2_type, tags, jr_sqs_url, jr_sqs_msg_receipt_handle, init_script):
+def Run(regions, inst_type, tags, jr_sqs_url, jr_sqs_msg_receipt_handle, init_script):
 	Reset()
 
 	Util.RunSubp("mkdir -p %s" % _dn_tmp, print_cmd = False)
@@ -35,10 +35,10 @@ def Run(regions, ec2_type, tags, jr_sqs_url, jr_sqs_msg_receipt_handle, init_scr
 	req_datetime = datetime.datetime.now()
 	global _job_id
 	_job_id = req_datetime.strftime("%y%m%d-%H%M%S")
-	ConsMt.P("job_id:%s (for describing and terminating the cluster)" % _job_id)
+	Cons.P("job_id:%s (for describing and terminating the cluster)" % _job_id)
 
-	global _ec2_type, _tags, _jr_sqs_url, _jr_sqs_msg_receipt_handle, _init_script
-	_ec2_type = ec2_type
+	global _inst_type, _tags, _jr_sqs_url, _jr_sqs_msg_receipt_handle, _init_script
+	_inst_type = inst_type
 	_tags = tags
 	_tags["job_id"] = _job_id
 	_jr_sqs_url = jr_sqs_url
@@ -64,12 +64,12 @@ def Run(regions, ec2_type, tags, jr_sqs_url, jr_sqs_msg_receipt_handle, init_scr
 # This module can be called repeatedly
 def Reset():
 	global _threads, _job_id
-	global _ec2_type, _tags, _jr_sqs_url, _jr_sqs_msg_receipt_handle, _init_script
+	global _inst_type, _tags, _jr_sqs_url, _jr_sqs_msg_receipt_handle, _init_script
 
 	_threads = []
 	_job_id = None
 
-	_ec2_type = None
+	_inst_type = None
 	_tags = None
 	_jr_sqs_url = None
 	_jr_sqs_msg_receipt_handle = None
@@ -117,7 +117,7 @@ sudo -i -u ubuntu /home/ubuntu/work/acorn-tools/ec2/ec2-init.py {0} {1} {2}
 							, MaxCount=1
 							, SecurityGroups=["cass-server"]
 							, EbsOptimized=True
-							, InstanceType = _ec2_type
+							, InstanceType = _inst_type
 							, Placement=placement
 
 							# User data is passed as a string. I don't see an option of specifying a file.
@@ -128,22 +128,22 @@ sudo -i -u ubuntu /home/ubuntu/work/acorn-tools/ec2/ec2-init.py {0} {1} {2}
 					break
 				except botocore.exceptions.ClientError as e:
 					if e.response["Error"]["Code"] == "RequestLimitExceeded":
-						ConsMt.P("%s. Retrying in 5 sec ..." % e)
+						Cons.P("%s. Retrying in 5 sec ..." % e)
 						time.sleep(5)
 					else:
 						raise e
 
-			#ConsMt.P("Response:")
-			#ConsMt.P(Util.Indent(pprint.pformat(response, indent=2, width=100), 2))
+			#Cons.P("Response:")
+			#Cons.P(Util.Indent(pprint.pformat(response, indent=2, width=100), 2))
 			if len(response["Instances"]) != 1:
 				raise RuntimeError("len(response[\"Instances\"])=%d" % len(response["Instances"]))
 			self.inst_id = response["Instances"][0]["InstanceId"]
-			#ConsMt.P("region=%s inst_id=%s" % (self.region_name, self.inst_id))
+			#Cons.P("region=%s inst_id=%s" % (self.region_name, self.inst_id))
 			InstLaunchProgMon.SetRegion(self.inst_id, self.region_name)
 
 			self._KeepCheckingInst()
 		except Exception as e:
-			ConsMt.P("%s\n%s" % (e, traceback.format_exc()))
+			Cons.P("%s\n%s" % (e, traceback.format_exc()))
 			os._exit(1)
 
 
@@ -166,7 +166,7 @@ sudo -i -u ubuntu /home/ubuntu/work/acorn-tools/ec2/ec2-init.py {0} {1} {2}
 					#   DescribeInstances operation: The instance ID 'i-dbb11a47' does n ot
 					#   exist
 					if e.response["Error"]["Code"] == "InvalidInstanceID.NotFound":
-						ConsMt.P("inst_id %s doesn't exist. retrying in 1 sec" % self.inst_id)
+						Cons.P("inst_id %s doesn't exist. retrying in 1 sec" % self.inst_id)
 						time.sleep(1)
 					else:
 						raise e
@@ -178,7 +178,7 @@ sudo -i -u ubuntu /home/ubuntu/work/acorn-tools/ec2/ec2-init.py {0} {1} {2}
 				tags_boto = []
 				for k, v in _tags.iteritems():
 					tags_boto.append({"Key": k, "Value": v})
-					#ConsMt.P("[%s]=[%s]" %(k, v))
+					#Cons.P("[%s]=[%s]" %(k, v))
 
 				self.boto_client.create_tags(Resources = [self.inst_id], Tags = tags_boto)
 				tagged = True
@@ -296,7 +296,7 @@ class InstLaunchProgMon():
 	@staticmethod
 	def DescInsts():
 		fmt = "%-15s %10s %10s %13s %15s %10s"
-		ConsMt.P(Util.BuildHeader(fmt,
+		Cons.P(Util.BuildHeader(fmt,
 			"Placement:AvailabilityZone"
 			" InstanceId"
 			" InstanceType"
@@ -317,8 +317,8 @@ class InstLaunchProgMon():
 				for t in r["Tags"]:
 					tags[t["Key"]] = t["Value"]
 
-			#ConsMt.P(Util.Indent(pprint.pformat(r, indent=2, width=100), 2))
-			ConsMt.P(fmt % (
+			#Cons.P(Util.Indent(pprint.pformat(r, indent=2, width=100), 2))
+			Cons.P(fmt % (
 				_Value(_Value(r, "Placement"), "AvailabilityZone")
 				, _Value(r, "InstanceId")
 				, _Value(r, "InstanceType")
@@ -370,8 +370,8 @@ def _Value(dict_, key):
 #			#
 #			# "stop" when not specified.
 #			#   InstanceInitiatedShutdownBehavior='stop'|'terminate',
-#	ConsMt.P("Response:")
-#	ConsMt.P(Util.Indent(pprint.pformat(response, indent=2, width=100), 2))
+#	Cons.P("Response:")
+#	Cons.P(Util.Indent(pprint.pformat(response, indent=2, width=100), 2))
 #	if len(response["Instances"]) != 1:
 #		raise RuntimeError("len(response[\"Instances\"])=%d" % len(response["Instances"]))
 #	inst_id = response["Instances"][0]["InstanceId"]
