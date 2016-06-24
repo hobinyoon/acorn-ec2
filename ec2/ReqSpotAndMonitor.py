@@ -265,12 +265,21 @@ sudo -i -u ubuntu /home/ubuntu/work/acorn-tools/ec2/ec2-init.py {0} {1} {2} {3}
 		tagged = False
 
 		while True:
-			response = self.boto_client.describe_instances(InstanceIds=[self.inst_id])
-			# Note: describe_instances() returns StateReason, while
-			# describe_instance_status() doesn't.
+			while True:
+				try:
+					r = self.boto_client.describe_instances(InstanceIds=[self.inst_id])
+					# Note: describe_instances() returns StateReason, while
+					# describe_instance_status() doesn't.
+					break
+				except botocore.exceptions.ClientError as e:
+					if e.response["Error"]["Code"] == "InvalidInstanceID.NotFound":
+						Cons.P("%s. inst_id %s not found. retrying in 1 sec ..." % (e, self.inst_id))
+						time.sleep(1)
+					else:
+						raise e
 
-			InstLaunchProgMon.UpdateDescInst(self.spot_req_id, response)
-			state = response["Reservations"][0]["Instances"][0]["State"]["Name"]
+			InstLaunchProgMon.UpdateDescInst(self.spot_req_id, r)
+			state = r["Reservations"][0]["Instances"][0]["State"]["Name"]
 			# Create tags
 			if state == "pending" and tagged == False:
 				tags_boto = []
@@ -287,14 +296,14 @@ sudo -i -u ubuntu /home/ubuntu/work/acorn-tools/ec2/ec2-init.py {0} {1} {2} {3}
 
 		# Make sure everything is ok.
 		if state == "running":
-			response = self.boto_client.describe_instances(InstanceIds=[self.inst_id])
-			state = response["Reservations"][0]["Instances"][0]["State"]["Name"]
-			InstLaunchProgMon.UpdateDescInst(self.spot_req_id, response)
+			r = self.boto_client.describe_instances(InstanceIds=[self.inst_id])
+			state = r["Reservations"][0]["Instances"][0]["State"]["Name"]
+			InstLaunchProgMon.UpdateDescInst(self.spot_req_id, r)
 
 			# Make region-ipaddr files
 			fn = "%s/%s" % (_dn_tmp, self.region_name)
 			with open(fn, "w") as fo:
-				fo.write(response["Reservations"][0]["Instances"][0]["PublicIpAddress"])
+				fo.write(r["Reservations"][0]["Instances"][0]["PublicIpAddress"])
 
 
 class InstLaunchProgMon():

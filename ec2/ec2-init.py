@@ -76,12 +76,13 @@ def _RunInitByTags():
 	if file_ext.lower() != '.py':
 		raise RuntimeError("Unexpected file_ext: %s" % file_ext)
 	py_mod = imp.load_source(mod_name, fn_module)
-	getattr(py_mod, "main")([fn_module, _jr_sqs_url, _jr_sqs_msg_receipt_handle, num_regions, tags_str])
+	getattr(py_mod, "main")([fn_module, _jr_sqs_url, _jr_sqs_msg_receipt_handle, _num_regions, tags_str])
 
 
 _fn_init_script = None
 _jr_sqs_url = None
 _jr_sqs_msg_receipt_handle = None
+_num_regions = None
 
 def main(argv):
 	# This script is run under the user 'ubuntu'.
