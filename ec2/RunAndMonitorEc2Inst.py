@@ -41,6 +41,9 @@ def Run(regions, inst_type, tags, jr_sqs_url, jr_sqs_msg_receipt_handle, init_sc
 	_inst_type = inst_type
 	_tags = tags
 	_tags["job_id"] = _job_id
+
+	raise RuntimeError("implement _num_regions")
+
 	_jr_sqs_url = jr_sqs_url
 	_jr_sqs_msg_receipt_handle = jr_sqs_msg_receipt_handle
 	_init_script = init_script

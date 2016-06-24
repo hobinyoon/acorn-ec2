@@ -23,6 +23,7 @@ _job_id = None
 
 _inst_type = None
 _tags = None
+_num_regions = None
 _jr_sqs_url = None
 _jr_sqs_msg_receipt_handle = None
 _init_script = None
@@ -42,10 +43,11 @@ def Run(regions, inst_type, tags, jr_sqs_url, jr_sqs_msg_receipt_handle, init_sc
 	_job_id = req_datetime.strftime("%y%m%d-%H%M%S")
 	Cons.P("job_id:%s (for describing and terminating the cluster)" % _job_id)
 
-	global _inst_type, _tags, _jr_sqs_url, _jr_sqs_msg_receipt_handle, _init_script, _price
+	global _inst_type, _tags, _num_regions, _jr_sqs_url, _jr_sqs_msg_receipt_handle, _init_script, _price
 	_inst_type = inst_type
 	_tags = tags
 	_tags["job_id"] = _job_id
+	_num_regions = len(regions)
 	_jr_sqs_url = jr_sqs_url
 	_jr_sqs_msg_receipt_handle = jr_sqs_msg_receipt_handle
 	_init_script = init_script
@@ -81,6 +83,7 @@ def Reset():
 
 	_inst_type = None
 	_tags = None
+	_num_regions = None
 	_jr_sqs_url = None
 	_jr_sqs_msg_receipt_handle = None
 	_init_script = None
@@ -111,9 +114,9 @@ class ReqAndMonitor():
 cd /home/ubuntu/work
 rm -rf /home/ubuntu/work/acorn-tools
 sudo -i -u ubuntu bash -c 'git clone https://github.com/hobinyoon/acorn-tools.git /home/ubuntu/work/acorn-tools'
-sudo -i -u ubuntu /home/ubuntu/work/acorn-tools/ec2/ec2-init.py {0} {1} {2}
+sudo -i -u ubuntu /home/ubuntu/work/acorn-tools/ec2/ec2-init.py {0} {1} {2} {3}
 """
-			user_data = user_data.format(_init_script, _jr_sqs_url, _jr_sqs_msg_receipt_handle)
+			user_data = user_data.format(_init_script, _jr_sqs_url, _jr_sqs_msg_receipt_handle, _num_regions)
 
 	#cd /home/ubuntu/work/acorn-tools
 	#sudo -u ubuntu bash -c 'git pull'
@@ -222,26 +225,36 @@ sudo -i -u ubuntu /home/ubuntu/work/acorn-tools/ec2/ec2-init.py {0} {1} {2}
 
 
 	def _KeepCheckingSpotReq(self):
-		response = None
+		r = None
 		while True:
-			response = self.boto_client.describe_spot_instance_requests(
-					SpotInstanceRequestIds=[self.spot_req_id])
-			if len(response["SpotInstanceRequests"]) != 1:
-				raise RuntimeError("len(response[\"SpotInstanceRequests\"])=%d" % len(response["SpotInstanceRequests"]))
-			#Cons.P(Util.Indent(pprint.pformat(response, indent=2, width=100), 2))
+			while True:
+				try:
+					r = self.boto_client.describe_spot_instance_requests(
+							SpotInstanceRequestIds=[self.spot_req_id])
+					break
+				except botocore.exceptions.ClientError as e:
+					if e.response["Error"]["Code"] == "InvalidSpotInstanceRequestID.NotFound":
+						Cons.P("%s. spot_req_id %s not found. retrying in 1 sec ..." % (e, self.spot_req_id))
+						time.sleep(1)
+					else:
+						raise e
 
-			InstLaunchProgMon.UpdateSpotReq(self.spot_req_id, response)
-			status_code = response["SpotInstanceRequests"][0]["Status"]["Code"]
+			if len(r["SpotInstanceRequests"]) != 1:
+				raise RuntimeError("len(r[\"SpotInstanceRequests\"])=%d" % len(r["SpotInstanceRequests"]))
+			#Cons.P(Util.Indent(pprint.pformat(r, indent=2, width=100), 2))
+
+			InstLaunchProgMon.UpdateSpotReq(self.spot_req_id, r)
+			status_code = r["SpotInstanceRequests"][0]["Status"]["Code"]
 			if status_code == "fulfilled":
 				break
 			time.sleep(1)
 
 		# Get inst_id
-		#Cons.P(Util.Indent(pprint.pformat(response, indent=2, width=100), 2))
-		self.inst_id = response["SpotInstanceRequests"][0]["InstanceId"]
+		#Cons.P(Util.Indent(pprint.pformat(r, indent=2, width=100), 2))
+		self.inst_id = r["SpotInstanceRequests"][0]["InstanceId"]
 		InstLaunchProgMon.SetInstID(self.spot_req_id, self.inst_id)
 
-		# TODO: may want to show the current pricing
+		# Note: may want to show the current pricing
 
 
 	def _KeepCheckingInst(self):

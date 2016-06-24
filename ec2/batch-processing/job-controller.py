@@ -10,7 +10,7 @@ import time
 import traceback
 
 sys.path.insert(0, "%s/../../util/python" % os.path.dirname(__file__))
-import ConsMt
+import Cons
 
 sys.path.insert(0, "..")
 import ReqSpotAndMonitor
@@ -24,15 +24,17 @@ import S3
 
 def main(argv):
 	try:
-		ConsMt.P("Starting ...")
+		Cons.P("Starting ...")
 		PollJrJcMsgs()
 	except KeyboardInterrupt as e:
-		ConsMt.P("\n%s Got a keyboard interrupt. Stopping ..." % time.strftime("%y%m%d-%H%M%S"))
+		Cons.P("\n%s Got a keyboard interrupt. Stopping ..." % time.strftime("%y%m%d-%H%M%S"))
 	except Exception as e:
-		ConsMt.P("\n%s Got an exception: %s\n%s" % (time.strftime("%y%m%d-%H%M%S"), e, traceback.format_exc()))
+		Cons.P("\n%s Got an exception: %s\n%s" % (time.strftime("%y%m%d-%H%M%S"), e, traceback.format_exc()))
 	# Deleting the job request queue is useful for preventing the job request
 	# reappearing
-	JobReqQ.DeleteQ()
+
+	# TODO: disable temporarily for dev
+	#JobReqQ.DeleteQ()
 
 
 _req_q = Queue.Queue(maxsize=2)
@@ -66,9 +68,9 @@ def ProcessJobReq(jr):
 	# TODO: May want some admission control here, like one based on how many
 	# free instance slots are available.
 
-	ConsMt.P("\n%s Got a job request msg. attrs:" % time.strftime("%y%m%d-%H%M%S"))
+	Cons.P("\n%s Got a job request msg. attrs:" % time.strftime("%y%m%d-%H%M%S"))
 	for k, v in sorted(jr.attrs.iteritems()):
-		ConsMt.P("  %s:%s" % (k, v))
+		Cons.P("  %s:%s" % (k, v))
 
 	ec2_type = "c3.4xlarge"
 
@@ -96,7 +98,7 @@ def ProcessJobReq(jr):
 		# On-demand instances are too expensive.
 		RunAndMonitorEc2Inst.Run(
 				regions = regions
-				, ec2_type = ec2_type
+				, inst_type = ec2_type
 				, tags = jr.attrs
 				, jr_sqs_url = jr_sqs_url
 				, jr_sqs_msg_receipt_handle = jr_sqs_msg_receipt_handle
@@ -104,12 +106,13 @@ def ProcessJobReq(jr):
 	else:
 		ReqSpotAndMonitor.Run(
 				regions = regions
-				, ec2_type = ec2_type
+				, inst_type = ec2_type
 				, tags = jr.attrs
 				, jr_sqs_url = jr_sqs_url
 				, jr_sqs_msg_receipt_handle = jr_sqs_msg_receipt_handle
 				, init_script = init_script
-				, price = 1.0
+				# Temporarily increase the max price. eu-central's price is too high.
+				, price = 1.5
 				)
 
 	# No need to sleep here. Launching a cluster takes like 30 secs.  Used to
@@ -120,7 +123,7 @@ def ProcessJobReq(jr):
 
 def ProcessJobCompletion(jc):
 	job_id = jc.attrs["job_id"]
-	ConsMt.P("\n%s Got a job completion msg. job_id:%s" % (time.strftime("%y%m%d-%H%M%S"), job_id))
+	Cons.P("\n%s Got a job completion msg. job_id:%s" % (time.strftime("%y%m%d-%H%M%S"), job_id))
 
 	fn_module = "%s/../term-insts.py" % os.path.dirname(__file__)
 	mod_name,file_ext = os.path.splitext(os.path.split(fn_module)[-1])

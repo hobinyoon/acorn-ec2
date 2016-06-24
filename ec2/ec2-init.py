@@ -76,7 +76,7 @@ def _RunInitByTags():
 	if file_ext.lower() != '.py':
 		raise RuntimeError("Unexpected file_ext: %s" % file_ext)
 	py_mod = imp.load_source(mod_name, fn_module)
-	getattr(py_mod, "main")([fn_module, _jr_sqs_url, _jr_sqs_msg_receipt_handle, tags_str])
+	getattr(py_mod, "main")([fn_module, _jr_sqs_url, _jr_sqs_msg_receipt_handle, num_regions, tags_str])
 
 
 _fn_init_script = None
@@ -87,18 +87,20 @@ def main(argv):
 	# This script is run under the user 'ubuntu'.
 	#Util.RunSubp("touch /tmp/%s" % getpass.getuser())
 
-	if len(argv) != 4:
-		raise RuntimeError("Usage: %s init_script jr_sqs_url jr_sqs_msg_receipt_handle\n"
-				"  E.g.: %s acorn-server None None\n"
+	if len(argv) != 5:
+		raise RuntimeError("Usage: %s init_script jr_sqs_url jr_sqs_msg_receipt_handle num_regions\n"
+				"  E.g.: %s acorn-server None None 1\n"
 				"        The two Nones are for testing purposes."
 				% (argv[0], argv[0]))
 
 	global _fn_init_script
 	global _jr_sqs_url
 	global _jr_sqs_msg_receipt_handle
+	global _num_regions
 	_fn_init_script = argv[1]
 	_jr_sqs_url = argv[2]
 	_jr_sqs_msg_receipt_handle = argv[3]
+	_num_regions = argv[4]
 
 	_LogInstInfo()
 	_RunInitByTags()

@@ -182,10 +182,13 @@ def _WaitUntilYouSeeAllCassNodes():
 	while True:
 		# Get all IPs with the tags. Hope every node sees all other nodes by this
 		# time.
-		ips = GetIPs.GetByTags(_tags)
 		num_nodes = Util.RunSubp("/home/ubuntu/work/acorn/bin/nodetool status | grep \"^UN \" | wc -l", shell = True)
 		num_nodes = int(num_nodes)
-		if num_nodes == len(ips):
+
+		# The number of regions (_num_regions) needs to be explicitly passed. When
+		# a data center goes over capacity, it doesn't even get to the point where
+		# a node is tagged, making the cluster think it has less nodes.
+		if num_nodes == _num_regions:
 			break
 		time.sleep(2)
 
@@ -322,6 +325,7 @@ class CacheEbsFileIntoMem:
 
 _jr_sqs_url = None
 _jr_sqs_msg_receipt_handle = None
+_num_regions
 _tags = {}
 _job_id = None
 
@@ -329,13 +333,14 @@ def main(argv):
 	try:
 		# This script is run under the user 'ubuntu'.
 
-		if len(argv) != 4:
+		if len(argv) != 5:
 			raise RuntimeError("Unexpected argv %s" % argv)
 
-		global _jr_sqs_url, _jr_sqs_msg_receipt_handle
+		global _jr_sqs_url, _jr_sqs_msg_receipt_handle, _num_regions
 		_jr_sqs_url = argv[1]
 		_jr_sqs_msg_receipt_handle = argv[2]
 		tags_str = argv[3]
+		_num_regions = int(argv[4])
 
 		global _tags
 		for t in tags_str.split(","):

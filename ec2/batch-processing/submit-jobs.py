@@ -69,6 +69,26 @@ _regions_2 = [
 		, "us-west-1"
 		]
 
+_regions_8 = [
+		"us-east-1"
+		, "us-west-1"
+		, "us-west-2"
+		, "eu-west-1"
+		# capacity-oversubscribed
+		#, "eu-central-1"
+		, "ap-southeast-1b"
+		, "ap-southeast-2"
+		, "ap-northeast-1"
+		, "sa-east-1"
+		]
+_regions_1 = [
+		"us-east-1"
+		]
+_regions_2 = [
+		"us-east-1"
+		, "us-west-1"
+		]
+
 
 def SingleDevNode(q):
 	# UT
@@ -83,7 +103,7 @@ def ByYoutubeWorkloadOfDifferentSizes(q):
 	# UT
 	req_attrs = {
 			"init-script": "acorn-server"
-			, "regions": ",".join(_regions_all)
+			, "regions": ",".join(_regions_8)
 
 			# Partial replication metadata is exchanged
 			, "acorn-youtube.replication_type": "partial"
@@ -104,7 +124,13 @@ def ByYoutubeWorkloadOfDifferentSizes(q):
 			#, "acorn_options.use_attr_topic": "true"
 			}
 
-	for wl in ["tweets-010", "tweets-017", "tweets-054", "tweets-076", "tweets-100"]:
+	# Full replication, of course without any acorn metadata exchange
+	req_attrs["acorn-youtube.replication_type"] = "full"
+	req_attrs["acorn_options.use_attr_user"] = "false"
+	req_attrs["acorn_options.use_attr_topic"] = "false"
+
+	#for wl in ["tweets-010", "tweets-017", "tweets-054", "tweets-076", "tweets-100"]:
+	for wl in ["tweets-010", "tweets-017", "tweets-054", "tweets-076"]:
 		req_attrs["acorn-youtube.fn_youtube_reqs"] = wl
 		_EnqReq(q, req_attrs)
 
