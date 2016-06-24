@@ -47,7 +47,7 @@ def RunTermInst(tags):
 		t.join()
 	print ""
 
-	ConsP(Util.BuildHeader(_fmt,
+	Cons.P(Util.BuildHeader(_fmt,
 		"Region"
 		" InstanceId"
 		" PrevState"
@@ -72,12 +72,12 @@ class TermInst:
 		else:
 			filters = []
 			for k, v in self.tags.iteritems():
-			 d = {}
-			 d["Name"] = ("tag:%s" % k)
-			 d["Values"] = [v]
-			 filters.append(d)
+				d = {}
+				d["Name"] = ("tag:%s" % k)
+				d["Values"] = [v]
+				filters.append(d)
 			response = boto_client.describe_instances(Filters = filters)
-		#ConsP(pprint.pformat(response, indent=2, width=100))
+		#Cons.P(pprint.pformat(response, indent=2, width=100))
 
 		# "running" instances
 		self.inst_ids = []
@@ -87,23 +87,23 @@ class TermInst:
 				if "Name" in r1["State"]:
 					if r1["State"]["Name"] == "running":
 						self.inst_ids.append(r1["InstanceId"])
-		#ConsP("There are %d \"running\" instances." % len(self.inst_ids))
-		#ConsP(pprint.pformat(self.inst_ids, indent=2, width=100))
+		Cons.P("There are %d \"running\" instances." % len(self.inst_ids))
+		Cons.P(pprint.pformat(self.inst_ids, indent=2, width=100))
 
 		if len(self.inst_ids) == 0:
-			sys_stdout_write(" %s" % self.region)
+			Cons.sys_stdout_write(" %s" % self.region)
 			return
 
 		self.response = boto_client.terminate_instances(InstanceIds = self.inst_ids)
-		sys_stdout_write(" %s" % self.region)
+		Cons.sys_stdout_write(" %s" % self.region)
 
 	def PrintResult(self):
 		if len(self.inst_ids) == 0:
 			return
 
-		#ConsP(pprint.pformat(self.response, indent=2, width=100))
+		#Cons.P(pprint.pformat(self.response, indent=2, width=100))
 		for ti in self.response["TerminatingInstances"]:
-			ConsP(_fmt % (
+			Cons.P(_fmt % (
 				self.region
 				, ti["InstanceId"]
 				, ti["PreviousState"]["Name"]
@@ -119,20 +119,6 @@ def _Value(dict_, key):
 		return dict_[key]
 	else:
 		return ""
-
-
-_print_lock = threading.Lock()
-
-# Serialization is not needed in this file. Leave it for now.
-def ConsP(msg):
-	with _print_lock:
-		Cons.P(msg)
-
-
-def sys_stdout_write(msg):
-	with _print_lock:
-		sys.stdout.write(msg)
-		sys.stdout.flush()
 
 
 def main(argv):

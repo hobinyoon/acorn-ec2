@@ -55,25 +55,16 @@ class Check:
 					"max-instances",
 					]
 				)
-		#ConsP(pprint.pformat(response, indent=2))
+		#Cons.P(pprint.pformat(response, indent=2))
 		for r in response["AccountAttributes"]:
 			if r["AttributeName"] != "max-instances":
 				continue
 			if len(r["AttributeValues"]) != 1:
 				raise RuntimeError("len(r[\"AttributeValues\"])=%d" % len(r["AttributeValues"]))
 			self.max_inst = int(r["AttributeValues"][0]["AttributeValue"])
-			#ConsP(self.max_inst)
+			#Cons.P(self.max_inst)
 
-		with _print_lock:
-			sys.stdout.write(" %s" % self.region)
-			sys.stdout.flush()
-
-
-_print_lock = threading.Lock()
-
-def ConsP(msg):
-	with _print_lock:
-		Cons.P(msg)
+		Cons.sys_stdout_write(" %s" % self.region)
 
 
 if __name__ == "__main__":

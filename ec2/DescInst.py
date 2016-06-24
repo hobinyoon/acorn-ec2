@@ -47,11 +47,11 @@ def Run(tags = None):
 	for di in dis:
 		num_insts += di.NumInsts()
 	if num_insts == 0:
-		ConsP("No instances found.")
+		Cons.P("No instances found.")
 		return
 
 	print ""
-	ConsP(Util.BuildHeader(_fmt,
+	Cons.P(Util.BuildHeader(_fmt,
 		"job_id"
 		" Placement:AvailabilityZone"
 		" InstanceId"
@@ -118,10 +118,10 @@ class DescInstPerRegion:
 				self.response = boto_client.describe_instances(Filters = filters)
 
 		except KeyError as e:
-			#ConsP("region=%s KeyError=[%s]" % (self.region, e))
+			#Cons.P("region=%s KeyError=[%s]" % (self.region, e))
 			self.key_error = e
 
-		sys_stdout_write(" %s" % self.region)
+		Cons.sys_stdout_write(" %s" % self.region)
 
 	def NumInsts(self):
 		if self.key_error is not None:
@@ -145,7 +145,7 @@ class DescInstPerRegion:
 		if self.key_error is not None:
 			return ["region=%s KeyError=[%s]" % (self.region, self.key_error)]
 
-		#ConsP(pprint.pformat(self.response, indent=2, width=100))
+		#Cons.P(pprint.pformat(self.response, indent=2, width=100))
 		results = []
 		for r in self.response["Reservations"]:
 			for r1 in r["Instances"]:
@@ -179,17 +179,3 @@ def _Value(dict_, key):
 		return dict_[key]
 	else:
 		return ""
-
-
-_print_lock = threading.Lock()
-
-# Serialization is not needed in this file. Leave it for now.
-def ConsP(msg):
-	with _print_lock:
-		Cons.P(msg)
-
-
-def sys_stdout_write(msg):
-	with _print_lock:
-		sys.stdout.write(msg)
-		sys.stdout.flush()
