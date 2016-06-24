@@ -87,8 +87,8 @@ class TermInst:
 				if "Name" in r1["State"]:
 					if r1["State"]["Name"] == "running":
 						self.inst_ids.append(r1["InstanceId"])
-		Cons.P("There are %d \"running\" instances." % len(self.inst_ids))
-		Cons.P(pprint.pformat(self.inst_ids, indent=2, width=100))
+		#Cons.P("There are %d \"running\" instances." % len(self.inst_ids))
+		#Cons.P(pprint.pformat(self.inst_ids, indent=2, width=100))
 
 		if len(self.inst_ids) == 0:
 			Cons.sys_stdout_write(" %s" % self.region)
