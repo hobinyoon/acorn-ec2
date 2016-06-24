@@ -458,6 +458,7 @@ class InstLaunchProgMon():
 			#" Tags"
 			))
 
+		output = []
 		for spot_req_id, v in InstLaunchProgMon.progress.iteritems():
 			if len(v.resp_desc_inst) == 0:
 				continue
@@ -469,7 +470,7 @@ class InstLaunchProgMon():
 					tags[t["Key"]] = t["Value"]
 
 			#Cons.P(Util.Indent(pprint.pformat(r, indent=2, width=100), 2))
-			Cons.P(fmt % (
+			output.append(fmt % (
 				_Value(_Value(r, "Placement"), "AvailabilityZone")
 				, _Value(r, "InstanceId")
 				, _Value(r, "InstanceType")
@@ -479,6 +480,8 @@ class InstLaunchProgMon():
 				, _Value(_Value(r, "State"), "Name")
 				#, ",".join(["%s:%s" % (k, v) for (k, v) in sorted(tags.items())])
 				))
+		for o in sorted(output):
+			Cons.P(o)
 
 
 def _Value(dict_, key):
