@@ -339,8 +339,8 @@ def main(argv):
 		global _jr_sqs_url, _jr_sqs_msg_receipt_handle, _num_regions
 		_jr_sqs_url = argv[1]
 		_jr_sqs_msg_receipt_handle = argv[2]
-		tags_str = argv[3]
-		_num_regions = int(argv[4])
+		_num_regions = int(argv[3])
+		tags_str = argv[4]
 
 		global _tags
 		for t in tags_str.split(","):

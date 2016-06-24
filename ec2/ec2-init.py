@@ -57,6 +57,7 @@ def _RunInitByTags():
 	_Log("_fn_init_script           : %s" % _fn_init_script)
 	_Log("_jr_sqs_url               : %s" % _jr_sqs_url)
 	_Log("_jr_sqs_msg_receipt_handle: %s" % _jr_sqs_msg_receipt_handle)
+	_Log("_num_regions              : %s" % _num_regions)
 
 	boto_client = boto3.session.Session().client("ec2", region_name=_region)
 	r = boto_client.describe_tags()
