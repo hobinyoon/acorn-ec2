@@ -325,7 +325,7 @@ class CacheEbsFileIntoMem:
 
 _jr_sqs_url = None
 _jr_sqs_msg_receipt_handle = None
-_num_regions
+_num_regions = None
 _tags = {}
 _job_id = None
 
