@@ -22,6 +22,7 @@ _job_id = None
 
 _inst_type = None
 _tags = None
+_num_regions = None
 _jr_sqs_url = None
 _jr_sqs_msg_receipt_handle = None
 _init_script = None
@@ -41,9 +42,7 @@ def Run(regions, inst_type, tags, jr_sqs_url, jr_sqs_msg_receipt_handle, init_sc
 	_inst_type = inst_type
 	_tags = tags
 	_tags["job_id"] = _job_id
-
-	raise RuntimeError("implement _num_regions")
-
+	_num_regions = len(regions)
 	_jr_sqs_url = jr_sqs_url
 	_jr_sqs_msg_receipt_handle = jr_sqs_msg_receipt_handle
 	_init_script = init_script
@@ -74,6 +73,7 @@ def Reset():
 
 	_inst_type = None
 	_tags = None
+	_num_regions = None
 	_jr_sqs_url = None
 	_jr_sqs_msg_receipt_handle = None
 	_init_script = None
@@ -100,9 +100,9 @@ class RunAndMonitor():
 cd /home/ubuntu/work
 rm -rf /home/ubuntu/work/acorn-tools
 sudo -i -u ubuntu bash -c 'git clone https://github.com/hobinyoon/acorn-tools.git /home/ubuntu/work/acorn-tools'
-sudo -i -u ubuntu /home/ubuntu/work/acorn-tools/ec2/ec2-init.py {0} {1} {2}
+sudo -i -u ubuntu /home/ubuntu/work/acorn-tools/ec2/ec2-init.py {0} {1} {2} {3}
 """
-			user_data = user_data.format(_init_script, _jr_sqs_url, _jr_sqs_msg_receipt_handle)
+			user_data = user_data.format(_init_script, _jr_sqs_url, _jr_sqs_msg_receipt_handle, _num_regions)
 
 			self.boto_client = boto3.session.Session().client("ec2", region_name = self.region_name)
 
@@ -138,6 +138,7 @@ sudo -i -u ubuntu /home/ubuntu/work/acorn-tools/ec2/ec2-init.py {0} {1} {2}
 
 			#Cons.P("Response:")
 			#Cons.P(Util.Indent(pprint.pformat(response, indent=2, width=100), 2))
+
 			if len(response["Instances"]) != 1:
 				raise RuntimeError("len(response[\"Instances\"])=%d" % len(response["Instances"]))
 			self.inst_id = response["Instances"][0]["InstanceId"]
@@ -155,10 +156,10 @@ sudo -i -u ubuntu /home/ubuntu/work/acorn-tools/ec2/ec2-init.py {0} {1} {2}
 		tagged = False
 
 		while True:
-			response = None
+			r = None
 			while True:
 				try:
-					response = self.boto_client.describe_instances(InstanceIds=[self.inst_id])
+					r = self.boto_client.describe_instances(InstanceIds=[self.inst_id])
 					# Note: describe_instances() returns StateReason, while
 					# describe_instance_status() doesn't.
 					break
@@ -169,13 +170,13 @@ sudo -i -u ubuntu /home/ubuntu/work/acorn-tools/ec2/ec2-init.py {0} {1} {2}
 					#   DescribeInstances operation: The instance ID 'i-dbb11a47' does n ot
 					#   exist
 					if e.response["Error"]["Code"] == "InvalidInstanceID.NotFound":
-						Cons.P("inst_id %s doesn't exist. retrying in 1 sec" % self.inst_id)
+						Cons.P("inst_id %s not found. retrying in 1 sec ..." % self.inst_id)
 						time.sleep(1)
 					else:
 						raise e
 
-			InstLaunchProgMon.Update(self.inst_id, response)
-			state = response["Reservations"][0]["Instances"][0]["State"]["Name"]
+			InstLaunchProgMon.Update(self.inst_id, r)
+			state = r["Reservations"][0]["Instances"][0]["State"]["Name"]
 			# Create tags
 			if state == "pending" and tagged == False:
 				tags_boto = []
@@ -192,15 +193,14 @@ sudo -i -u ubuntu /home/ubuntu/work/acorn-tools/ec2/ec2-init.py {0} {1} {2}
 
 		# Make sure everything is ok.
 		if state == "running":
-			response = self.boto_client.describe_instances(InstanceIds=[self.inst_id])
-			state = response["Reservations"][0]["Instances"][0]["State"]["Name"]
-			InstLaunchProgMon.Update(self.inst_id, response)
+			r = self.boto_client.describe_instances(InstanceIds=[self.inst_id])
+			state = r["Reservations"][0]["Instances"][0]["State"]["Name"]
+			InstLaunchProgMon.Update(self.inst_id, r)
 
-			# With composite parametes it's not easy to make one of these any more.
-			# Make (region-acorn_exp_param) to ipaddr files
-			#fn = "%s/%s-%s" % (_dn_tmp, self.region_name, _tags["acorn_exp_param"])
-			#with open(fn, "w") as fo:
-			#	fo.write(response["Reservations"][0]["Instances"][0]["PublicIpAddress"])
+			# Make region-ipaddr files
+			fn = "%s/%s" % (_dn_tmp, self.region_name)
+			with open(fn, "w") as fo:
+				fo.write(r["Reservations"][0]["Instances"][0]["PublicIpAddress"])
 
 
 class InstLaunchProgMon():
@@ -310,6 +310,7 @@ class InstLaunchProgMon():
 			#" Tags"
 			))
 
+		output = []
 		for k, v in InstLaunchProgMon.progress.iteritems():
 			if len(v.responses) == 0:
 				continue
@@ -321,7 +322,7 @@ class InstLaunchProgMon():
 					tags[t["Key"]] = t["Value"]
 
 			#Cons.P(Util.Indent(pprint.pformat(r, indent=2, width=100), 2))
-			Cons.P(fmt % (
+			output.append(fmt % (
 				_Value(_Value(r, "Placement"), "AvailabilityZone")
 				, _Value(r, "InstanceId")
 				, _Value(r, "InstanceType")
@@ -331,6 +332,8 @@ class InstLaunchProgMon():
 				, _Value(_Value(r, "State"), "Name")
 				#, ",".join(["%s:%s" % (k, v) for (k, v) in sorted(tags.items())])
 				))
+		for o in sorted(output):
+			Cons.P(o)
 
 
 def _Value(dict_, key):

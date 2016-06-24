@@ -68,10 +68,6 @@ def Run(regions, inst_type, tags, jr_sqs_url, jr_sqs_msg_receipt_handle, init_sc
 	for t in _threads:
 		t.join()
 
-	for ram in rams:
-		if ram.exit_success == False:
-			raise RuntimeError("ReqAndMonitor %s failed" % ram)
-
 
 # This module can be called repeatedly
 def Reset():
@@ -102,8 +98,6 @@ class ReqAndMonitor():
 		self.ami_id = RegionToAmi.GetLatestAmiId(self.region_name)
 
 		self.inst_id = None
-
-		self.exit_success = False
 
 
 	def Run(self):
@@ -138,21 +132,32 @@ sudo -i -u ubuntu /home/ubuntu/work/acorn-tools/ec2/ec2-init.py {0} {1} {2} {3}
 				ls['Placement'] = {}
 				ls['Placement']['AvailabilityZone'] = self.az
 
-			response = self.boto_client.request_spot_instances(
-					SpotPrice=str(_price),
-					#ClientToken='string',
-					InstanceCount=1,
-					Type='one-time',
-					#ValidFrom=datetime(2015, 1, 1),
-					#ValidUntil=datetime(2015, 1, 1),
-					#LaunchGroup='string',
-					#AvailabilityZoneGroup='string',
+			response = None
+			while True:
+				try:
+					response = self.boto_client.request_spot_instances(
+							SpotPrice=str(_price),
+							#ClientToken='string',
+							InstanceCount=1,
+							Type='one-time',
+							#ValidFrom=datetime(2015, 1, 1),
+							#ValidUntil=datetime(2015, 1, 1),
+							#LaunchGroup='string',
+							#AvailabilityZoneGroup='string',
 
-					# https://aws.amazon.com/blogs/aws/new-ec2-spot-blocks-for-defined-duration-workloads/
-					#BlockDurationMinutes=123,
+							# https://aws.amazon.com/blogs/aws/new-ec2-spot-blocks-for-defined-duration-workloads/
+							#BlockDurationMinutes=123,
 
-					LaunchSpecification = ls,
-					)
+							LaunchSpecification = ls,
+							)
+					break
+				except botocore.exceptions.ClientError as e:
+					if e.response["Error"]["Code"] == "RequestLimitExceeded":
+						Cons.P("%s. Retrying in 5 sec ..." % e)
+						time.sleep(5)
+					else:
+						raise e
+
 			#Cons.P("Response:")
 			#Cons.P(Util.Indent(pprint.pformat(response, indent=2, width=100), 2))
 
@@ -165,8 +170,6 @@ sudo -i -u ubuntu /home/ubuntu/work/acorn-tools/ec2/ec2-init.py {0} {1} {2} {3}
 
 			self._KeepCheckingSpotReq()
 			self._KeepCheckingInst()
-
-			self.exit_success = True
 		except Exception as e:
 			Cons.P("%s\n%s" % (e, traceback.format_exc()))
 			os._exit(1)
@@ -265,6 +268,7 @@ sudo -i -u ubuntu /home/ubuntu/work/acorn-tools/ec2/ec2-init.py {0} {1} {2} {3}
 		tagged = False
 
 		while True:
+			r = None
 			while True:
 				try:
 					r = self.boto_client.describe_instances(InstanceIds=[self.inst_id])
@@ -273,7 +277,7 @@ sudo -i -u ubuntu /home/ubuntu/work/acorn-tools/ec2/ec2-init.py {0} {1} {2} {3}
 					break
 				except botocore.exceptions.ClientError as e:
 					if e.response["Error"]["Code"] == "InvalidInstanceID.NotFound":
-						Cons.P("%s. inst_id %s not found. retrying in 1 sec ..." % (e, self.inst_id))
+						Cons.P("inst_id %s not found. retrying in 1 sec ..." % self.inst_id)
 						time.sleep(1)
 					else:
 						raise e
