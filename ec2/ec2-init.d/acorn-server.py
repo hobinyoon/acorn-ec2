@@ -217,9 +217,11 @@ def _UploadResult():
 	with zipfile.ZipFile(fn_out, "w", zipfile.ZIP_DEFLATED) as zf:
 		for root, dirs, files in os.walk(dn_in):
 			for f in files:
-				zf.write(os.path.join(root, f))
-		zf.write("/var/log/cloud-init-output.log")
-		zf.write("/var/log/cloud-init.log")
+				_ZfWrite(zf, os.path.join(root, f))
+		_ZfWrite(zf, "/var/log/cloud-init-output.log")
+		_ZfWrite(zf, "/var/log/cloud-init.log")
+		_ZfWrite(zf, "/home/ubuntu/work/acorn/logs/debug.log")
+		_ZfWrite(zf, "/home/ubuntu/work/acorn/logs/system.log")
 
 	_Log("Created %s %d" % (os.path.abspath(fn_out), os.path.getsize(fn_out)))
 
@@ -234,6 +236,17 @@ def _UploadResult():
 	_Log(pprint.pformat(r))
 
 	os.chdir(prev_dir)
+
+
+# Ignore non-existent files
+def _ZfWrite(zf, fn):
+	try:
+		zf.write(fn)
+	except OSError as e:
+		if e.errno == errno.ENOENT:
+			pass
+		else:
+			raise e
 
 
 def _PostJobDoneMsg():

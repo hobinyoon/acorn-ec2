@@ -1,3 +1,3 @@
 Clean up logs before making a new AMI
-	rm /var/log/acorn/* \
+	sudo rm -rf /var/log/acorn \
 	&& sudo rm /var/log/cloud-init*
