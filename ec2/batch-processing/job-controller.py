@@ -33,8 +33,9 @@ def main(argv):
 	# Deleting the job request queue is useful for preventing the job request
 	# reappearing
 
-	# TODO: disable temporarily for dev
-	#JobReqQ.DeleteQ()
+	# You can temporarily disable this for dev, but needs to be very careful. You
+	# can easily spend $1000 a night.
+	JobReqQ.DeleteQ()
 
 
 _req_q = Queue.Queue(maxsize=2)
