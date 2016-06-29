@@ -1,6 +1,7 @@
 def GetLatestAmiId(region):
 	region_ami = {
 			"ap-northeast-1": "ami-1ed9287f"
+			, "ap-south-1": "ami-d791fbb8"
 			, "ap-southeast-1": "ami-8c33e1ef"
 			, "ap-southeast-2": "ami-1a83ab79"
 			, "eu-central-1": "ami-a3e70ccc"

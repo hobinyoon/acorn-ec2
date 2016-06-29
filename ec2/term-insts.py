@@ -21,6 +21,7 @@ def RunTermInst(tags):
 			, "us-west-2"
 			, "eu-west-1"
 			, "eu-central-1"
+			, "ap-south-1"
 			, "ap-southeast-1"
 			, "ap-southeast-2"
 			, "ap-northeast-2"

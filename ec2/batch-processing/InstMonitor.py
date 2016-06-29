@@ -9,7 +9,7 @@ sys.path.insert(0, "%s/../../util/python" % os.path.dirname(__file__))
 import Cons
 import Util
 
-_fmt_desc_inst = "%13s %-15s %10s %15s %13s"
+_fmt_desc_inst = "%13s %-15s %19s %15s %13s"
 
 
 class IM:
@@ -49,6 +49,7 @@ class IM:
 				, "us-west-2"
 				, "eu-west-1"
 				, "eu-central-1"
+				, "ap-south-1"
 				, "ap-southeast-1"
 				, "ap-southeast-2"
 				, "ap-northeast-2"

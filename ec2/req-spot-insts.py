@@ -15,6 +15,8 @@ def main(argv):
 			, "eu-west-1"
 			, "eu-central-1"
 
+			, "ap-south-1"
+
 			# 1b is more stable. May 20th.
 			, "ap-southeast-1b"
 
