@@ -57,13 +57,21 @@ def _InstallPkgs():
 def _MountAndFormatLocalSSDs():
 	# Make sure we are using the known machine types
 	inst_type = Util.RunSubp("curl -s http://169.254.169.254/latest/meta-data/instance-type", print_cmd = False, print_output = False)
-	if not inst_type.startswith("c3."):
+
+	ssds = None
+	devs = None
+
+	# All c3 types has 2 SSDs
+	if inst_type.startswith("c3."):
+		ssds = ["ssd0", "ssd1"]
+		devs = ["xvdb", "xvdc"]
+	elif inst_type in ["r3.large", "r3.xlarge", "r3.2xlarge", "r3.4xlarge"]:
+		ssds = ["ssd0"]
+		devs = ["xvdb"]
+	else:
 		raise RuntimeError("Unexpected instance type %s" % inst_type)
 
-	ssds = ["ssd0", "ssd1"]
-	devs = ["xvdb", "xvdc"]
-
-	for i in range(2):
+	for i in range(len(ssds)):
 		_Log("Setting up Local %s ..." % ssds[i])
 		Util.RunSubp("sudo umount /dev/%s || true" % devs[i])
 		Util.RunSubp("sudo mkdir -p /mnt/local-%s" % ssds[i])
