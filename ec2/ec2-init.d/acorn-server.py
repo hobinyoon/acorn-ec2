@@ -71,6 +71,7 @@ def _MountAndFormatLocalSSDs():
 	else:
 		raise RuntimeError("Unexpected instance type %s" % inst_type)
 
+	Util.RunSubp("sudo umount /mnt || true")
 	for i in range(len(ssds)):
 		_Log("Setting up Local %s ..." % ssds[i])
 		Util.RunSubp("sudo umount /dev/%s || true" % devs[i])
