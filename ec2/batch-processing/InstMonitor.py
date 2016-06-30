@@ -160,7 +160,7 @@ class DescInstPerRegion:
 				self.response = bc.describe_instances()
 				with DescInstPerRegion.boto_responses_received_lock:
 					DescInstPerRegion.boto_responses_received += 1
-					if DescInstPerRegion.boto_responses_received == 6:
+					if DescInstPerRegion.boto_responses_received == 7:
 						#             Describing instances:
 						self.dio.P("\n                      %s" % self.region)
 					else:
