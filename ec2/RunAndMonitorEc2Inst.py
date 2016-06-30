@@ -298,7 +298,7 @@ class InstLaunchProgMon():
 
 	@staticmethod
 	def DescInsts():
-		fmt = "%-15s %10s %10s %13s %15s %10s"
+		fmt = "%-15s %19s %10s %13s %15s %10s"
 		Cons.P(Util.BuildHeader(fmt,
 			"Placement:AvailabilityZone"
 			" InstanceId"

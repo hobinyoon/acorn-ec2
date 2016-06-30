@@ -11,7 +11,7 @@ import Util
 import Ec2Region
 
 
-_fmt = "%13s %-15s %10s %15s %13s"
+_fmt = "%13s %-15s %19s %15s %13s"
 
 def Run(tags = None):
 	sys.stdout.write("desc_instances:")

@@ -11,7 +11,7 @@ import Cons
 import Util
 import Ec2Region
 
-_fmt = "%-15s %10s %13s %13s"
+_fmt = "%-15s %19s %13s %13s"
 
 def RunTermInst(tags):
 	threads = []
