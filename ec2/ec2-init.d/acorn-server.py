@@ -81,6 +81,11 @@ def _MountAndFormatLocalSSDs():
 		# nodiscard, it takes about 80 secs for a 800GB SSD.
 		Util.RunSubp("sudo mkfs.ext4 -m 0 -E nodiscard -L local-%s /dev/%s" % (ssds[i], devs[i]))
 
+		# I suspect /etc/fstab is updated when the instance is initiated. Give it a
+		# bit of time and umount
+		time.sleep(1)
+		Util.RunSubp("sudo umount /dev/%s || true" % devs[i])
+
 		# -o discard for TRIM
 		Util.RunSubp("sudo mount -t ext4 -o discard /dev/%s /mnt/local-%s" % (devs[i], ssds[i]))
 		Util.RunSubp("sudo chown -R ubuntu /mnt/local-%s" % ssds[i])
