@@ -73,21 +73,16 @@ def ProcessJobReq(jr):
 	for k, v in sorted(jr.attrs.iteritems()):
 		Cons.P("  %s:%s" % (k, v))
 
-	ec2_type = "c3.4xlarge"
-
 	# Pass these as the init script parameters. Decided not to use EC2 tag
 	# for these, due to its limitations.
 	#   http://docs.aws.amazon.com/awsaccountbilling/latest/aboutv2/allocation-tag-restrictions.html
 	jr_sqs_url = jr.msg.queue_url
 	jr_sqs_msg_receipt_handle = jr.msg.receipt_handle
 
-	init_script = jr.attrs["init-script"]
-	jr.attrs.pop("init_script", None)
-
-	regions = jr.attrs["regions"].split(",")
-	# Delete "regions" from the dict to avoid messing up the parameter parsing
-	# caused by the commas
-	jr.attrs.pop("regions", None)
+	# Get job controller parameters and delete them from the attrs
+	jc_params = json.loads(jr.attrs["job_controller_params"])
+	Cons.P("jc_params: " % pprint.pformat(jc_params))
+	jr.attrs.pop("job_controller_params", None)
 
 	# Cassandra cluster name. It's ok for multiple clusters to have the same
 	# cluster_name for Cassandra. It's ok for multiple clusters to have the
@@ -98,22 +93,22 @@ def ProcessJobReq(jr):
 	if False:
 		# On-demand instances are too expensive.
 		RunAndMonitorEc2Inst.Run(
-				regions = regions
-				, inst_type = ec2_type
+				regions = jc_params["regions"]
+				, inst_type = jc_params["ec2_type"]
 				, tags = jr.attrs
 				, jr_sqs_url = jr_sqs_url
 				, jr_sqs_msg_receipt_handle = jr_sqs_msg_receipt_handle
-				, init_script = init_script)
+				, init_script = jc_params["init_script"]
+				)
 	else:
 		ReqSpotAndMonitor.Run(
-				regions = regions
-				, inst_type = ec2_type
+				regions = jc_params["regions"]
+				, inst_type = jc_params["ec2_type"]
 				, tags = jr.attrs
 				, jr_sqs_url = jr_sqs_url
 				, jr_sqs_msg_receipt_handle = jr_sqs_msg_receipt_handle
-				, init_script = init_script
-				# Temporarily increase the max price. eu-central's price is too high.
-				, price = 1.5
+				, init_script = jc_params["init_script"]
+				, max_price = jc_params["max_price"]
 				)
 
 	# No need to sleep here. Launching a cluster takes like 30 secs.  Used to

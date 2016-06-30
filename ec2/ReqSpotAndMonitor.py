@@ -27,12 +27,12 @@ _num_regions = None
 _jr_sqs_url = None
 _jr_sqs_msg_receipt_handle = None
 _init_script = None
-_price = None
+_max_price = None
 
 
-def Run(regions, inst_type, tags, jr_sqs_url, jr_sqs_msg_receipt_handle, init_script, price = None):
-	if price == None:
-		raise RuntimeError("Need a price")
+def Run(regions, inst_type, tags, jr_sqs_url, jr_sqs_msg_receipt_handle, init_script, max_price = None):
+	if max_price == None:
+		raise RuntimeError("Need a max_price")
 
 	Reset()
 
@@ -43,7 +43,7 @@ def Run(regions, inst_type, tags, jr_sqs_url, jr_sqs_msg_receipt_handle, init_sc
 	_job_id = req_datetime.strftime("%y%m%d-%H%M%S")
 	Cons.P("job_id:%s (for describing and terminating the cluster)" % _job_id)
 
-	global _inst_type, _tags, _num_regions, _jr_sqs_url, _jr_sqs_msg_receipt_handle, _init_script, _price
+	global _inst_type, _tags, _num_regions, _jr_sqs_url, _jr_sqs_msg_receipt_handle, _init_script, _max_price
 	_inst_type = inst_type
 	_tags = tags
 	_tags["job_id"] = _job_id
@@ -51,7 +51,7 @@ def Run(regions, inst_type, tags, jr_sqs_url, jr_sqs_msg_receipt_handle, init_sc
 	_jr_sqs_url = jr_sqs_url
 	_jr_sqs_msg_receipt_handle = jr_sqs_msg_receipt_handle
 	_init_script = init_script
-	_price = price
+	_max_price = max_price
 
 	rams = []
 	for r in regions:
@@ -136,7 +136,7 @@ sudo -i -u ubuntu /home/ubuntu/work/acorn-tools/ec2/ec2-init.py {0} {1} {2} {3}
 			while True:
 				try:
 					response = self.boto_client.request_spot_instances(
-							SpotPrice=str(_price),
+							SpotPrice=str(_max_price),
 							#ClientToken='string',
 							InstanceCount=1,
 							Type='one-time',
