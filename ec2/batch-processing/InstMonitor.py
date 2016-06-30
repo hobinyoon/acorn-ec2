@@ -45,6 +45,8 @@ class IM:
 	def _DescInst(self):
 		self.dio.P("\nDescribing instances:")
 
+		DescInstPerRegion.Reset()
+
 		dis = []
 		for r in Ec2Region.All():
 			dis.append(DescInstPerRegion(r, self.dio))
@@ -139,6 +141,14 @@ class DIO:
 
 
 class DescInstPerRegion:
+	boto_responses_received = 0
+	boto_responses_received_lock = threading.Lock()
+
+	@staticmethod
+	def Reset():
+		with boto_responses_received_lock:
+			DescInstPerRegion.boto_responses_received = 0
+
 	def __init__(self, region, dio):
 		self.region = region
 		self.dio = dio
@@ -148,7 +158,13 @@ class DescInstPerRegion:
 			try:
 				bc = BcMgr.Get(self.region)
 				self.response = bc.describe_instances()
-				self.dio.P(" %s" % self.region)
+				with boto_responses_received_lock:
+					boto_responses_received += 1
+					if boto_responses_received == 6:
+						#             Describing instances:
+						self.dio.P("\n                      %s" % self.region)
+					else:
+						self.dio.P(" %s" % self.region)
 				break
 			except Exception as e:
 				Cons.P("Got an exception: %s" % e)
