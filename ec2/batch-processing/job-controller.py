@@ -2,6 +2,7 @@
 
 import datetime
 import imp
+import json
 import os
 import pprint
 import Queue
@@ -69,9 +70,8 @@ def ProcessJobReq(jr):
 	# TODO: May want some admission control here, like one based on how many
 	# free instance slots are available.
 
-	Cons.P("\n%s Got a job request msg. attrs:" % time.strftime("%y%m%d-%H%M%S"))
-	for k, v in sorted(jr.attrs.iteritems()):
-		Cons.P("  %s:%s" % (k, v))
+	Cons.P("\n%s Got a job request msg. attrs:\n%s"
+			% (time.strftime("%y%m%d-%H%M%S"), pprint.pformat(jr.attrs)))
 
 	# Pass these as the init script parameters. Decided not to use EC2 tag
 	# for these, due to its limitations.
@@ -81,7 +81,6 @@ def ProcessJobReq(jr):
 
 	# Get job controller parameters and delete them from the attrs
 	jc_params = json.loads(jr.attrs["job_controller_params"])
-	Cons.P("jc_params: " % pprint.pformat(jc_params))
 	jr.attrs.pop("job_controller_params", None)
 
 	# Cassandra cluster name. It's ok for multiple clusters to have the same

@@ -2,13 +2,16 @@
 
 import boto3
 import botocore
+import json
 import os
 import pprint
 import sys
 
 sys.path.insert(0, "%s/../../util/python" % os.path.dirname(__file__))
 import Cons
-import Util
+
+sys.path.insert(0, "%s/.." % os.path.dirname(__file__))
+import Ec2Region
 
 
 sqs_region = "us-east-1"
@@ -46,21 +49,6 @@ def GetQ(bc, sqs):
 		return queue
 
 
-_regions_all = [
-		"us-east-1"
-		, "us-west-1"
-		, "us-west-2"
-		, "eu-west-1"
-		, "eu-central-1"
-		, "ap-southeast-1b"
-		, "ap-southeast-2"
-
-		# Seoul. Terminates by itself. Turns out they don't have c3 instance types.
-		#, "ap-northeast-2"
-
-		, "ap-northeast-1"
-		, "sa-east-1"
-		]
 _regions_1 = [
 		"us-east-1"
 		]
@@ -91,10 +79,12 @@ _regions_2 = [
 
 
 def SingleDevNode(q):
-	# UT
 	req_attrs = {
-			"init-script": "acorn-dev"
-			, "regions": ",".join(_regions_1)
+			"init_script": "acorn-dev"
+			#, "regions": _regions_1
+			, "regions": ["ap-south-1"]
+			, "ec2_type": "r3.xlarge"
+			, "max_price": 1.0
 			}
 	_EnqReq(q, req_attrs)
 
@@ -102,8 +92,10 @@ def SingleDevNode(q):
 def ByYoutubeWorkloadOfDifferentSizes(q):
 	# UT
 	req_attrs = {
-			"init-script": "acorn-server"
-			, "regions": ",".join(_regions_8)
+			"init_script": "acorn-server"
+			, "regions": Ec2Region.All()
+			, "ec2_type": "r3.xlarge"
+			, "max_price": 1.0
 
 			# Partial replication metadata is exchanged
 			, "acorn-youtube.replication_type": "partial"
@@ -116,13 +108,17 @@ def ByYoutubeWorkloadOfDifferentSizes(q):
 			# Default is -1 (request all)
 			#, "acorn-youtube.max_requests": "-1"
 
-			# Default is 1800000
-			#, "acorn-youtube.simulation_time_dur_in_ms": "1800000"
+			# Default is 35 mins, 2100 secs.
+			#, "acorn-youtube.simulation_time_dur_in_ms": "2100000"
 
 			# Default is true, true
 			#, "acorn_options.use_attr_user": "true"
 			#, "acorn_options.use_attr_topic": "true"
 			}
+	#for wl in ["tweets-010", "tweets-017", "tweets-054", "tweets-076", "tweets-100"]:
+	#for wl in ["tweets-017", "tweets-054", "tweets-076", "tweets-100"]:
+	#	req_attrs["acorn-youtube.fn_youtube_reqs"] = wl
+	#	_EnqReq(q, req_attrs)
 
 	# Full replication, of course without any acorn metadata exchange
 	req_attrs["acorn-youtube.replication_type"] = "full"
@@ -130,7 +126,7 @@ def ByYoutubeWorkloadOfDifferentSizes(q):
 	req_attrs["acorn_options.use_attr_topic"] = "false"
 
 	#for wl in ["tweets-010", "tweets-017", "tweets-054", "tweets-076", "tweets-100"]:
-	for wl in ["tweets-010", "tweets-017", "tweets-054", "tweets-076"]:
+	for wl in ["tweets-010"]:
 		req_attrs["acorn-youtube.fn_youtube_reqs"] = wl
 		_EnqReq(q, req_attrs)
 
@@ -138,8 +134,8 @@ def ByYoutubeWorkloadOfDifferentSizes(q):
 def ByRepModels(q):
 	# UT
 	req_attrs = {
-			"init-script": "acorn-server"
-			, "regions": ",".join(_regions_all)
+			"init_script": "acorn-server"
+			, "regions": Ec2Region.All()
 
 			# Partial replication metadata is exchanged
 			, "acorn-youtube.replication_type": "partial"
@@ -190,7 +186,7 @@ def MeasureClientOverhead(q):
 	req_attrs = {
 			# Swap the coordinates of us-east-1 and eu-west-1 to see how much
 			# overhead is there in eu-west-1
-			"regions": ",".join(["us-east-1"])
+			"regions": ["us-east-1"]
 			, "acorn-youtube.fn_youtube_reqs": "tweets-100"
 			, "acorn-youtube.youtube_extra_data_size": "512"
 
@@ -203,10 +199,10 @@ def MeasureClientOverhead(q):
 
 
 def MeasureMetadataXdcTraffic(q):
-	Cons.P("regions: %s" % ",".join(_regions_all))
+	Cons.P("regions: %s" % ",".join(Ec2Region.All()))
 
 	req_attrs = {
-			"regions": ",".join(_regions_all)
+			"regions": Ec2Region.All()
 
 			# Partial replication metadata is exchanged
 			, "acorn-youtube.replication_type": "partial"
@@ -233,10 +229,10 @@ def MeasureMetadataXdcTraffic(q):
 
 
 def MeasureMetadataXdcTrafficSmallScale(q):
-	Cons.P("regions: %s" % ",".join(_regions_all))
+	Cons.P("regions: %s" % ",".join(Ec2Region.All()))
 
 	req_attrs = {
-			"_regions_all": ",".join(_regions_all)
+			"regions": Ec2Region.All()
 
 			# Partial replication metadata is exchanged
 			, "acorn-youtube.replication_type": "partial"
@@ -259,9 +255,20 @@ def MeasureMetadataXdcTrafficSmallScale(q):
 
 def _EnqReq(q, attrs):
 	with Cons.MT("Enq a message ..."):
+		Cons.P("attrs: %s" % pprint.pformat(attrs))
+
+		jc_params = {}
+		for k in attrs.keys():
+			if k in ["init_script", "regions", "ec2_type", "max_price"]:
+				jc_params[k] = attrs[k]
+				del attrs[k]
+		#Cons.P(json.dumps(jc_params))
+
 		msg_attrs = {}
 		for k, v in attrs.iteritems():
 			msg_attrs[k] = {"StringValue": v, "DataType": "String"}
+		msg_attrs["job_controller_params"] = {"StringValue": json.dumps(jc_params), "DataType": "String"}
+
 		q.send_message(MessageBody=msg_body, MessageAttributes=msg_attrs)
 
 
