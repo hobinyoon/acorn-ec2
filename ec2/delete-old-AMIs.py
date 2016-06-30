@@ -14,26 +14,15 @@ sys.path.insert(0, "%s/../util/python" % os.path.dirname(__file__))
 import Cons
 import Util
 
+import Ec2Region
+
 
 # Leave the 2 newest AMIs per region and delete all the others and their
 # associated snapshots.
 
 def main(argv):
-	regions = [
-			"us-east-1"
-			, "us-west-1"
-			, "us-west-2"
-			, "eu-west-1"
-			, "eu-central-1"
-			, "ap-south-1"
-			, "ap-southeast-1"
-			, "ap-southeast-2"
-			, "ap-northeast-1"
-			, "sa-east-1"
-			]
-
 	iscs = []
-	for r in regions:
+	for r in Ec2Region.All():
 		iscs.append(ImageSnapshotCleaner(region=r))
 	for i in iscs:
 		i.GetImages()

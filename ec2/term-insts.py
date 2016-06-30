@@ -9,33 +9,18 @@ import threading
 sys.path.insert(0, "%s/../util/python" % os.path.dirname(os.path.realpath(__file__)))
 import Cons
 import Util
-
+import Ec2Region
 
 _fmt = "%-15s %10s %13s %13s"
 
-
 def RunTermInst(tags):
-	regions = [
-			"us-east-1"
-			, "us-west-1"
-			, "us-west-2"
-			, "eu-west-1"
-			, "eu-central-1"
-			, "ap-south-1"
-			, "ap-southeast-1"
-			, "ap-southeast-2"
-			, "ap-northeast-2"
-			, "ap-northeast-1"
-			, "sa-east-1"
-			]
-
 	threads = []
 
 	sys.stdout.write("Terminating running instances:")
 	sys.stdout.flush()
 
 	tis = []
-	for r in regions:
+	for r in Ec2Region.All():
 		tis.append(TermInst(r, tags))
 
 	for ti in tis:

@@ -1,6 +1,7 @@
 def GetLatestAmiId(region):
 	region_ami = {
 			"ap-northeast-1": "ami-1ed9287f"
+			, "ap-northeast-2": "ami-7a8a4014"
 			, "ap-south-1": "ami-d791fbb8"
 			, "ap-southeast-1": "ami-8c33e1ef"
 			, "ap-southeast-2": "ami-1a83ab79"
@@ -13,3 +14,19 @@ def GetLatestAmiId(region):
 			}
 
 	return region_ami[region]
+
+
+def All():
+	return [
+			"ap-northeast-1"
+			, "ap-northeast-2"
+			, "ap-south-1"
+			, "ap-southeast-1"
+			, "ap-southeast-2"
+			, "eu-central-1"
+			, "eu-west-1"
+			, "sa-east-1"
+			, "us-east-1"
+			, "us-west-1"
+			, "us-west-2"
+			]

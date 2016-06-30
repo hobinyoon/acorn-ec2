@@ -10,25 +10,13 @@ sys.path.insert(0, "%s/../util/python" % os.path.dirname(os.path.realpath(__file
 import Cons
 import Util
 
+import Ec2Region
+
 
 def main(argv):
 	with Cons.MTnnl("Checking:"):
-		regions_all = [
-				"us-east-1"
-				, "us-west-1"
-				, "us-west-2"
-				, "eu-west-1"
-				, "eu-central-1"
-				, "ap-south-1"
-				, "ap-southeast-1"
-				, "ap-southeast-2"
-				, "ap-northeast-2"
-				, "ap-northeast-1"
-				, "sa-east-1"
-				]
-
 		checks = []
-		for r in regions_all:
+		for r in Ec2Region.All():
 			checks.append(Check(r))
 
 		threads = []

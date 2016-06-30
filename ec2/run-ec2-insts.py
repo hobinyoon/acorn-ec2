@@ -3,30 +3,14 @@
 import sys
 
 import RunAndMonitorEc2Inst
+import Ec2Region
 
 
 def main(argv):
-	regions_all = [
-			"us-east-1"
-			, "us-west-1"
-			, "us-west-2"
-			, "eu-west-1"
-			, "eu-central-1"
-			, "ap-south-1"
-			, "ap-southeast-1b"
-			, "ap-southeast-2"
-
-			# Seoul. Terminates by itself. Turns out they don't have c3 instance types.
-			#, "ap-northeast-2"
-
-			, "ap-northeast-1"
-			, "sa-east-1"
-			]
-
 	if len(argv) < 3:
 		print "Usage: %s [acorn_exp_param]+ [region]+" % argv[0]
 		print "  acorn_exp_param examples: rep_model:full exchange_acorn_metadata:true"
-		print "  region: all or some of %s" % " ".join(regions_all)
+		print "  region: all or some of %s" % " ".join(Ec2Region.All())
 		sys.exit(1)
 
 	# Key-value delimiter is :. SQS message receipt handle seems to be
@@ -41,7 +25,7 @@ def main(argv):
 		t = a.split(":")
 		if len(t) == 1:
 			if t == "all":
-				regions = regions_all
+				regions = Ec2Region.All()
 			else:
 				regions.append(t)
 		elif len(t) == 2:

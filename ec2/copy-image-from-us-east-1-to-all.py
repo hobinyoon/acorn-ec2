@@ -6,6 +6,8 @@ import sys
 sys.path.insert(0, "%s/../util/python" % os.path.dirname(__file__))
 import Util
 
+import Ec2Region
+
 
 def main(argv):
 	if len(argv) != 3:
@@ -13,21 +15,11 @@ def main(argv):
 				"  E.g.: %s ami-abf83cc6 acorn-server-160614-1331" \
 				% (argv[0], argv[0]))
 
-	target_regions = [
-			"us-west-1"
-			, "us-west-2"
-			, "eu-west-1"
-			, "eu-central-1"
-			, "ap-south-1"
-			, "ap-southeast-1"
-			, "ap-southeast-2"
-			, "ap-northeast-1"
-			, "sa-east-1"
-			]
-
 	region_ami = {"us-east-1": argv[1]}
 
-	for r in target_regions:
+	regions = Ec2Region.All()
+	regions.remove("us-east-1")
+	for r in regions:
 		cmd = "aws ec2 copy-image" \
 				" --source-image-id %s" \
 				" --source-region us-east-1" \

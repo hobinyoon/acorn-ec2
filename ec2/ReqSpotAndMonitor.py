@@ -14,7 +14,7 @@ sys.path.insert(0, "%s/../util/python" % os.path.dirname(__file__))
 import Cons
 import Util
 
-import RegionToAmi
+import Ec2Region
 
 
 _threads = []
@@ -95,7 +95,7 @@ class ReqAndMonitor():
 		else:
 			self.az = None
 			self.region_name = az_or_region
-		self.ami_id = RegionToAmi.GetLatestAmiId(self.region_name)
+		self.ami_id = Ec2Region.GetLatestAmiId(self.region_name)
 
 		self.inst_id = None
 

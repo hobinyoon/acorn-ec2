@@ -10,26 +10,15 @@ sys.path.insert(0, "%s/../util/python" % os.path.dirname(os.path.realpath(__file
 import Cons
 import Util
 
+sys.path.insert(0, "%s/.." % os.path.dirname(os.path.realpath(__file__)))
+import Ec2Region
+
 
 def GetByTags(tags):
 	threads = []
 
-	regions = [
-			"us-east-1"
-			, "us-west-1"
-			, "us-west-2"
-			, "eu-west-1"
-			, "eu-central-1"
-			, "ap-south-1"
-			, "ap-southeast-1"
-			, "ap-southeast-2"
-			, "ap-northeast-2"
-			, "ap-northeast-1"
-			, "sa-east-1"
-			]
-
 	dis = []
-	for r in regions:
+	for r in Ec2Region.All():
 		dis.append(DescInst(r, tags))
 
 	for di in dis:

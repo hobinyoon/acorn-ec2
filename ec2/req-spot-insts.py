@@ -5,33 +5,13 @@ import signal
 import sys
 
 import ReqSpotAndMonitor
+import Ec2Region
 
 
 def main(argv):
-	regions_all = [
-			"us-east-1"
-			, "us-west-1"
-			, "us-west-2"
-			, "eu-west-1"
-			, "eu-central-1"
-
-			, "ap-south-1"
-
-			# 1b is more stable. May 20th.
-			, "ap-southeast-1b"
-
-			, "ap-southeast-2"
-
-			# Seoul. Didn't work. Waited for 800 secs.
-			#, "ap-northeast-2"
-
-			, "ap-northeast-1"
-			, "sa-east-1"
-			]
-
 	if len(argv) == 1:
 		print "Usage: %s [region]+" % argv[0]
-		print "  region: all or some of %s" % " ".join(regions_all)
+		print "  region: all or some of %s" % " ".join(Ec2Region.All())
 		sys.exit(1)
 
 	# Note: Not sure if I want to parameterize the cluster name too. It can be
@@ -39,7 +19,7 @@ def main(argv):
 
 	regions = []
 	if argv[1] == "all":
-		regions = regions_all
+		regions = Ec2Region.All()
 	else:
 		for i in range(len(argv)):
 			if i == 0:

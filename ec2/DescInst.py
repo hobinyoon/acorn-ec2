@@ -8,20 +8,7 @@ sys.path.insert(0, "%s/../util/python" % os.path.dirname(os.path.realpath(__file
 import Cons
 import Util
 
-
-_regions_all = [
-		"us-east-1"
-		, "us-west-1"
-		, "us-west-2"
-		, "eu-west-1"
-		, "eu-central-1"
-		, "ap-south-1"
-		, "ap-southeast-1"
-		, "ap-southeast-2"
-		, "ap-northeast-2"
-		, "ap-northeast-1"
-		, "sa-east-1"
-		]
+import Ec2Region
 
 
 _fmt = "%13s %-15s %10s %15s %13s"
@@ -31,7 +18,7 @@ def Run(tags = None):
 	sys.stdout.flush()
 
 	dis = []
-	for r in _regions_all:
+	for r in Ec2Region.All():
 		dis.append(DescInstPerRegion(r, tags))
 
 	threads = []
@@ -76,7 +63,7 @@ def GetInstDescs(tags = None):
 	sys.stdout.flush()
 
 	dis = []
-	for r in _regions_all:
+	for r in Ec2Region.All():
 		dis.append(DescInstPerRegion(r, tags))
 
 	threads = []
