@@ -171,7 +171,7 @@ sudo -i -u ubuntu /home/ubuntu/work/acorn-tools/ec2/ec2-init.py {0} {1} {2} {3}
 			self._KeepCheckingSpotReq()
 			self._KeepCheckingInst()
 		except Exception as e:
-			Cons.P("%s\n%s" % (e, traceback.format_exc()))
+			Cons.P("%s\nregion=%s\n%s" % (e, self.region_name, traceback.format_exc()))
 			os._exit(1)
 
 
