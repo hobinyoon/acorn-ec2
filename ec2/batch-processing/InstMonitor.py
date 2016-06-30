@@ -146,7 +146,7 @@ class DescInstPerRegion:
 
 	@staticmethod
 	def Reset():
-		with boto_responses_received_lock:
+		with DescInstPerRegion.boto_responses_received_lock:
 			DescInstPerRegion.boto_responses_received = 0
 
 	def __init__(self, region, dio):
@@ -158,9 +158,9 @@ class DescInstPerRegion:
 			try:
 				bc = BcMgr.Get(self.region)
 				self.response = bc.describe_instances()
-				with boto_responses_received_lock:
-					boto_responses_received += 1
-					if boto_responses_received == 6:
+				with DescInstPerRegion.boto_responses_received_lock:
+					DescInstPerRegion.boto_responses_received += 1
+					if DescInstPerRegion.boto_responses_received == 6:
 						#             Describing instances:
 						self.dio.P("\n                      %s" % self.region)
 					else:
