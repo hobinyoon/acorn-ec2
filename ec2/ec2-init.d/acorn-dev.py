@@ -57,13 +57,22 @@ def _InstallPkgs():
 def _MountAndFormatLocalSSDs():
 	# Make sure we are using the known machine types
 	inst_type = Util.RunSubp("curl -s http://169.254.169.254/latest/meta-data/instance-type", print_cmd = False, print_output = False)
-	if not inst_type.startswith("c3."):
+
+	ssds = None
+	devs = None
+
+	# All c3 types has 2 SSDs
+	if inst_type.startswith("c3."):
+		ssds = ["ssd0", "ssd1"]
+		devs = ["xvdb", "xvdc"]
+	elif inst_type in ["r3.large", "r3.xlarge", "r3.2xlarge", "r3.4xlarge"]:
+		ssds = ["ssd0"]
+		devs = ["xvdb"]
+	else:
 		raise RuntimeError("Unexpected instance type %s" % inst_type)
 
-	ssds = ["ssd0", "ssd1"]
-	devs = ["xvdb", "xvdc"]
-
-	for i in range(2):
+	Util.RunSubp("sudo umount /mnt || true")
+	for i in range(len(ssds)):
 		_Log("Setting up Local %s ..." % ssds[i])
 		Util.RunSubp("sudo umount /dev/%s || true" % devs[i])
 		Util.RunSubp("sudo mkdir -p /mnt/local-%s" % ssds[i])
@@ -71,6 +80,11 @@ def _MountAndFormatLocalSSDs():
 		# Instance store volumes come TRIMmed when they are allocated. Without
 		# nodiscard, it takes about 80 secs for a 800GB SSD.
 		Util.RunSubp("sudo mkfs.ext4 -m 0 -E nodiscard -L local-%s /dev/%s" % (ssds[i], devs[i]))
+
+		# I suspect /etc/fstab is updated when the instance is initiated. Give it a
+		# bit of time and umount
+		time.sleep(1)
+		Util.RunSubp("sudo umount /dev/%s || true" % devs[i])
 
 		# -o discard for TRIM
 		Util.RunSubp("sudo mount -t ext4 -o discard /dev/%s /mnt/local-%s" % (devs[i], ssds[i]))
@@ -217,9 +231,11 @@ def _UploadResult():
 	with zipfile.ZipFile(fn_out, "w", zipfile.ZIP_DEFLATED) as zf:
 		for root, dirs, files in os.walk(dn_in):
 			for f in files:
-				zf.write(os.path.join(root, f))
-		zf.write("/var/log/cloud-init-output.log")
-		zf.write("/var/log/cloud-init.log")
+				_ZfWrite(zf, os.path.join(root, f))
+		_ZfWrite(zf, "/var/log/cloud-init-output.log")
+		_ZfWrite(zf, "/var/log/cloud-init.log")
+		_ZfWrite(zf, "/home/ubuntu/work/acorn/logs/debug.log")
+		_ZfWrite(zf, "/home/ubuntu/work/acorn/logs/system.log")
 
 	_Log("Created %s %d" % (os.path.abspath(fn_out), os.path.getsize(fn_out)))
 
@@ -234,6 +250,17 @@ def _UploadResult():
 	_Log(pprint.pformat(r))
 
 	os.chdir(prev_dir)
+
+
+# Ignore non-existent files
+def _ZfWrite(zf, fn):
+	try:
+		zf.write(fn)
+	except OSError as e:
+		if e.errno == errno.ENOENT:
+			pass
+		else:
+			raise e
 
 
 def _PostJobDoneMsg():
