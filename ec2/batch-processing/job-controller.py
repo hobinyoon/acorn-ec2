@@ -92,8 +92,7 @@ def ProcessJobReq(jr):
 	if False:
 		# On-demand instances are too expensive.
 		RunAndMonitorEc2Inst.Run(
-				regions = jc_params["regions"]
-				, inst_type = jc_params["ec2_type"]
+				region_inst_type = jc_params["region_inst_type"]
 				, tags = jr.attrs
 				, jr_sqs_url = jr_sqs_url
 				, jr_sqs_msg_receipt_handle = jr_sqs_msg_receipt_handle
@@ -101,8 +100,7 @@ def ProcessJobReq(jr):
 				)
 	else:
 		ReqSpotAndMonitor.Run(
-				regions = jc_params["regions"]
-				, inst_type = jc_params["ec2_type"]
+				region_inst_type = jc_params["region_inst_type"]
 				, tags = jr.attrs
 				, jr_sqs_url = jr_sqs_url
 				, jr_sqs_msg_receipt_handle = jr_sqs_msg_receipt_handle

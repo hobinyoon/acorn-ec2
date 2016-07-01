@@ -28,6 +28,7 @@ _jr_sqs_msg_receipt_handle = None
 _init_script = None
 
 
+# TODO: region_inst_type. match ReqSpotAndMonitor
 def Run(regions, inst_type, tags, jr_sqs_url, jr_sqs_msg_receipt_handle, init_script):
 	Reset()
 
@@ -131,6 +132,8 @@ sudo -i -u ubuntu /home/ubuntu/work/acorn-tools/ec2/ec2-init.py {0} {1} {2} {3}
 					break
 				except botocore.exceptions.ClientError as e:
 					if e.response["Error"]["Code"] == "RequestLimitExceeded":
+						InstLaunchProgMon.Update(self.inst_id, e)
+						# TODO
 						Cons.P("%s. Retrying in 5 sec ..." % e)
 						time.sleep(5)
 					else:
@@ -170,6 +173,8 @@ sudo -i -u ubuntu /home/ubuntu/work/acorn-tools/ec2/ec2-init.py {0} {1} {2} {3}
 					#   DescribeInstances operation: The instance ID 'i-dbb11a47' does n ot
 					#   exist
 					if e.response["Error"]["Code"] == "InvalidInstanceID.NotFound":
+						InstLaunchProgMon.Update(self.inst_id, e)
+						# TODO
 						Cons.P("inst_id %s not found. retrying in 1 sec ..." % self.inst_id)
 						time.sleep(1)
 					else:
@@ -184,8 +189,22 @@ sudo -i -u ubuntu /home/ubuntu/work/acorn-tools/ec2/ec2-init.py {0} {1} {2} {3}
 					tags_boto.append({"Key": k, "Value": v})
 					#Cons.P("[%s]=[%s]" %(k, v))
 
-				self.boto_client.create_tags(Resources = [self.inst_id], Tags = tags_boto)
-				tagged = True
+				while True:
+					try:
+						self.boto_client.create_tags(Resources = [self.inst_id], Tags = tags_boto)
+						tagged = True
+					except botocore.exceptions.ClientError as e:
+						if e.response["Error"]["Code"] == "InvalidInstanceID.NotFound":
+							InstLaunchProgMon.Update(self.inst_id, e)
+							# TODO
+							Cons.P("inst_id %s not found. retrying in 1 sec ..." % self.inst_id)
+							time.sleep(1)
+						elif e.response["Error"]["Code"] == "RequestLimitExceeded":
+							InstLaunchProgMon.Update(self.inst_id, e)
+							Cons.P("%s. Retrying in 5 sec ..." % e)
+							time.sleep(5)
+						else:
+							raise e
 
 			elif state == "terminated" or state == "running":
 				break

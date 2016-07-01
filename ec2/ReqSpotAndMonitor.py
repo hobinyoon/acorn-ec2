@@ -21,7 +21,6 @@ _threads = []
 _dn_tmp = "%s/../.tmp" % os.path.dirname(__file__)
 _job_id = None
 
-_inst_type = None
 _tags = None
 _num_regions = None
 _jr_sqs_url = None
@@ -30,7 +29,7 @@ _init_script = None
 _max_price = None
 
 
-def Run(regions, inst_type, tags, jr_sqs_url, jr_sqs_msg_receipt_handle, init_script, max_price = None):
+def Run(region_inst_type, tags, jr_sqs_url, jr_sqs_msg_receipt_handle, init_script, max_price = None):
 	if max_price == None:
 		raise RuntimeError("Need a max_price")
 
@@ -43,19 +42,18 @@ def Run(regions, inst_type, tags, jr_sqs_url, jr_sqs_msg_receipt_handle, init_sc
 	_job_id = req_datetime.strftime("%y%m%d-%H%M%S")
 	Cons.P("job_id:%s (for describing and terminating the cluster)" % _job_id)
 
-	global _inst_type, _tags, _num_regions, _jr_sqs_url, _jr_sqs_msg_receipt_handle, _init_script, _max_price
-	_inst_type = inst_type
+	global _tags, _num_regions, _jr_sqs_url, _jr_sqs_msg_receipt_handle, _init_script, _max_price
 	_tags = tags
 	_tags["job_id"] = _job_id
-	_num_regions = len(regions)
+	_num_regions = len(region_inst_type)
 	_jr_sqs_url = jr_sqs_url
 	_jr_sqs_msg_receipt_handle = jr_sqs_msg_receipt_handle
 	_init_script = init_script
 	_max_price = max_price
 
 	rams = []
-	for r in regions:
-		rams.append(ReqAndMonitor(r))
+	for r, it in region_inst_type.iteritems():
+		rams.append(ReqAndMonitor(r, it))
 
 	for ram in rams:
 		t = threading.Thread(target=ram.Run)
@@ -72,12 +70,11 @@ def Run(regions, inst_type, tags, jr_sqs_url, jr_sqs_msg_receipt_handle, init_sc
 # This module can be called repeatedly
 def Reset():
 	global _threads, _job_id
-	global _inst_type, _tags, _jr_sqs_url, _jr_sqs_msg_receipt_handle, _init_script
+	global _tags, _jr_sqs_url, _jr_sqs_msg_receipt_handle, _init_script
 
 	_threads = []
 	_job_id = None
 
-	_inst_type = None
 	_tags = None
 	_num_regions = None
 	_jr_sqs_url = None
@@ -88,13 +85,14 @@ def Reset():
 
 
 class ReqAndMonitor():
-	def __init__(self, az_or_region):
+	def __init__(self, az_or_region, inst_type):
 		if re.match(r".*[a-z]$", az_or_region):
 			self.az = az_or_region
 			self.region_name = self.az[:-1]
 		else:
 			self.az = None
 			self.region_name = az_or_region
+		self.inst_type = inst_type
 		self.ami_id = Ec2Region.GetLatestAmiId(self.region_name)
 
 		self.inst_id = None
@@ -102,72 +100,7 @@ class ReqAndMonitor():
 
 	def Run(self):
 		try:
-			# This is run as root
-			user_data = \
-"""#!/bin/bash
-cd /home/ubuntu/work
-rm -rf /home/ubuntu/work/acorn-tools
-sudo -i -u ubuntu bash -c 'git clone https://github.com/hobinyoon/acorn-tools.git /home/ubuntu/work/acorn-tools'
-sudo -i -u ubuntu /home/ubuntu/work/acorn-tools/ec2/ec2-init.py {0} {1} {2} {3}
-"""
-			user_data = user_data.format(_init_script, _jr_sqs_url, _jr_sqs_msg_receipt_handle, _num_regions)
-
-	#cd /home/ubuntu/work/acorn-tools
-	#sudo -u ubuntu bash -c 'git pull'
-	# http://unix.stackexchange.com/questions/4342/how-do-i-get-sudo-u-user-to-use-the-users-env
-
-			self.boto_client = boto3.session.Session().client("ec2", region_name = self.region_name)
-
-			#self._GetPriceHistory()
-
-			ls = {'ImageId': self.ami_id,
-					#'KeyName': 'string',
-					'SecurityGroups': ["cass-server"],
-					'UserData': base64.b64encode(user_data),
-					#'AddressingType': 'string',
-					'InstanceType': _inst_type,
-					'EbsOptimized': True,
-					}
-			if self.az != None:
-				ls['Placement'] = {}
-				ls['Placement']['AvailabilityZone'] = self.az
-
-			response = None
-			while True:
-				try:
-					response = self.boto_client.request_spot_instances(
-							SpotPrice=str(_max_price),
-							#ClientToken='string',
-							InstanceCount=1,
-							Type='one-time',
-							#ValidFrom=datetime(2015, 1, 1),
-							#ValidUntil=datetime(2015, 1, 1),
-							#LaunchGroup='string',
-							#AvailabilityZoneGroup='string',
-
-							# https://aws.amazon.com/blogs/aws/new-ec2-spot-blocks-for-defined-duration-workloads/
-							#BlockDurationMinutes=123,
-
-							LaunchSpecification = ls,
-							)
-					break
-				except botocore.exceptions.ClientError as e:
-					if e.response["Error"]["Code"] == "RequestLimitExceeded":
-						Cons.P("%s. Retrying in 5 sec ..." % e)
-						time.sleep(5)
-					else:
-						raise e
-
-			#Cons.P("Response:")
-			#Cons.P(Util.Indent(pprint.pformat(response, indent=2, width=100), 2))
-
-			if len(response["SpotInstanceRequests"]) != 1:
-				raise RuntimeError("len(response[\"SpotInstanceRequests\"])=%d" % len(response["SpotInstanceRequests"]))
-			self.spot_req_id = response["SpotInstanceRequests"][0]["SpotInstanceRequestId"]
-			#Cons.P("region=%s spot_req_id=%s" % (self.region_name, self.spot_req_id))
-
-			InstLaunchProgMon.SetRegion(self.spot_req_id, self.region_name)
-
+			self._ReqSpotInst()
 			self._KeepCheckingSpotReq()
 			self._KeepCheckingInst()
 		except Exception as e:
@@ -186,14 +119,14 @@ sudo -i -u ubuntu /home/ubuntu/work/acorn-tools/ec2/ec2-init.py {0} {1} {2} {3}
 					StartTime = one_day_ago,
 					EndTime = now,
 					ProductDescriptions = ["Linux/UNIX"],
-					InstanceTypes = [_inst_type],
+					InstanceTypes = [self.inst_type],
 					)
 		else:
 			r = self.boto_client.describe_spot_price_history(
 					StartTime = one_day_ago,
 					EndTime = now,
 					ProductDescriptions = ["Linux/UNIX"],
-					InstanceTypes = [_inst_type],
+					InstanceTypes = [self.inst_type],
 					AvailabilityZone = self.az
 					)
 		#Cons.P(pprint.pformat(r))
@@ -227,6 +160,69 @@ sudo -i -u ubuntu /home/ubuntu/work/acorn-tools/ec2/ec2-init.py {0} {1} {2} {3}
 			Cons.P("%s cur=%f avg=%f max=%f" % (az, price_prev, price_avg, price_max))
 
 
+	def _ReqSpotInst(self):
+		# This is run as root
+		#
+		# http://unix.stackexchange.com/questions/4342/how-do-i-get-sudo-u-user-to-use-the-users-env
+		user_data = \
+"""#!/bin/bash
+cd /home/ubuntu/work
+rm -rf /home/ubuntu/work/acorn-tools
+sudo -i -u ubuntu bash -c 'git clone https://github.com/hobinyoon/acorn-tools.git /home/ubuntu/work/acorn-tools'
+sudo -i -u ubuntu /home/ubuntu/work/acorn-tools/ec2/ec2-init.py {0} {1} {2} {3}
+"""
+		user_data = user_data.format(_init_script, _jr_sqs_url, _jr_sqs_msg_receipt_handle, _num_regions)
+
+
+		self.boto_client = boto3.session.Session().client("ec2", region_name = self.region_name)
+
+		#self._GetPriceHistory()
+
+		ls = {'ImageId': self.ami_id,
+				#'KeyName': 'string',
+				'SecurityGroups': ["cass-server"],
+				'UserData': base64.b64encode(user_data),
+				#'AddressingType': 'string',
+				'InstanceType': self.inst_type,
+				'EbsOptimized': True,
+				}
+		if self.az != None:
+			ls['Placement'] = {}
+			ls['Placement']['AvailabilityZone'] = self.az
+
+		r = None
+		while True:
+			try:
+				r = self.boto_client.request_spot_instances(
+						SpotPrice=str(_max_price),
+						#ClientToken='string',
+						InstanceCount=1,
+						Type='one-time',
+						#ValidFrom=datetime(2015, 1, 1),
+						#ValidUntil=datetime(2015, 1, 1),
+						#LaunchGroup='string',
+						#AvailabilityZoneGroup='string',
+
+						# https://aws.amazon.com/blogs/aws/new-ec2-spot-blocks-for-defined-duration-workloads/
+						#BlockDurationMinutes=123,
+
+						LaunchSpecification = ls,
+						)
+				#Cons.P("SpotInstReqResp: %s" % pprint.pformat(r))
+				if len(r["SpotInstanceRequests"]) != 1:
+					raise RuntimeError("len(r[\"SpotInstanceRequests\"])=%d" % len(r["SpotInstanceRequests"]))
+				self.spot_req_id = r["SpotInstanceRequests"][0]["SpotInstanceRequestId"]
+				#Cons.P("region_name=%s spot_req_id=%s" % (self.region_name, self.spot_req_id))
+				InstLaunchProgMon.SetSpotReqId(self.region_name, self.spot_req_id)
+				break
+			except botocore.exceptions.ClientError as e:
+				if e.response["Error"]["Code"] == "RequestLimitExceeded":
+					InstLaunchProgMon.UpdateError(self.region_name, e)
+					time.sleep(5)
+				else:
+					raise e
+
+
 	def _KeepCheckingSpotReq(self):
 		r = None
 		while True:
@@ -237,7 +233,7 @@ sudo -i -u ubuntu /home/ubuntu/work/acorn-tools/ec2/ec2-init.py {0} {1} {2} {3}
 					break
 				except botocore.exceptions.ClientError as e:
 					if e.response["Error"]["Code"] == "InvalidSpotInstanceRequestID.NotFound":
-						Cons.P("%s. spot_req_id %s not found. retrying in 1 sec ..." % (e, self.spot_req_id))
+						InstLaunchProgMon.UpdateError(self.region_name, e)
 						time.sleep(1)
 					else:
 						raise e
@@ -246,24 +242,18 @@ sudo -i -u ubuntu /home/ubuntu/work/acorn-tools/ec2/ec2-init.py {0} {1} {2} {3}
 				raise RuntimeError("len(r[\"SpotInstanceRequests\"])=%d" % len(r["SpotInstanceRequests"]))
 			#Cons.P(Util.Indent(pprint.pformat(r, indent=2, width=100), 2))
 
-			InstLaunchProgMon.UpdateSpotReq(self.spot_req_id, r)
-			status_code = r["SpotInstanceRequests"][0]["Status"]["Code"]
-			if status_code == "fulfilled":
+			InstLaunchProgMon.UpdateDescSpotInstResp(self.region_name, r)
+			if r["SpotInstanceRequests"][0]["Status"]["Code"] == "fulfilled":
 				break
 			time.sleep(1)
 
 		# Get inst_id
 		#Cons.P(Util.Indent(pprint.pformat(r, indent=2, width=100), 2))
 		self.inst_id = r["SpotInstanceRequests"][0]["InstanceId"]
-		InstLaunchProgMon.SetInstID(self.spot_req_id, self.inst_id)
-
-		# Note: may want to show the current pricing
+		InstLaunchProgMon.SetInstID(self.region_name, self.inst_id)
 
 
 	def _KeepCheckingInst(self):
-		if self.inst_id == None:
-			return
-
 		state = None
 		tagged = False
 
@@ -277,24 +267,36 @@ sudo -i -u ubuntu /home/ubuntu/work/acorn-tools/ec2/ec2-init.py {0} {1} {2} {3}
 					break
 				except botocore.exceptions.ClientError as e:
 					if e.response["Error"]["Code"] == "InvalidInstanceID.NotFound":
-						Cons.P("inst_id %s not found. retrying in 1 sec ..." % self.inst_id)
+						InstLaunchProgMon.UpdateError(self.region_name, e)
 						time.sleep(1)
 					else:
 						raise e
 
-			InstLaunchProgMon.UpdateDescInst(self.spot_req_id, r)
+			InstLaunchProgMon.UpdateDescInstResp(self.region_name, r)
 			state = r["Reservations"][0]["Instances"][0]["State"]["Name"]
+
 			# Create tags
 			if state == "pending" and tagged == False:
 				tags_boto = []
 				for k, v in _tags.iteritems():
 					tags_boto.append({"Key": k, "Value": v})
-					#Cons.P("[%s]=[%s]" %(k, v))
 
-				self.boto_client.create_tags(Resources = [self.inst_id], Tags = tags_boto)
-				tagged = True
+				while True:
+					try:
+						self.boto_client.create_tags(Resources = [self.inst_id], Tags = tags_boto)
+						tagged = True
+						break
+					except botocore.exceptions.ClientError as e:
+						if e.response["Error"]["Code"] == "InvalidInstanceID.NotFound":
+							InstLaunchProgMon.UpdateError(self.region_name, e)
+							time.sleep(1)
+						elif e.response["Error"]["Code"] == "RequestLimitExceeded":
+							InstLaunchProgMon.UpdateError(self.region_name, e)
+							time.sleep(5)
+						else:
+							raise e
 
-			elif state == "terminated" or state == "running":
+			elif state in ["terminated", "running"]:
 				break
 			time.sleep(1)
 
@@ -302,7 +304,7 @@ sudo -i -u ubuntu /home/ubuntu/work/acorn-tools/ec2/ec2-init.py {0} {1} {2} {3}
 		if state == "running":
 			r = self.boto_client.describe_instances(InstanceIds=[self.inst_id])
 			state = r["Reservations"][0]["Instances"][0]["State"]["Name"]
-			InstLaunchProgMon.UpdateDescInst(self.spot_req_id, r)
+			InstLaunchProgMon.UpdateDescInstResp(self.region_name, r)
 
 			# Make region-ipaddr files
 			fn = "%s/%s" % (_dn_tmp, self.region_name)
@@ -311,109 +313,109 @@ sudo -i -u ubuntu /home/ubuntu/work/acorn-tools/ec2/ec2-init.py {0} {1} {2} {3}
 
 
 class InstLaunchProgMon():
-	# Note: making the key to region seems more natural for the output. Lowest priority.
-	#
-	# key: spot_req_id, value: Entry
-	progress = {}
-	progress_lock = threading.Lock()
-
-	class Entry():
-		def __init__(self, region):
-			self.region = region
-			self.resp_desc_spot_req = []
-			self.inst_id = None
-			self.resp_desc_inst = []
-
-		def AddDescSpotReqResponse(self, r):
-			self.resp_desc_spot_req.append(r)
-
-		def AddDescInstResponse(self, r):
-			self.resp_desc_inst.append(r)
-
-		def SetInstID(self, inst_id):
-			self.inst_id = inst_id
+	# The key is region. Spot req ID can't be used. A status (or an error) can be
+	# returned before a spot request id is returned.
+	# {region: [status]}
+	_status_by_regions = {}
+	_status_by_regions_lock = threading.Lock()
 
 	@staticmethod
 	def Reset():
-		with InstLaunchProgMon.progress_lock:
-			InstLaunchProgMon.progress = {}
+		with InstLaunchProgMon._status_by_regions_lock:
+			InstLaunchProgMon._status_by_regions = {}
 
 	@staticmethod
-	def SetRegion(spot_req_id, region_name):
-		with InstLaunchProgMon.progress_lock:
-			InstLaunchProgMon.progress[spot_req_id] = InstLaunchProgMon.Entry(region_name)
+	def SetSpotReqId(region_name, spot_req_id):
+		with InstLaunchProgMon._status_by_regions_lock:
+			if region_name not in InstLaunchProgMon._status_by_regions:
+				InstLaunchProgMon._status_by_regions[region_name] = []
+			InstLaunchProgMon._status_by_regions[region_name].append(spot_req_id)
 
 	@staticmethod
-	def UpdateSpotReq(spot_req_id, response):
-		with InstLaunchProgMon.progress_lock:
-			InstLaunchProgMon.progress[spot_req_id].AddDescSpotReqResponse(response)
+	def UpdateDescSpotInstResp(region_name, r):
+		with InstLaunchProgMon._status_by_regions_lock:
+			InstLaunchProgMon._status_by_regions[region_name].append(InstLaunchProgMon.DescSpotInstResp(r))
 
 	@staticmethod
-	def SetInstID(spot_req_id, inst_id):
-		with InstLaunchProgMon.progress_lock:
-			InstLaunchProgMon.progress[spot_req_id].SetInstID(inst_id)
+	def SetInstID(region_name, inst_id):
+		with InstLaunchProgMon._status_by_regions_lock:
+			InstLaunchProgMon._status_by_regions[region_name].append(inst_id)
 
 	@staticmethod
-	def UpdateDescInst(spot_req_id, response):
-		with InstLaunchProgMon.progress_lock:
-			InstLaunchProgMon.progress[spot_req_id].AddDescInstResponse(response)
+	def UpdateDescInstResp(region_name, r):
+		with InstLaunchProgMon._status_by_regions_lock:
+			InstLaunchProgMon._status_by_regions[region_name].append(InstLaunchProgMon.DescInstResp(r))
+
+	@staticmethod
+	def UpdateError(region_name, e):
+		with InstLaunchProgMon._status_by_regions_lock:
+			if region_name not in InstLaunchProgMon._status_by_regions:
+				InstLaunchProgMon._status_by_regions[region_name] = []
+			InstLaunchProgMon._status_by_regions[region_name].append(InstLaunchProgMon.Error(e))
+
+	class DescSpotInstResp():
+		def __init__(self, r):
+			self.r = r
+
+	class DescInstResp():
+		def __init__(self, r):
+			self.r = r
+
+	class Error():
+		def __init__(self, e):
+			self.e = e
+
 
 	@staticmethod
 	def Run():
 		output_lines_written = 0
 		while True:
+			status_by_regions = None
+			with InstLaunchProgMon._status_by_regions_lock:
+				status_by_regions = InstLaunchProgMon._status_by_regions.copy()
+
 			output = ""
-			for spot_req_id, v in InstLaunchProgMon.progress.iteritems():
+			for region, status in sorted(status_by_regions.iteritems()):
 				if len(output) > 0:
 					output += "\n"
-				output += ("%-15s %s" % (v.region, spot_req_id))
+				output += ("%-15s" % region)
 
-				# Spot req status
-				prev_status = None
-				same_status_cnt = 0
-				for r in v.resp_desc_spot_req:
-					status = r["SpotInstanceRequests"][0]["Status"]["Code"]
+				prev_s = None
+				same_s_cnt = 1
 
-					if prev_status == None:
-						output += (" %s" % status)
-					elif prev_status != status:
-						if same_status_cnt > 0:
-							output += (" x%2d %s" % ((same_status_cnt + 1), status))
+				for s in status:
+					s1 = None
+					if type(s) is str:
+						s1 = s
+					elif isinstance(s, InstLaunchProgMon.DescSpotInstResp):
+						s1 = s.r["SpotInstanceRequests"][0]["Status"]["Code"]
+					elif isinstance(s, InstLaunchProgMon.DescInstResp):
+						s1 = s.r["Reservations"][0]["Instances"][0]["State"]["Name"]
+					elif isinstance(s, InstLaunchProgMon.Error):
+						if isinstance(s.e, botocore.exceptions.ClientError):
+							s1 = s.e.response["Error"]["Code"]
 						else:
-							output += (" %s" % status)
-						same_status_cnt = 0
+							s1 = str(s.e)
 					else:
-						same_status_cnt += 1
-					prev_status = status
+						raise RuntimeError("Unexpected s: %s" % type(s))
 
-				if same_status_cnt > 0:
-					output += (" x%2d" % (same_status_cnt + 1))
-
-				# Inst state
-				if v.inst_id != None:
-					output += (" %s" % v.inst_id)
-					prev_state = None
-					same_state_cnt = 0
-					for r in v.resp_desc_inst:
-						state = r["Reservations"][0]["Instances"][0]["State"]["Name"]
-						if state == "shutting-down":
-							state_reason = r["Reservations"][0]["Instances"][0]["StateReason"]["Message"]
-							state = "%s:%s" % (state, state_reason)
-
-						if prev_state == None:
-							output += (" %s" % state)
-						elif prev_state != state:
-							if same_state_cnt > 0:
-								output += (" x%2d %s" % ((same_state_cnt + 1), state))
+					# Print prev one when it's different from the current one
+					if prev_s == s1:
+						same_s_cnt += 1
+					else:
+						if prev_s is not None:
+							if same_s_cnt == 1:
+								output += (" %s" % prev_s)
 							else:
-								output += (" %s" % state)
-							same_state_cnt = 0
-						else:
-							same_state_cnt += 1
-						prev_state = state
+								output += (" %s x%2d" % (prev_s, same_s_cnt))
+							same_s_cnt = 1
+					prev_s = s1
 
-					if same_state_cnt > 0:
-						output += (" x%2d" % (same_state_cnt + 1))
+				# Print the last one
+				if same_s_cnt == 1:
+					output += (" %s" % prev_s)
+				else:
+					output += (" %s x%2d" % (prev_s, same_s_cnt))
 
 			# Clear prev output
 			if output_lines_written > 0:
@@ -427,9 +429,7 @@ class InstLaunchProgMon():
 				# Move the cursor to column 1
 				sys.stdout.write(chr(27) + "[1G")
 
-			#sys.stdout.write(output)
-			# Sort them
-			sys.stdout.write("\n".join(sorted(output.split("\n"))))
+			sys.stdout.write(output)
 			sys.stdout.flush()
 			output_lines_written = len(output.split("\n"))
 
@@ -459,33 +459,24 @@ class InstLaunchProgMon():
 			#" PrivateIpAddress"
 			" PublicIpAddress"
 			" State:Name"
-			#" Tags"
 			))
 
-		output = []
-		for spot_req_id, v in InstLaunchProgMon.progress.iteritems():
-			if len(v.resp_desc_inst) == 0:
-				continue
-			r = v.resp_desc_inst[-1]["Reservations"][0]["Instances"][0]
-
-			tags = {}
-			if "Tags" in r:
-				for t in r["Tags"]:
-					tags[t["Key"]] = t["Value"]
-
-			#Cons.P(Util.Indent(pprint.pformat(r, indent=2, width=100), 2))
-			output.append(fmt % (
-				_Value(_Value(r, "Placement"), "AvailabilityZone")
-				, _Value(r, "InstanceId")
-				, _Value(r, "InstanceType")
-				, _Value(r, "LaunchTime").strftime("%y%m%d-%H%M%S")
-				#, _Value(r, "PrivateIpAddress")
-				, _Value(r, "PublicIpAddress")
-				, _Value(_Value(r, "State"), "Name")
-				#, ",".join(["%s:%s" % (k, v) for (k, v) in sorted(tags.items())])
-				))
-		for o in sorted(output):
-			Cons.P(o)
+		with InstLaunchProgMon._status_by_regions_lock:
+			for region, status in sorted(InstLaunchProgMon._status_by_regions.iteritems()):
+				for s in reversed(status):
+					if isinstance(s, InstLaunchProgMon.DescInstResp):
+						# Print only the last desc instance response per region
+						r = s.r["Reservations"][0]["Instances"][0]
+						Cons.P(fmt % (
+							_Value(_Value(r, "Placement"), "AvailabilityZone")
+							, _Value(r, "InstanceId")
+							, _Value(r, "InstanceType")
+							, _Value(r, "LaunchTime").strftime("%y%m%d-%H%M%S")
+							#, _Value(r, "PrivateIpAddress")
+							, _Value(r, "PublicIpAddress")
+							, _Value(_Value(r, "State"), "Name")
+							))
+						break
 
 
 def _Value(dict_, key):
