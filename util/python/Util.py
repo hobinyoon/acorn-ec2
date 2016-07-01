@@ -1,4 +1,5 @@
 import errno
+import inspect
 import os
 import pprint
 import re
@@ -162,3 +163,8 @@ def RunSubp(cmd, env_ = os.environ.copy(), shell = True, print_cmd = True, print
 	if p.returncode != 0:
 		raise RuntimeError("Error: cmd=[%s] rc=%d" % (cmd, p.returncode))
 	return lines
+
+
+def FileLine():
+	prev_cf = inspect.currentframe().f_back
+	return "%s %d" % (os.path.basename(prev_cf.f_code.co_filename), prev_cf.f_lineno)
