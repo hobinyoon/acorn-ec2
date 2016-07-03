@@ -26,13 +26,9 @@ _num_regions = None
 _jr_sqs_url = None
 _jr_sqs_msg_receipt_handle = None
 _init_script = None
-_max_price = None
 
 
-def Run(region_inst_type, tags, jr_sqs_url, jr_sqs_msg_receipt_handle, init_script, max_price = None):
-	if max_price == None:
-		raise RuntimeError("Need a max_price")
-
+def Run(region_spot_req, tags, jr_sqs_url, jr_sqs_msg_receipt_handle, init_script):
 	Reset()
 
 	Util.RunSubp("mkdir -p %s" % _dn_tmp, print_cmd = False)
@@ -42,18 +38,17 @@ def Run(region_inst_type, tags, jr_sqs_url, jr_sqs_msg_receipt_handle, init_scri
 	_job_id = req_datetime.strftime("%y%m%d-%H%M%S")
 	Cons.P("job_id:%s (for describing and terminating the cluster)" % _job_id)
 
-	global _tags, _num_regions, _jr_sqs_url, _jr_sqs_msg_receipt_handle, _init_script, _max_price
+	global _tags, _num_regions, _jr_sqs_url, _jr_sqs_msg_receipt_handle, _init_script
 	_tags = tags
 	_tags["job_id"] = _job_id
-	_num_regions = len(region_inst_type)
+	_num_regions = len(region_spot_req)
 	_jr_sqs_url = jr_sqs_url
 	_jr_sqs_msg_receipt_handle = jr_sqs_msg_receipt_handle
 	_init_script = init_script
-	_max_price = max_price
 
 	rams = []
-	for r, it in region_inst_type.iteritems():
-		rams.append(ReqAndMonitor(r, it))
+	for region, spot_req_params in region_spot_req.iteritems():
+		rams.append(ReqAndMonitor(region, spot_req_params))
 
 	for ram in rams:
 		t = threading.Thread(target=ram.Run)
@@ -85,15 +80,17 @@ def Reset():
 
 
 class ReqAndMonitor():
-	def __init__(self, az_or_region, inst_type):
+	def __init__(self, az_or_region, spot_req_params):
 		if re.match(r".*[a-z]$", az_or_region):
 			self.az = az_or_region
 			self.region_name = self.az[:-1]
 		else:
 			self.az = None
 			self.region_name = az_or_region
-		self.inst_type = inst_type
 		self.ami_id = Ec2Region.GetLatestAmiId(self.region_name)
+
+		self.inst_type = spot_req_params["inst_type"]
+		self.max_price = spot_req_params["max_price"]
 
 		self.inst_id = None
 
@@ -194,7 +191,7 @@ sudo -i -u ubuntu /home/ubuntu/work/acorn-tools/ec2/ec2-init.py {0} {1} {2} {3}
 		while True:
 			try:
 				r = self.boto_client.request_spot_instances(
-						SpotPrice=str(_max_price),
+						SpotPrice=str(self.max_price),
 						#ClientToken='string',
 						InstanceCount=1,
 						Type='one-time',

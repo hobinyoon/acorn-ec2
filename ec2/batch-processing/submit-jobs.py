@@ -23,9 +23,9 @@ def main(argv):
 	sqs = boto3.resource("sqs", region_name = sqs_region)
 	q = GetQ(bc, sqs)
 
-	#SingleDevNode(q)
+	SingleDevNode(q)
 
-	ByYoutubeWorkloadOfDifferentSizes(q)
+	#ByYoutubeWorkloadOfDifferentSizes(q)
 
 	#ByRepModels(q)
 
@@ -49,52 +49,28 @@ def GetQ(bc, sqs):
 		return queue
 
 
-_regions_1 = [
-		"us-east-1"
-		]
-_regions_2 = [
-		"us-east-1"
-		, "us-west-1"
-		]
-
-_regions_8 = [
-		"us-east-1"
-		, "us-west-1"
-		, "us-west-2"
-		, "eu-west-1"
-		# capacity-oversubscribed
-		#, "eu-central-1"
-		, "ap-southeast-1b"
-		, "ap-southeast-2"
-		, "ap-northeast-1"
-		, "sa-east-1"
-		]
-_regions_1 = [
-		"us-east-1"
-		]
-_regions_2 = [
-		"us-east-1"
-		, "us-west-1"
-		]
-
-
 def SingleDevNode(q):
 	req_attrs = {
 			"init_script": "acorn-dev"
-			, "region_inst_type": {"us-east-1": "r3.xlarge"}
-			, "max_price": 1.0
+			, "region_spot_req": {
+				"us-east-1": {"inst_type": "r3.xlarge", "max_price": 1.0}
+				}
 			}
 	_EnqReq(q, req_attrs)
 
 
 # Pricing can be specified per datacenter too later when needed.
+# TODO
 _region_inst_type = {
 		"ap-northeast-1": "r3.xlarge"
 		, "ap-northeast-2": "r3.xlarge"
 		, "ap-south-1": "r3.xlarge"
 		, "ap-southeast-1": "r3.xlarge"
 		, "ap-southeast-2": "r3.xlarge"
-		, "eu-central-1": "r3.xlarge"
+
+		# r3.xlarge is oversubscribed and expensive. strange.
+		, "eu-central-1": "r3.2xlarge"
+
 		, "eu-west-1": "r3.xlarge"
 
 		# Sao Paulo doesn't have r3.xlarge
@@ -131,16 +107,17 @@ def ByYoutubeWorkloadOfDifferentSizes(q):
 			#, "acorn_options.use_attr_topic": "true"
 			}
 	#for wl in ["tweets-010", "tweets-017", "tweets-054", "tweets-076", "tweets-100"]:
-	for wl in ["tweets-010"]:
+	for wl in ["tweets-017"]:
 		req_attrs["acorn-youtube.fn_youtube_reqs"] = wl
 		_EnqReq(q, req_attrs)
 
-#	# Full replication, of course without any acorn metadata exchange
-#	req_attrs["acorn-youtube.replication_type"] = "full"
-#	req_attrs["acorn_options.use_attr_user"] = "false"
-#	req_attrs["acorn_options.use_attr_topic"] = "false"
-#
-#	for wl in ["tweets-010", "tweets-017", "tweets-054", "tweets-076", "tweets-100"]:
+	# Full replication, of course without any acorn metadata exchange
+	req_attrs["acorn-youtube.replication_type"] = "full"
+	req_attrs["acorn_options.use_attr_user"] = "false"
+	req_attrs["acorn_options.use_attr_topic"] = "false"
+
+	#for wl in ["tweets-010", "tweets-017", "tweets-054", "tweets-076", "tweets-100"]:
+#	for wl in ["tweets-010", "tweets-017"]:
 #		req_attrs["acorn-youtube.fn_youtube_reqs"] = wl
 #		_EnqReq(q, req_attrs)
 
@@ -268,13 +245,13 @@ def MeasureMetadataXdcTrafficSmallScale(q):
 
 
 def _EnqReq(q, attrs):
-	with Cons.MT("Enq a message ..."):
+	with Cons.MT("Enq a request: "):
 		attrs = attrs.copy()
-		Cons.P("attrs: %s" % pprint.pformat(attrs))
+		Cons.P(pprint.pformat(attrs))
 
 		jc_params = {}
 		for k in attrs.keys():
-			if k in ["init_script", "region_inst_type", "max_price"]:
+			if k in ["init_script", "region_spot_req"]:
 				jc_params[k] = attrs[k]
 				del attrs[k]
 		#Cons.P(json.dumps(jc_params))

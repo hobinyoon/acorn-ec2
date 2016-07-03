@@ -89,24 +89,15 @@ def ProcessJobReq(jr):
 	# protocol.  It's even okay to use the default one: test-cluster
 	#tags["cass_cluster_name"] = "acorn"
 
-	if False:
-		# On-demand instances are too expensive.
-		RunAndMonitorEc2Inst.Run(
-				region_inst_type = jc_params["region_inst_type"]
-				, tags = jr.attrs
-				, jr_sqs_url = jr_sqs_url
-				, jr_sqs_msg_receipt_handle = jr_sqs_msg_receipt_handle
-				, init_script = jc_params["init_script"]
-				)
-	else:
-		ReqSpotAndMonitor.Run(
-				region_inst_type = jc_params["region_inst_type"]
-				, tags = jr.attrs
-				, jr_sqs_url = jr_sqs_url
-				, jr_sqs_msg_receipt_handle = jr_sqs_msg_receipt_handle
-				, init_script = jc_params["init_script"]
-				, max_price = jc_params["max_price"]
-				)
+	ReqSpotAndMonitor.Run(
+			region_spot_req = jc_params["region_spot_req"]
+			, tags = jr.attrs
+			, jr_sqs_url = jr_sqs_url
+			, jr_sqs_msg_receipt_handle = jr_sqs_msg_receipt_handle
+			, init_script = jc_params["init_script"]
+			)
+	# On-demand instances are too expensive.
+	#RunAndMonitorEc2Inst.Run()
 
 	# No need to sleep here. Launching a cluster takes like 30 secs.  Used to
 	# sleep a bit so that each cluster has a unique ID, which is made of current
