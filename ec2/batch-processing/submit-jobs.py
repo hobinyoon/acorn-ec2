@@ -23,9 +23,9 @@ def main(argv):
 	sqs = boto3.resource("sqs", region_name = sqs_region)
 	q = GetQ(bc, sqs)
 
-	SingleDevNode(q)
+	#SingleDevNode(q)
 
-	#ByYoutubeWorkloadOfDifferentSizes(q)
+	ByYoutubeWorkloadOfDifferentSizes(q)
 
 	#ByRepModels(q)
 
@@ -53,40 +53,39 @@ def SingleDevNode(q):
 	req_attrs = {
 			"init_script": "acorn-dev"
 			, "region_spot_req": {
-				"us-east-1": {"inst_type": "r3.xlarge", "max_price": 1.0}
+				"us-west-1": {"inst_type": "r3.xlarge", "max_price": 1.0}
+				, "us-west-2": {"inst_type": "r3.xlarge", "max_price": 1.0}
 				}
 			}
 	_EnqReq(q, req_attrs)
 
 
 # Pricing can be specified per datacenter too later when needed.
-# TODO
-_region_inst_type = {
-		"ap-northeast-1": "r3.xlarge"
-		, "ap-northeast-2": "r3.xlarge"
-		, "ap-south-1": "r3.xlarge"
-		, "ap-southeast-1": "r3.xlarge"
-		, "ap-southeast-2": "r3.xlarge"
+_region_spot_req = {
+		"ap-northeast-1": {"inst_type": "r3.xlarge", "max_price": 1.0}
+		, "ap-northeast-2": {"inst_type": "r3.xlarge", "max_price": 1.0}
+		, "ap-south-1": {"inst_type": "r3.xlarge", "max_price": 1.0}
+		, "ap-southeast-1": {"inst_type": "r3.xlarge", "max_price": 1.0}
+		, "ap-southeast-2": {"inst_type": "r3.xlarge", "max_price": 1.0}
 
 		# r3.xlarge is oversubscribed and expensive. strange.
-		, "eu-central-1": "r3.2xlarge"
+		, "eu-central-1": {"inst_type": "r3.2xlarge", "max_price": 1.0}
 
-		, "eu-west-1": "r3.xlarge"
+		, "eu-west-1": {"inst_type": "r3.xlarge", "max_price": 1.0}
 
 		# Sao Paulo doesn't have r3.xlarge
-		, "sa-east-1": "c3.2xlarge"
+		, "sa-east-1": {"inst_type": "c3.2xlarge", "max_price": 1.0}
 
-		, "us-east-1": "r3.xlarge"
-		, "us-west-1": "r3.xlarge"
-		, "us-west-2": "r3.xlarge"
+		, "us-east-1": {"inst_type": "r3.xlarge", "max_price": 1.0}
+		, "us-west-1": {"inst_type": "r3.xlarge", "max_price": 1.0}
+		, "us-west-2": {"inst_type": "r3.xlarge", "max_price": 1.0}
 		}
 
 
 def ByYoutubeWorkloadOfDifferentSizes(q):
 	req_attrs = {
 			"init_script": "acorn-server"
-			, "region_inst_type": _region_inst_type
-			, "max_price": 1.0
+			, "region_spot_req": _region_spot_req
 
 			# Partial replication metadata is exchanged
 			, "acorn-youtube.replication_type": "partial"
@@ -106,8 +105,7 @@ def ByYoutubeWorkloadOfDifferentSizes(q):
 			#, "acorn_options.use_attr_user": "true"
 			#, "acorn_options.use_attr_topic": "true"
 			}
-	#for wl in ["tweets-010", "tweets-017", "tweets-054", "tweets-076", "tweets-100"]:
-	for wl in ["tweets-017"]:
+	for wl in ["tweets-010", "tweets-017", "tweets-054", "tweets-076", "tweets-100"]:
 		req_attrs["acorn-youtube.fn_youtube_reqs"] = wl
 		_EnqReq(q, req_attrs)
 
@@ -116,10 +114,9 @@ def ByYoutubeWorkloadOfDifferentSizes(q):
 	req_attrs["acorn_options.use_attr_user"] = "false"
 	req_attrs["acorn_options.use_attr_topic"] = "false"
 
-	#for wl in ["tweets-010", "tweets-017", "tweets-054", "tweets-076", "tweets-100"]:
-#	for wl in ["tweets-010", "tweets-017"]:
-#		req_attrs["acorn-youtube.fn_youtube_reqs"] = wl
-#		_EnqReq(q, req_attrs)
+	for wl in ["tweets-010", "tweets-017", "tweets-054", "tweets-076", "tweets-100"]:
+		req_attrs["acorn-youtube.fn_youtube_reqs"] = wl
+		_EnqReq(q, req_attrs)
 
 
 def ByRepModels(q):
