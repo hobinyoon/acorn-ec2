@@ -1,4 +1,5 @@
 import boto3
+import botocore
 import datetime
 import os
 import sys
@@ -166,9 +167,8 @@ class DescInstPerRegion:
 					else:
 						self.dio.P(" %s" % self.region)
 				break
-			except Exception as e:
-				Cons.P("Got an exception: %s. Region=%s" % (e, self.region))
-				Cons.P("Resetting boto client after 1 sec ...")
+			except botocore.exceptions.ClientError as e:
+				Cons.P("%s. Region=%s. Resetting boto client after 1 sec ..." % (e, self.region))
 				time.sleep(1)
 				BcMgr.Reset(self.region)
 

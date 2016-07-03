@@ -397,7 +397,7 @@ class InstLaunchProgMon():
 						else:
 							s1 = str(s.e)
 					else:
-						raise RuntimeError("Unexpected s: %s" % type(s))
+						raise RuntimeError("Unexpected s: %s" % s)
 
 					# Print prev one when it's different from the current one
 					if prev_s == s1:

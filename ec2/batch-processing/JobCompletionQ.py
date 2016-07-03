@@ -65,7 +65,7 @@ def _Poll(jc_q):
 			# Could not connect to the endpoint URL: "https://queue.amazonaws.com/"
 			# Retrying after 1 sec doesn't seem to help. Might be the server being
 			# unreliable. Just kill the server.
-			Cons.P(e)
+			Cons.P("%s\n%s" % (e, traceback.format_exc()))
 			os._exit(1)
 		except Exception as e:
 			Cons.P("%s\n%s" % (e, traceback.format_exc()))
@@ -108,8 +108,6 @@ def _GetQ():
 		#		  'meta': ResourceMeta('sqs', identifiers=[u'url'])}
 		return queue
 	except botocore.exceptions.ClientError as e:
-		#Cons.P(pprint.pformat(e, indent=2))
-		#Cons.P(pprint.pformat(vars(e), indent=2))
 		if e.response["Error"]["Code"] == "AWS.SimpleQueueService.NonExistentQueue":
 			pass
 		else:

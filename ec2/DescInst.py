@@ -86,7 +86,6 @@ class DescInstPerRegion:
 	def __init__(self, region, tags):
 		self.region = region
 		self.tags = tags
-		self.key_error = None
 
 	def Run(self):
 		try:
@@ -105,15 +104,13 @@ class DescInstPerRegion:
 					filters.append(d)
 				self.response = boto_client.describe_instances(Filters = filters)
 
-		except KeyError as e:
-			#Cons.P("region=%s KeyError=[%s]" % (self.region, e))
-			self.key_error = e
+		except Exception as e:
+			Cons.P("%s\n%s\nregion=%s" % (e, traceback.format_exc(), self.region))
+			os._exit(1)
 
 		Cons.sys_stdout_write(" %s" % self.region)
 
 	def NumInsts(self):
-		if self.key_error is not None:
-			return 0
 		num = 0
 		for r in self.response["Reservations"]:
 			for r1 in r["Instances"]:
@@ -122,17 +119,12 @@ class DescInstPerRegion:
 
 	def GetInstDesc(self):
 		ids = []
-		if self.key_error is not None:
-			return ids
 		for r in self.response["Reservations"]:
 			ids += r["Instances"]
 		return ids
 
 
 	def GetResults(self):
-		if self.key_error is not None:
-			return ["region=%s KeyError=[%s]" % (self.region, self.key_error)]
-
 		#Cons.P(pprint.pformat(self.response, indent=2, width=100))
 		results = []
 		for r in self.response["Reservations"]:

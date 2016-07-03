@@ -295,8 +295,6 @@ def _GetJcQ():
 		#		  'meta': ResourceMeta('sqs', identifiers=[u'url'])}
 		return queue
 	except botocore.exceptions.ClientError as e:
-		#_Log(pprint.pformat(e, indent=2))
-		#_Log(pprint.pformat(vars(e), indent=2))
 		if e.response["Error"]["Code"] == "AWS.SimpleQueueService.NonExistentQueue":
 			pass
 		else:

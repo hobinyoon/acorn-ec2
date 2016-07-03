@@ -102,7 +102,7 @@ def _Poll(jr_q):
 				jr_q.put(JobReq(m), block=True, timeout=None)
 		except botocore.exceptions.EndpointConnectionError as e:
 			# Could not connect to the endpoint URL: "https://queue.amazonaws.com/"
-			Cons.P(e)
+			Cons.P("%s\n%s" % (e, traceback.format_exc()))
 			os._exit(1)
 		except Exception as e:
 			Cons.P("%s\n%s" % (e, traceback.format_exc()))

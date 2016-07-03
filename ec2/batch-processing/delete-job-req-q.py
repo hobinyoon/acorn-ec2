@@ -41,8 +41,6 @@ def GetQ():
 			#		  'meta': ResourceMeta('sqs', identifiers=[u'url'])}
 			return queue
 		except botocore.exceptions.ClientError as e:
-			#Cons.P(pprint.pformat(e, indent=2))
-			#Cons.P(pprint.pformat(vars(e), indent=2))
 			if e.response["Error"]["Code"] == "AWS.SimpleQueueService.NonExistentQueue":
 				return None
 			else:

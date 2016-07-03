@@ -67,8 +67,8 @@ def PollJrJcMsgs():
 
 
 def ProcessJobReq(jr):
-	# TODO: May want some admission control here, like one based on how many
-	# free instance slots are available.
+	# Note: May want some admission control here, like one based on how many free
+	# instance slots are available.
 
 	Cons.P("\n%s Got a job request msg. attrs:\n%s"
 			% (time.strftime("%y%m%d-%H%M%S"), pprint.pformat(jr.attrs)))
