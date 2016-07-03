@@ -97,6 +97,7 @@ class ReqAndMonitor():
 
 	def Run(self):
 		try:
+			self._CheckPrice()
 			self._ReqSpotInst()
 			self._KeepCheckingSpotReq()
 			self._KeepCheckingInst()
@@ -105,11 +106,11 @@ class ReqAndMonitor():
 			os._exit(1)
 
 
-	# Note: InstMonitor would be a better place for this.
-	def _GetPriceHistory(self):
+	def _CheckPrice(self):
 		now = datetime.datetime.now()
 		one_day_ago = now - datetime.timedelta(days=1)
 
+		self.boto_client = boto3.session.Session().client("ec2", region_name = self.region_name)
 		r = None
 		if self.az is None:
 			r = self.boto_client.describe_spot_price_history(
@@ -138,6 +139,7 @@ class ReqAndMonitor():
 				az_ts_price[az] = {}
 			az_ts_price[az][ts] = sp
 
+		pricing_strs = []
 		for az, v in sorted(az_ts_price.iteritems()):
 			ts_prev = None
 			price_prev = None
@@ -154,7 +156,9 @@ class ReqAndMonitor():
 				ts_prev = ts
 				price_prev = price
 			price_avg = dur_price_sum / dur_sum
-			Cons.P("%s cur=%f avg=%f max=%f" % (az, price_prev, price_avg, price_max))
+			price_cur = price_prev
+			pricing_strs.append("{%s %.2f %.2f %.2f}" % (az[-1:], price_cur, price_avg, price_max))
+		InstLaunchProgMon.SetSpotPricing(self.region_name, "price(az, cur, 1d_avg, 1d_max)={%s}" % ", ".join(pricing_strs))
 
 
 	def _ReqSpotInst(self):
@@ -169,11 +173,6 @@ sudo -i -u ubuntu bash -c 'git clone https://github.com/hobinyoon/acorn-tools.gi
 sudo -i -u ubuntu /home/ubuntu/work/acorn-tools/ec2/ec2-init.py {0} {1} {2} {3}
 """
 		user_data = user_data.format(_init_script, _jr_sqs_url, _jr_sqs_msg_receipt_handle, _num_regions)
-
-
-		self.boto_client = boto3.session.Session().client("ec2", region_name = self.region_name)
-
-		#self._GetPriceHistory()
 
 		ls = {'ImageId': self.ami_id,
 				#'KeyName': 'string',
@@ -322,10 +321,15 @@ class InstLaunchProgMon():
 			InstLaunchProgMon._status_by_regions = {}
 
 	@staticmethod
-	def SetSpotReqId(region_name, spot_req_id):
+	def SetSpotPricing(region_name, price_str):
 		with InstLaunchProgMon._status_by_regions_lock:
 			if region_name not in InstLaunchProgMon._status_by_regions:
 				InstLaunchProgMon._status_by_regions[region_name] = []
+			InstLaunchProgMon._status_by_regions[region_name].append(price_str)
+
+	@staticmethod
+	def SetSpotReqId(region_name, spot_req_id):
+		with InstLaunchProgMon._status_by_regions_lock:
 			InstLaunchProgMon._status_by_regions[region_name].append(spot_req_id)
 
 	@staticmethod
