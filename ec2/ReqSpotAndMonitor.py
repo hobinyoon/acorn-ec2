@@ -27,6 +27,8 @@ _jr_sqs_url = None
 _jr_sqs_msg_receipt_handle = None
 _init_script = None
 
+_az_price = None
+
 
 def Run(region_spot_req, tags, jr_sqs_url, jr_sqs_msg_receipt_handle, init_script):
 	Reset()
@@ -66,6 +68,7 @@ def Run(region_spot_req, tags, jr_sqs_url, jr_sqs_msg_receipt_handle, init_scrip
 def Reset():
 	global _threads, _job_id
 	global _tags, _jr_sqs_url, _jr_sqs_msg_receipt_handle, _init_script
+	global _az_price
 
 	_threads = []
 	_job_id = None
@@ -75,6 +78,7 @@ def Reset():
 	_jr_sqs_url = None
 	_jr_sqs_msg_receipt_handle = None
 	_init_script = None
+	_az_price = {}
 
 	InstLaunchProgMon.Reset()
 
@@ -158,7 +162,10 @@ class ReqAndMonitor():
 			price_avg = dur_price_sum / dur_sum
 			price_cur = price_prev
 			pricing_strs.append("{%s %.2f %.2f %.2f}" % (az[-1:], price_cur, price_avg, price_max))
+			global _az_price
+			_az_price[az] = CurSpotPrice(price_cur, price_avg, price_max)
 		InstLaunchProgMon.SetSpotPricing(self.region_name, "price(az, cur, 1d_avg, 1d_max)={%s}" % ", ".join(pricing_strs))
+
 
 
 	def _ReqSpotInst(self):
@@ -306,6 +313,16 @@ sudo -i -u ubuntu /home/ubuntu/work/acorn-tools/ec2/ec2-init.py {0} {1} {2} {3}
 			fn = "%s/%s" % (_dn_tmp, self.region_name)
 			with open(fn, "w") as fo:
 				fo.write(r["Reservations"][0]["Instances"][0]["PublicIpAddress"])
+
+
+class CurSpotPrice():
+	def __init__(self, price_cur, price_avg, price_max):
+		self.cur = price_cur
+		self.avg = price_avg
+		self.max = price_max
+
+	def __str__(self):
+		return "%0.4f,%0.4f,%0.4f" % (self.cur, self.avg, self.max)
 
 
 class InstLaunchProgMon():
@@ -459,7 +476,7 @@ class InstLaunchProgMon():
 
 	@staticmethod
 	def DescInsts():
-		fmt = "%-15s %19s %10s %13s %15s %10s"
+		fmt = "%-15s %19s %10s %13s %15s %10s %20s"
 		Cons.P(Util.BuildHeader(fmt,
 			"Placement:AvailabilityZone"
 			" InstanceId"
@@ -468,6 +485,7 @@ class InstLaunchProgMon():
 			#" PrivateIpAddress"
 			" PublicIpAddress"
 			" State:Name"
+			" SpotPricing(cur,1d_avg,1d_max)"
 			))
 
 		with InstLaunchProgMon._status_by_regions_lock:
@@ -476,14 +494,16 @@ class InstLaunchProgMon():
 					if isinstance(s, InstLaunchProgMon.DescInstResp):
 						# Print only the last desc instance response per region
 						r = s.r["Reservations"][0]["Instances"][0]
+						az = _Value(_Value(r, "Placement"), "AvailabilityZone")
 						Cons.P(fmt % (
-							_Value(_Value(r, "Placement"), "AvailabilityZone")
+							az
 							, _Value(r, "InstanceId")
 							, _Value(r, "InstanceType")
 							, _Value(r, "LaunchTime").strftime("%y%m%d-%H%M%S")
 							#, _Value(r, "PrivateIpAddress")
 							, _Value(r, "PublicIpAddress")
 							, _Value(_Value(r, "State"), "Name")
+							, _az_price[az]
 							))
 						break
 
