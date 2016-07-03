@@ -402,16 +402,24 @@ class InstLaunchProgMon():
 					else:
 						if prev_s is not None:
 							if same_s_cnt == 1:
+								if len(output.split("\n")[-1]) > 100:
+									output += "\n               "
 								output += (" %s" % prev_s)
 							else:
+								if len(output.split("\n")[-1]) > 100:
+									output += "\n               "
 								output += (" %s x%2d" % (prev_s, same_s_cnt))
 							same_s_cnt = 1
 					prev_s = s1
 
 				# Print the last one
 				if same_s_cnt == 1:
+					if len(output.split("\n")[-1]) > 100:
+						output += "\n               "
 					output += (" %s" % prev_s)
 				else:
+					if len(output.split("\n")[-1]) > 100:
+						output += "\n               "
 					output += (" %s x%2d" % (prev_s, same_s_cnt))
 
 			# Clear prev output
