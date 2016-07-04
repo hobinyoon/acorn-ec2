@@ -55,7 +55,7 @@ def _Poll(jc_q):
 					#	],
 					MessageAttributeNames=["All"],
 					MaxNumberOfMessages=1,
-					VisibilityTimeout=10,
+					VisibilityTimeout=60,
 					WaitTimeSeconds=1
 					)
 			for m in msgs:

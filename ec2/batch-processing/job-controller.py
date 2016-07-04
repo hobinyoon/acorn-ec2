@@ -39,11 +39,12 @@ def main(argv):
 	JobReqQ.DeleteQ()
 
 
-_req_q = Queue.Queue(maxsize=2)
+_q_jr = Queue.Queue(maxsize=1)
+_q_jc = Queue.Queue(maxsize=1)
 
 def PollJrJcMsgs():
-	JobReqQ.PollBackground(_req_q)
-	JobCompletionQ.PollBackground(_req_q)
+	JobReqQ.PollBackground(_q_jr)
+	JobCompletionQ.PollBackground(_q_jc)
 
 	while True:
 		with InstMonitor.IM():
@@ -53,7 +54,13 @@ def PollJrJcMsgs():
 			#   http://stackoverflow.com/questions/212797/keyboard-interruptable-blocking-queue-in-python
 			while True:
 				try:
-					req = _req_q.get(timeout=100000)
+					req = _q_jc.get(timeout=1)
+					break
+				except Queue.Empty:
+					pass
+
+				try:
+					req = _q_jr.get(timeout=1)
 					break
 				except Queue.Empty:
 					pass
