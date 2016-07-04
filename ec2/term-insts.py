@@ -9,9 +9,13 @@ import threading
 sys.path.insert(0, "%s/../util/python" % os.path.dirname(os.path.realpath(__file__)))
 import Cons
 import Util
+
+import BotoClient
 import Ec2Region
 
 _fmt = "%-15s %19s %13s %13s"
+_regions_processed = 0
+_regions_processed_lock = threading.Lock()
 
 def RunTermInst(tags):
 	threads = []
@@ -50,41 +54,54 @@ class TermInst:
 		self.tags = tags
 
 	def Run(self):
-		boto_client = boto3.session.Session().client("ec2", region_name=self.region)
-
 		response = None
 		if self.tags is None:
-			response = boto_client.describe_instances()
+			response = BotoClient.Get(self.region).describe_instances()
 		else:
 			filters = []
 			for k, v in self.tags.iteritems():
+				# job_id:None can be specified to kill all instances without job_id
+				if v == "None":
+					continue
 				d = {}
 				d["Name"] = ("tag:%s" % k)
 				d["Values"] = [v]
 				filters.append(d)
-			response = boto_client.describe_instances(Filters = filters)
+			response = BotoClient.Get(self.region).describe_instances(Filters = filters)
 		#Cons.P(pprint.pformat(response, indent=2, width=100))
 
-		# "running" instances
-		self.inst_ids = []
+		self.inst_ids_to_term = []
 
 		for r in response["Reservations"]:
 			for r1 in r["Instances"]:
 				if "Name" in r1["State"]:
+					# Terminate only running intances
 					if r1["State"]["Name"] == "running":
-						self.inst_ids.append(r1["InstanceId"])
-		#Cons.P("There are %d \"running\" instances." % len(self.inst_ids))
-		#Cons.P(pprint.pformat(self.inst_ids, indent=2, width=100))
+						if _job_id_none_requested:
+							#Cons.P(pprint.pformat(r1))
+							if "Tags" not in r1:
+								self.inst_ids_to_term.append(r1["InstanceId"])
+						else:
+							self.inst_ids_to_term.append(r1["InstanceId"])
 
-		if len(self.inst_ids) == 0:
+		#Cons.P("There are %d instances to terminate." % len(self.inst_ids_to_term))
+		#Cons.P(pprint.pformat(self.inst_ids_to_term, indent=2, width=100))
+
+		if len(self.inst_ids_to_term) > 0:
+			self.response = BotoClient.Get(self.region).terminate_instances(InstanceIds = self.inst_ids_to_term)
+
+		with _regions_processed_lock:
+			global _regions_processed
+			_regions_processed += 1
+			if _regions_processed == 1:
+				pass
+			elif _regions_processed % 6 == 1:
+				#                        Terminating running instances:
+				Cons.sys_stdout_write("\n                              ")
 			Cons.sys_stdout_write(" %s" % self.region)
-			return
-
-		self.response = boto_client.terminate_instances(InstanceIds = self.inst_ids)
-		Cons.sys_stdout_write(" %s" % self.region)
 
 	def PrintResult(self):
-		if len(self.inst_ids) == 0:
+		if len(self.inst_ids_to_term) == 0:
 			return
 
 		#Cons.P(pprint.pformat(self.response, indent=2, width=100))
@@ -107,13 +124,20 @@ def _Value(dict_, key):
 		return ""
 
 
+_job_id_none_requested = False
+
 def main(argv):
 	if len(argv) < 2:
 		print "Usage: %s (all or tags in key:value pairs)" % argv[0]
 		sys.exit(1)
 
 	tags = None
-	if argv[1] != "all":
+	if argv[1] == "all":
+		pass
+	elif argv[1] == "job_id:None":
+		global _job_id_none_requested
+		_job_id_none_requested = True
+	else:
 		tags = {}
 		for i in range(1, len(argv)):
 			t = argv[i].split(":")
