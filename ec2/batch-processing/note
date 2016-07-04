@@ -10,10 +10,6 @@ TODO
 		- Served
 		- Failed: I haven't seen it fails.
 
-- When a job controller sees a cluster with less than 11 nodes for 10 mins,
-	kill it. If happens quite often, due to the spot price increase. Might be a
-	good idea to set the price really high.
-
 - When a cluster doesn't start in 6 mins, kill the instances. Cancel the spot
 	requests.
 
@@ -26,6 +22,12 @@ Not sure
 
 Done
 ----
+- When a job controller sees an acorn-server cluster with less than 11 nodes
+	for 6 mins, terminate the cluster. job-controller will get the job request in
+	1 hour after the visibility timeout.  This happens quite often, due to the
+	spot price increase. Setting the spot request price really high can be a good
+	idea too.
+
 - term-inst.py
   - Kill all instances without job_id
 

@@ -31,7 +31,7 @@ _region_az_lowest_max_spot_price = None
 _pm = None
 
 
-def Run(region_spot_req, tags, jr_sqs_url, jr_sqs_msg_receipt_handle, init_script):
+def Run(region_spot_req, tags, jr_sqs_url, jr_sqs_msg_receipt_handle):
 	Reset()
 
 	Util.RunSubp("mkdir -p %s" % _dn_tmp, print_cmd = False)
@@ -47,7 +47,7 @@ def Run(region_spot_req, tags, jr_sqs_url, jr_sqs_msg_receipt_handle, init_scrip
 	_num_regions = len(region_spot_req)
 	_jr_sqs_url = jr_sqs_url
 	_jr_sqs_msg_receipt_handle = jr_sqs_msg_receipt_handle
-	_init_script = init_script
+	_init_script = tags["init_script"]
 
 	# Get AZ with the lowest last-2-day max spot price
 	# {region: az}

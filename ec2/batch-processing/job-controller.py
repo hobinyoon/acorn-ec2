@@ -25,7 +25,7 @@ import S3
 def main(argv):
 	try:
 		Cons.P("Starting ...")
-		PollJrJcMsgs()
+		PollMsgs()
 	except KeyboardInterrupt as e:
 		Cons.P("\n%s Got a keyboard interrupt. Stopping ..." % time.strftime("%y%m%d-%H%M%S"))
 	except Exception as e:
@@ -42,7 +42,7 @@ def main(argv):
 _q_jr = Queue.Queue(maxsize=1)
 _q_jc = Queue.Queue(maxsize=1)
 
-def PollJrJcMsgs():
+def PollMsgs():
 	JobReqQ.PollBackground(_q_jr)
 	JobCompletionQ.PollBackground(_q_jc)
 
@@ -54,23 +54,37 @@ def PollJrJcMsgs():
 			#   http://stackoverflow.com/questions/212797/keyboard-interruptable-blocking-queue-in-python
 			while True:
 				try:
-					req = _q_jc.get(timeout=1)
+					req = InstMonitor.ClusterCleaner.Queue().get(timeout=0.1)
 					break
 				except Queue.Empty:
 					pass
 
 				try:
-					req = _q_jr.get(timeout=1)
+					req = _q_jc.get(timeout=0.1)
 					break
 				except Queue.Empty:
 					pass
 
-		if isinstance(req, JobReqQ.JobReq):
+				try:
+					req = _q_jr.get(timeout=0.1)
+					break
+				except Queue.Empty:
+					pass
+
+		if isinstance(req, InstMonitor.ClusterCleaner.Msg):
+			ProcessClusterCleanReq(req)
+		elif isinstance(req, JobReqQ.JobReq):
 			ProcessJobReq(req)
 		elif isinstance(req, JobCompletionQ.JobCompleted):
 			ProcessJobCompletion(req)
 		else:
 			raise RuntimeError("Unexpected type %s" % type(req))
+
+
+def ProcessClusterCleanReq(req):
+	job_id = req.job_id
+	Cons.P("\n%s Got a cluster clean request. job_id:%s" % (time.strftime("%y%m%d-%H%M%S"), job_id))
+	_TermCluster(job_id)
 
 
 def ProcessJobReq(jr):
@@ -101,7 +115,6 @@ def ProcessJobReq(jr):
 			, tags = jr.attrs
 			, jr_sqs_url = jr_sqs_url
 			, jr_sqs_msg_receipt_handle = jr_sqs_msg_receipt_handle
-			, init_script = jc_params["init_script"]
 			)
 	# On-demand instances are too expensive.
 	#RunAndMonitorEc2Inst.Run()
@@ -115,18 +128,20 @@ def ProcessJobReq(jr):
 def ProcessJobCompletion(jc):
 	job_id = jc.attrs["job_id"]
 	Cons.P("\n%s Got a job completion msg. job_id:%s" % (time.strftime("%y%m%d-%H%M%S"), job_id))
+	_TermCluster(job_id)
 
+	JobReqQ.DeleteMsg(jc.attrs["job_req_msg_recript_handle"])
+	JobCompletionQ.DeleteMsg(jc)
+	S3.Sync()
+
+
+def _TermCluster(job_id):
 	fn_module = "%s/../term-insts.py" % os.path.dirname(__file__)
 	mod_name,file_ext = os.path.splitext(os.path.split(fn_module)[-1])
 	if file_ext.lower() != '.py':
 		raise RuntimeError("Unexpected file_ext: %s" % file_ext)
 	py_mod = imp.load_source(mod_name, fn_module)
 	getattr(py_mod, "main")([fn_module, "job_id:%s" % job_id])
-
-	JobReqQ.DeleteMsg(jc.attrs["job_req_msg_recript_handle"])
-
-	JobCompletionQ.DeleteMsg(jc)
-	S3.Sync()
 
 
 if __name__ == "__main__":

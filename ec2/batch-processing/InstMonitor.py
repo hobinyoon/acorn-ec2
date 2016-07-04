@@ -1,6 +1,7 @@
 import botocore
 import datetime
 import os
+import Queue
 import sys
 import threading
 import time
@@ -12,8 +13,6 @@ import Util
 sys.path.insert(0, "%s/.." % os.path.dirname(__file__))
 import BotoClient
 import Ec2Region
-
-_fmt_desc_inst = "%13s %-15s %19s %15s %13s"
 
 
 class IM:
@@ -71,24 +70,51 @@ class IM:
 
 		num_insts = 0
 		for di in dis:
-			num_insts += di.NumInsts()
+			num_insts += len(di.Instances())
 		if num_insts == 0:
 			self.dio.P("No instances found.\n")
 		else:
-			header = Util.BuildHeader(_fmt_desc_inst,
-				"job_id"
-				" Placement:AvailabilityZone"
-				" InstanceId"
-				" PublicIpAddress"
-				" State:Name"
-				)
-			self.dio.P(header + "\n")
+			self.dio.P("#"
+					" job_id"
+					" (Placement:AvailabilityZone"
+					" InstanceId"
+					" PublicIpAddress"
+					" State:Name) ...\n")
 
-			results = []
+			# Group by job_id. Only for those with job_ids
+			#   { job_id: {region: Inst} }
+			jobid_inst = {}
+			# Think about what to do with instances without job IDs
+			nojobid_inst = []
 			for di in dis:
-				results += di.GetResults()
-			for r in sorted(results):
-				self.dio.P(r + "\n")
+				for i in di.Instances():
+					if i.job_id is not None:
+						if i.job_id not in jobid_inst:
+							jobid_inst[i.job_id] = {}
+						jobid_inst[i.job_id][i.region] = i
+					else:
+						nojobid_inst.append(i)
+
+			ClusterCleaner.Clean(jobid_inst)
+
+			for job_id, v in sorted(jobid_inst.iteritems()):
+				self.dio.P("%s %d" % (job_id, len(v)))
+				for k1, i in v.iteritems():
+					#msg = " (%s %s %s %s)" % (i.az, i.inst_id, i.public_ip, i.state)
+					msg = " (%s %s %s)" % (i.az, i.public_ip, i.state)
+					if self.dio.LastLineWidth() + len(msg) > DIO.max_column_width:
+						self.dio.P("\n  ")
+					self.dio.P(msg)
+				self.dio.P("\n")
+
+			if len(nojobid_inst) > 0:
+				self.dio.P("%-13s %d" % ("no-job-id", len(nojobid_inst)))
+				for i in nojobid_inst:
+					msg = " (%s %s %s)" % (i.az, i.public_ip, i.state)
+					if self.dio.LastLineWidth() + len(msg) > DIO.max_column_width:
+						self.dio.P("\n  ")
+					self.dio.P(msg)
+				self.dio.P("\n")
 
 		self.dio.P("Time since the last msg: %s" % (str(datetime.timedelta(seconds=(time.time() - self.desc_inst_start_time)))))
 		self.dio.Flush()
@@ -111,6 +137,8 @@ class IM:
 
 # Describe instance output
 class DIO:
+	max_column_width = 120
+
 	def __init__(self):
 		self.msg = ""
 		self.msg_lock = threading.Lock()
@@ -119,6 +147,10 @@ class DIO:
 	def P(self, msg):
 		with self.msg_lock:
 			self.msg += msg
+
+	def LastLineWidth(self):
+		with self.msg_lock:
+			return len(self.msg.split("\n")[-1])
 
 	def Flush(self):
 		with self.msg_lock:
@@ -154,12 +186,19 @@ class DescInstPerRegion:
 	def __init__(self, region, dio):
 		self.region = region
 		self.dio = dio
+		self.instances = []
 
 	def Run(self):
 		while True:
 			try:
-				bc = BotoClient.Get(self.region)
-				self.response = bc.describe_instances()
+				self.response = BotoClient.Get(self.region).describe_instances()
+				self.instances = []
+				for r in self.response["Reservations"]:
+					for r1 in r["Instances"]:
+						if _Value(_Value(r1, "State"), "Name") == "terminated":
+							continue
+						self.instances.append(Inst(r1))
+
 				with DescInstPerRegion.boto_responses_received_lock:
 					DescInstPerRegion.boto_responses_received += 1
 					if DescInstPerRegion.boto_responses_received == 7:
@@ -173,49 +212,82 @@ class DescInstPerRegion:
 				time.sleep(1)
 				BotoClient.Reset(self.region)
 
-	def NumInsts(self):
-		num = 0
-		for r in self.response["Reservations"]:
-			for r1 in r["Instances"]:
-				if _Value(_Value(r1, "State"), "Name") == "terminated":
-					continue
-				num += 1
-		return num
+	def Instances(self):
+		return self.instances
 
-	def GetInstDesc(self):
-		ids = []
-		for r in self.response["Reservations"]:
-			ids += r["Instances"]
-		return ids
 
-	def GetResults(self):
-		#Cons.P(pprint.pformat(self.response, indent=2, width=100))
-		results = []
-		for r in self.response["Reservations"]:
-			for r1 in r["Instances"]:
-				if _Value(_Value(r1, "State"), "Name") == "terminated":
-					continue
+class Inst():
+	def __init__(self, desc_inst_resp):
+		self.tags = {}
+		if "Tags" in desc_inst_resp:
+			for t in desc_inst_resp["Tags"]:
+				self.tags[t["Key"]] = t["Value"]
 
-				tags = {}
-				if "Tags" in r1:
-					for t in r1["Tags"]:
-						tags[t["Key"]] = t["Value"]
+		self.job_id = self.tags.get("job_id")
+		self.az = _Value(_Value(desc_inst_resp, "Placement"), "AvailabilityZone")
+		self.region = self.az[:-1]
+		self.inst_id = _Value(desc_inst_resp, "InstanceId")
+		self.public_ip = _Value(desc_inst_resp, "PublicIpAddress")
+		self.state = _Value(_Value(desc_inst_resp, "State"), "Name")
 
-				results.append(_fmt_desc_inst % (
-					tags.get("job_id")
-					, _Value(_Value(r1, "Placement"), "AvailabilityZone")
-					, _Value(r1, "InstanceId")
-					, _Value(r1, "PublicIpAddress")
-					, _Value(_Value(r1, "State"), "Name")
-					))
-		return results
+
+class ClusterCleaner():
+	wait_time_before_clean = 20
+
+	# First time we've seen a cluster with under 11 nodes
+	#   { job_id: datetime }
+	jobid_first_time_under11 = {}
+
+	# Cluster cleaner job queue
+	_q = Queue.Queue(maxsize=1)
+
+	@staticmethod
+	def Queue():
+		return ClusterCleaner._q
+
+	@staticmethod
+	def Clean(jobid_inst):
+		# jobid_inst: { job_id: {region: Inst} }
+
+		for job_id, v in jobid_inst.iteritems():
+			# Only monitor acorn-server nodes. Do not monitor dev nodes.
+			is_acorn_server = False
+			for region, i in v.iteritems():
+				if "init_script" in i.tags:
+					if i.tags["init_script"] == "acorn-server":
+						is_acorn_server = True
+						break
+			if not is_acorn_server:
+				continue
+			Cons.P(Util.FileLine())
+
+			if len(v) == 11:
+				ClusterCleaner.jobid_first_time_under11.pop(job_id, None)
+				continue
+
+			if job_id not in ClusterCleaner.jobid_first_time_under11:
+				ClusterCleaner.jobid_first_time_under11[job_id] = datetime.datetime.now()
+				continue
+
+			# If the cluster had less than 11 nodes and has been there for more then
+			# 6 mins, terminate it.
+			diff = (datetime.datetime.now() - ClusterCleaner.jobid_first_time_under11[job_id]).total_seconds()
+			if diff > ClusterCleaner.wait_time_before_clean:
+				Cons.P("Cluster with job_id %s has less than 11 nodes for the last %d seconds. Termination requested." % diff)
+			Cons.P(Util.FileLine())
+			ClusterCleaner._q.put(ClusterCleaner.Msg(job_id), block=False)
+
+			# Reset to give the job-controller some time to clean up the cluster
+			ClusterCleaner.jobid_first_time_under11[job_id] = datetime.datetime.now()
+
+	class Msg():
+		def __init__(self, job_id):
+			self.job_id = job_id
 
 
 def _Value(dict_, key):
-	if key == "":
-		return ""
-
-	if key in dict_:
-		return dict_[key]
-	else:
-		return ""
+	if dict_ is None:
+		return None
+	if key is None:
+		return None
+	return dict_.get(key)
