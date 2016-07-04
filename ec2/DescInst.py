@@ -8,6 +8,7 @@ sys.path.insert(0, "%s/../util/python" % os.path.dirname(os.path.realpath(__file
 import Cons
 import Util
 
+import BotoClient
 import Ec2Region
 
 
@@ -91,10 +92,10 @@ class DescInstPerRegion:
 		try:
 			# http://boto3.readthedocs.io/en/latest/guide/session.html
 			session = boto3.session.Session()
-			boto_client = session.client("ec2", region_name=self.region)
+			bc = BotoClient.Get(self.region)
 
 			if self.tags is None:
-				self.response = boto_client.describe_instances()
+				self.response = bc.describe_instances()
 			else:
 				filters = []
 				for k, v in self.tags.iteritems():
@@ -102,7 +103,7 @@ class DescInstPerRegion:
 					d["Name"] = ("tag:%s" % k)
 					d["Values"] = [v]
 					filters.append(d)
-				self.response = boto_client.describe_instances(Filters = filters)
+				self.response = bc.describe_instances(Filters = filters)
 
 		except Exception as e:
 			Cons.P("%s\n%s\nregion=%s" % (e, traceback.format_exc(), self.region))

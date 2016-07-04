@@ -13,6 +13,7 @@ sys.path.insert(0, "%s/../util/python" % os.path.dirname(__file__))
 import Cons
 import Util
 
+import BotoClient
 import Ec2Region
 
 
@@ -105,8 +106,6 @@ sudo -i -u ubuntu /home/ubuntu/work/acorn-tools/ec2/ec2-init.py {0} {1} {2} {3}
 """
 			user_data = user_data.format(_init_script, _jr_sqs_url, _jr_sqs_msg_receipt_handle, _num_regions)
 
-			self.boto_client = boto3.session.Session().client("ec2", region_name = self.region_name)
-
 			placement = {}
 			if self.az != None:
 				placement['AvailabilityZone'] = self.az
@@ -114,7 +113,7 @@ sudo -i -u ubuntu /home/ubuntu/work/acorn-tools/ec2/ec2-init.py {0} {1} {2} {3}
 			response = None
 			while True:
 				try:
-					response = self.boto_client.run_instances(
+					response = BotoClient.Get(self.region_name).run_instances(
 							DryRun = False
 							, ImageId = self.ami_id
 							, MinCount=1
@@ -162,7 +161,7 @@ sudo -i -u ubuntu /home/ubuntu/work/acorn-tools/ec2/ec2-init.py {0} {1} {2} {3}
 			r = None
 			while True:
 				try:
-					r = self.boto_client.describe_instances(InstanceIds=[self.inst_id])
+					r = BotoClient.Get(self.region_name).describe_instances(InstanceIds=[self.inst_id])
 					# Note: describe_instances() returns StateReason, while
 					# describe_instance_status() doesn't.
 					break
@@ -191,7 +190,7 @@ sudo -i -u ubuntu /home/ubuntu/work/acorn-tools/ec2/ec2-init.py {0} {1} {2} {3}
 
 				while True:
 					try:
-						self.boto_client.create_tags(Resources = [self.inst_id], Tags = tags_boto)
+						BotoClient.Get(self.region_name).create_tags(Resources = [self.inst_id], Tags = tags_boto)
 						tagged = True
 					except botocore.exceptions.ClientError as e:
 						if e.response["Error"]["Code"] == "InvalidInstanceID.NotFound":
@@ -212,7 +211,7 @@ sudo -i -u ubuntu /home/ubuntu/work/acorn-tools/ec2/ec2-init.py {0} {1} {2} {3}
 
 		# Make sure everything is ok.
 		if state == "running":
-			r = self.boto_client.describe_instances(InstanceIds=[self.inst_id])
+			r = BotoClient.Get(self.region_name).describe_instances(InstanceIds=[self.inst_id])
 			state = r["Reservations"][0]["Instances"][0]["State"]["Name"]
 			InstLaunchProgMon.Update(self.inst_id, r)
 

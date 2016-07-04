@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 
-import boto3
 import datetime
 import getpass
 import imp
@@ -14,6 +13,8 @@ import traceback
 sys.path.insert(0, "%s/../util/python" % os.path.dirname(os.path.realpath(__file__)))
 import Cons
 import Util
+
+import BotoClient
 
 
 _inst_id = None
@@ -59,8 +60,7 @@ def _RunInitByTags():
 	_Log("_jr_sqs_msg_receipt_handle: %s" % _jr_sqs_msg_receipt_handle)
 	_Log("_num_regions              : %s" % _num_regions)
 
-	boto_client = boto3.session.Session().client("ec2", region_name=_region)
-	r = boto_client.describe_tags()
+	r = BotoClient.Get(_region).describe_tags()
 	#_Log(pprint.pformat(r, indent=2, width=100))
 	tags = {}
 	for r0 in r["Tags"]:
