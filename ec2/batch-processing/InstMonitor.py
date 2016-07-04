@@ -26,6 +26,7 @@ class IM:
 		self.t = threading.Thread(target=self.DescInst)
 		self.t.daemon = True
 		self.t.start()
+		return self
 
 	def __exit__(self, type, value, traceback):
 		self.ReqStop()

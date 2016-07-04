@@ -54,6 +54,8 @@ def Run(region_spot_req, tags, jr_sqs_url, jr_sqs_msg_receipt_handle, init_scrip
 	global _region_az_lowest_max_spot_price
 	_region_az_lowest_max_spot_price = SpotPrice.GetTheLowestMaxPriceAZs(region_spot_req)
 
+	Cons.P("Making spot requests:")
+
 	with SpotInstLaunchProgMon.SpotInstLaunchProgMon() as pm:
 		global _pm
 		_pm = pm

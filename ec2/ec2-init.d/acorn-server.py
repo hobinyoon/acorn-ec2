@@ -337,6 +337,7 @@ class CacheEbsFileIntoMem:
 		self.t.daemon = True
 		self.t.start()
 		_Log("Touching %s into memory ..." % self.fn)
+		return self
 
 	def __exit__(self, type, value, traceback):
 		self.t.join()
