@@ -1,4 +1,3 @@
-import boto3
 import botocore
 import datetime
 import os
@@ -11,6 +10,7 @@ import Cons
 import Util
 
 sys.path.insert(0, "%s/.." % os.path.dirname(__file__))
+import BotoClient
 import Ec2Region
 
 _fmt_desc_inst = "%13s %-15s %19s %15s %13s"
@@ -158,7 +158,7 @@ class DescInstPerRegion:
 	def Run(self):
 		while True:
 			try:
-				bc = BcMgr.Get(self.region)
+				bc = BotoClient.Get(self.region)
 				self.response = bc.describe_instances()
 				with DescInstPerRegion.boto_responses_received_lock:
 					DescInstPerRegion.boto_responses_received += 1
@@ -171,7 +171,7 @@ class DescInstPerRegion:
 			except botocore.exceptions.ClientError as e:
 				Cons.P("%s. Region=%s. Resetting boto client after 1 sec ..." % (e, self.region))
 				time.sleep(1)
-				BcMgr.Reset(self.region)
+				BotoClient.Reset(self.region)
 
 	def NumInsts(self):
 		num = 0
@@ -219,20 +219,3 @@ def _Value(dict_, key):
 		return dict_[key]
 	else:
 		return ""
-
-
-# Boto session client manager
-class BcMgr:
-	region_bc = {}
-
-	@staticmethod
-	def Get(region):
-		bc = BcMgr.region_bc.get(region, None)
-		if bc == None:
-			bc = boto3.session.Session().client("ec2", region_name=region)
-			BcMgr.region_bc[region] = bc
-		return bc
-
-	@staticmethod
-	def Reset(region):
-		BcMgr.region_bc[region] = None
