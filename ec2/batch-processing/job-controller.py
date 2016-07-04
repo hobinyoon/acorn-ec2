@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 
-import datetime
 import imp
 import json
 import os
@@ -39,6 +38,7 @@ def main(argv):
 	JobReqQ.DeleteQ()
 
 
+# Not sure if a Queue is necessary when the maxsize is 1. Leave it for now.
 _q_jr = Queue.Queue(maxsize=1)
 _q_jc = Queue.Queue(maxsize=1)
 
