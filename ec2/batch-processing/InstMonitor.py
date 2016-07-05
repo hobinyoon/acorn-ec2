@@ -84,8 +84,10 @@ class IM:
 			# Group by job_id. Only for those with job_ids
 			#   { job_id: {region: Inst} }
 			jobid_inst = {}
-			# Think about what to do with instances without job IDs
-			nojobid_inst = []
+			# Instances without any job_id
+			#   { region: [Inst] }
+			nojobid_inst = {}
+			num_nojobid_inst = 0
 			for di in dis:
 				for i in di.Instances():
 					if i.job_id is not None:
@@ -93,13 +95,16 @@ class IM:
 							jobid_inst[i.job_id] = {}
 						jobid_inst[i.job_id][i.region] = i
 					else:
-						nojobid_inst.append(i)
+						if i.region not in nojobid_inst:
+							nojobid_inst[i.region] = {}
+						nojobid_inst[i.region].append(i)
+						num_nojobid_inst += 1
 
 			ClusterCleaner.Clean(jobid_inst)
 
 			for job_id, v in sorted(jobid_inst.iteritems()):
 				self.dio.P("%s %d" % (job_id, len(v)))
-				for k1, i in v.iteritems():
+				for k1, i in sorted(v.iteritems()):
 					#msg = " (%s %s %s %s)" % (i.az, i.inst_id, i.public_ip, i.state)
 					msg = " (%s %s %s)" % (i.az, i.public_ip, i.state)
 					if self.dio.LastLineWidth() + len(msg) > DIO.max_column_width:
@@ -108,12 +113,13 @@ class IM:
 				self.dio.P("\n")
 
 			if len(nojobid_inst) > 0:
-				self.dio.P("%-13s %d" % ("no-job-id", len(nojobid_inst)))
-				for i in nojobid_inst:
-					msg = " (%s %s %s)" % (i.az, i.public_ip, i.state)
-					if self.dio.LastLineWidth() + len(msg) > DIO.max_column_width:
-						self.dio.P("\n  ")
-					self.dio.P(msg)
+				self.dio.P("%-13s %d" % ("no-job-id", num_nojobid_inst))
+				for region, insts in nojobid_inst:
+					for i in insts:
+						msg = " (%s %s %s)" % (i.az, i.public_ip, i.state)
+						if self.dio.LastLineWidth() + len(msg) > DIO.max_column_width:
+							self.dio.P("\n  ")
+						self.dio.P(msg)
 				self.dio.P("\n")
 
 		self.dio.P("Time since the last msg: %s" % (datetime.datetime.now() - self.desc_inst_start_time))
@@ -259,7 +265,6 @@ class ClusterCleaner():
 						break
 			if not is_acorn_server:
 				continue
-			Cons.P(Util.FileLine())
 
 			if len(v) == 11:
 				ClusterCleaner.jobid_first_time_under11.pop(job_id, None)
@@ -274,7 +279,6 @@ class ClusterCleaner():
 			diff = (datetime.datetime.now() - ClusterCleaner.jobid_first_time_under11[job_id]).total_seconds()
 			if diff > ClusterCleaner.wait_time_before_clean:
 				Cons.P("Cluster with job_id %s has less than 11 nodes for the last %d seconds. Termination requested." % diff)
-			Cons.P(Util.FileLine())
 			ClusterCleaner._q.put(ClusterCleaner.Msg(job_id), block=False)
 
 			# Reset to give the job-controller some time to clean up the cluster
