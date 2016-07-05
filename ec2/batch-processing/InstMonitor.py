@@ -239,7 +239,7 @@ class ClusterCleaner():
 	jobid_first_time_under11 = {}
 
 	# Cluster cleaner job queue
-	_q = Queue.Queue(maxsize=1)
+	_q = Queue.Queue(maxsize=100)
 
 	@staticmethod
 	def Queue():
