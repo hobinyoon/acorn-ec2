@@ -232,7 +232,7 @@ class Inst():
 
 
 class ClusterCleaner():
-	wait_time_before_clean = 20
+	wait_time_before_clean = 360
 
 	# First time we've seen a cluster with under 11 nodes
 	#   { job_id: datetime }
