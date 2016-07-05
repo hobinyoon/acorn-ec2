@@ -94,6 +94,7 @@ class CheckSpotPrice():
 				dur_sum = 0
 				dur_price_sum = 0.0
 				price_max = 0.0
+				price_avg = 0.0
 				for ts, price in sorted(v.iteritems()):
 					if ts_prev is not None:
 						dur = (ts - ts_prev).total_seconds()
@@ -103,7 +104,8 @@ class CheckSpotPrice():
 					price_max = max(price, price_max)
 					ts_prev = ts
 					price_prev = price
-				price_avg = dur_price_sum / dur_sum
+				if dur_sum != 0.0:
+					price_avg = dur_price_sum / dur_sum
 				price_cur = price_prev
 				p = CurSpotPrice(az, price_cur, price_avg, price_max)
 				self.az_price[az] = p
