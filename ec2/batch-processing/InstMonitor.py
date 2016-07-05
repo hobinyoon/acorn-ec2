@@ -31,7 +31,7 @@ class IM:
 		self.ReqStop()
 
 	def DescInst(self):
-		self.desc_inst_start_time = time.time()
+		self.desc_inst_start_time = datetime.datetime.now()
 		self.stdout_msg = ""
 		while self.stop_requested == False:
 			bt = time.time()
@@ -116,7 +116,7 @@ class IM:
 					self.dio.P(msg)
 				self.dio.P("\n")
 
-		self.dio.P("Time since the last msg: %s" % (str(datetime.timedelta(seconds=(time.time() - self.desc_inst_start_time)))))
+		self.dio.P("Time since the last msg: %s" % (datetime.datetime.now() - self.desc_inst_start_time))
 		self.dio.Flush()
 
 	def ReqStop(self):
