@@ -238,11 +238,13 @@ class Inst():
 
 
 class ClusterCleaner():
-	wait_time_before_clean = 360
+	wait_time_before_clean_under11 = 360
+	wait_time_before_clean_11 = 3600
 
-	# First time we've seen a cluster with under 11 nodes
+	# First time we've seen a cluster with under 11 nodes and with 11 nodes
 	#   { job_id: datetime }
 	jobid_first_time_under11 = {}
+	jobid_first_time_11 = {}
 
 	# Cluster cleaner job queue
 	_q = Queue.Queue(maxsize=100)
@@ -256,7 +258,7 @@ class ClusterCleaner():
 		# jobid_inst: { job_id: {region: Inst} }
 
 		for job_id, v in jobid_inst.iteritems():
-			# Only monitor acorn-server nodes. Do not monitor dev nodes.
+			# Only clean acorn-server nodes. Dev nodes are not cleaned automatically.
 			is_acorn_server = False
 			for region, i in v.iteritems():
 				if "init_script" in i.tags:
@@ -266,23 +268,34 @@ class ClusterCleaner():
 			if not is_acorn_server:
 				continue
 
-			if len(v) == 11:
+			if len(v) < 11:
+				if job_id not in ClusterCleaner.jobid_first_time_under11:
+					ClusterCleaner.jobid_first_time_under11[job_id] = datetime.datetime.now()
+					continue
+				diff = (datetime.datetime.now() - ClusterCleaner.jobid_first_time_under11[job_id]).total_seconds()
+				if diff > ClusterCleaner.wait_time_before_clean_under11:
+					Cons.P("Cluster (job_id %s, %d nodes) has been there for %d seconds." \
+							" Termination requested." % (job_id, len(v), diff))
+				ClusterCleaner._q.put(ClusterCleaner.Msg(job_id), block=False)
+				# Reset to give the job-controller some time to clean up the cluster
+				ClusterCleaner.jobid_first_time_11.pop(job_id, None)
+
+			elif len(v) == 11:
+				# Even with 11 nodes, the cluster can be in a state it doesn't make any
+				# progress
+				if job_id not in ClusterCleaner.jobid_first_time_11:
+					ClusterCleaner.jobid_first_time_11[job_id] = datetime.datetime.now()
+					continue
+				diff = (datetime.datetime.now() - ClusterCleaner.jobid_first_time_under11[job_id]).total_seconds()
+				if diff > ClusterCleaner.wait_time_before_clean_11:
+					Cons.P("Cluster (job_id %s, %d nodes) has been there for %d seconds." \
+							" Termination requested." % (job_id, len(v), diff))
+				ClusterCleaner._q.put(ClusterCleaner.Msg(job_id), block=False)
 				ClusterCleaner.jobid_first_time_under11.pop(job_id, None)
-				continue
 
-			if job_id not in ClusterCleaner.jobid_first_time_under11:
-				ClusterCleaner.jobid_first_time_under11[job_id] = datetime.datetime.now()
-				continue
+			else:
+				raise RuntimeError("Unexpected len(v): %d" % len(v))
 
-			# If the cluster had less than 11 nodes and has been there for more then
-			# 6 mins, terminate it.
-			diff = (datetime.datetime.now() - ClusterCleaner.jobid_first_time_under11[job_id]).total_seconds()
-			if diff > ClusterCleaner.wait_time_before_clean:
-				Cons.P("Cluster with job_id %s has less than 11 nodes for the last %d seconds. Termination requested." % diff)
-			ClusterCleaner._q.put(ClusterCleaner.Msg(job_id), block=False)
-
-			# Reset to give the job-controller some time to clean up the cluster
-			ClusterCleaner.jobid_first_time_under11[job_id] = datetime.datetime.now()
 
 	class Msg():
 		def __init__(self, job_id):

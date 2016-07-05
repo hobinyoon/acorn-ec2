@@ -22,6 +22,13 @@ Not sure
 
 Done
 ----
+- When a cluster doesn't finish within 1 hr, kill it. It happens with a 11 node
+	cluster. One example is that one of the nodes didn't clone code from
+	github.com
+    sudo: unable to resolve host ip-172-31-17-235
+		Cloning into '/home/ubuntu/work/acorn-tools'...
+		fatal: unable to access 'https://github.com/hobinyoon/acorn-tools.git/': Could not resolve host: github.com
+
 - When a job controller sees an acorn-server cluster with less than 11 nodes
 	for 6 mins, terminate the cluster. job-controller will get the job request in
 	1 hour after the visibility timeout.  This happens quite often, due to the
