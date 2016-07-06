@@ -213,7 +213,7 @@ class DescInstPerRegion:
 					else:
 						self.dio.P(" %s" % self.region)
 				break
-			except botocore.exceptions.ClientError as e:
+			except (botocore.exceptions.ClientError, botocore.exceptions.EndpointConnectionError) as e:
 				Cons.P("%s. Region=%s. Resetting boto client after 1 sec ..." % (e, self.region))
 				time.sleep(1)
 				BotoClient.Reset(self.region)
