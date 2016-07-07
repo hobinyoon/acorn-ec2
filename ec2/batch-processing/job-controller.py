@@ -124,6 +124,11 @@ def ProcessJobReq(jr):
 	# datetime
 	#time.sleep(1.5)
 
+	# Delete the job request msg for non-acorn-server nodes, e.g., acorn-dev
+	# nodes, so that they don't reappear.
+	if jr.attrs["init_script"] not in ["acorn-server"]:
+		JobReqQ.DeleteMsg(jr_sqs_msg_receipt_handle)
+
 
 def ProcessJobCompletion(jc):
 	job_id = jc.attrs["job_id"]
