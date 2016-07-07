@@ -58,13 +58,15 @@ def _MountAndFormatLocalSSDs():
 	# Make sure we are using the known machine types
 	inst_type = Util.RunSubp("curl -s http://169.254.169.254/latest/meta-data/instance-type", print_cmd = False, print_output = False)
 
-	ssds = None
-	devs = None
+	ssds = []
+	devs = []
 
 	# All c3 types has 2 SSDs
 	if inst_type.startswith("c3."):
 		ssds = ["ssd0", "ssd1"]
 		devs = ["xvdb", "xvdc"]
+	elif inst_type.startswith("c4."):
+		pass
 	elif inst_type in ["r3.large", "r3.xlarge", "r3.2xlarge", "r3.4xlarge"]:
 		ssds = ["ssd0"]
 		devs = ["xvdb"]
