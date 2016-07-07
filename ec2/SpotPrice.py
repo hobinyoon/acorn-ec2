@@ -1,5 +1,6 @@
 import datetime
 import os
+import pprint
 import sys
 import threading
 import traceback
@@ -13,6 +14,8 @@ import BotoClient
 
 _num_checked = 0
 _num_checked_lock = threading.Lock()
+
+# Global { az: price }
 _az_price = None
 _az_price_lock = threading.Lock()
 
@@ -46,6 +49,7 @@ def GetTheLowestMaxPriceAZs(region_spot_req):
 	for region, v in sorted(csps.iteritems()):
 		v.Print()
 		region_az_lowest_price[region] = v.AzLowestPrice()
+	#Cons.P(pprint.pformat(region_az_lowest_price))
 	return region_az_lowest_price
 
 
@@ -87,6 +91,9 @@ class CheckSpotPrice():
 				if az not in az_ts_price:
 					az_ts_price[az] = {}
 				az_ts_price[az][ts] = sp
+
+			if len(az_ts_price) == 0:
+				raise RuntimeError("No price history for %s in %s" % (self.inst_type, self.region))
 
 			for az, v in sorted(az_ts_price.iteritems()):
 				ts_prev = None

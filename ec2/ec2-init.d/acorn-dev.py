@@ -65,8 +65,6 @@ def _MountAndFormatLocalSSDs():
 	if inst_type.startswith("c3."):
 		ssds = ["ssd0", "ssd1"]
 		devs = ["xvdb", "xvdc"]
-	elif inst_type.startswith("c4."):
-		pass
 	elif inst_type in ["r3.large", "r3.xlarge", "r3.2xlarge", "r3.4xlarge"]:
 		ssds = ["ssd0"]
 		devs = ["xvdb"]
