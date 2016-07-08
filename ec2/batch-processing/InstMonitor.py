@@ -5,6 +5,7 @@ import Queue
 import sys
 import threading
 import time
+import traceback
 
 sys.path.insert(0, "%s/../../util/python" % os.path.dirname(__file__))
 import Cons
@@ -31,17 +32,21 @@ class IM:
 		self.ReqStop()
 
 	def DescInst(self):
-		self.desc_inst_start_time = datetime.datetime.now()
-		self.stdout_msg = ""
-		while self.stop_requested == False:
-			bt = time.time()
-			self._DescInst()
-			if self.stop_requested:
-				break
-			wait_time = IM.monitor_interval_in_sec - (time.time() - bt)
-			if wait_time > 0:
-				with self.cv:
-					self.cv.wait(wait_time)
+		try:
+			self.desc_inst_start_time = datetime.datetime.now()
+			self.stdout_msg = ""
+			while self.stop_requested == False:
+				bt = time.time()
+				self._DescInst()
+				if self.stop_requested:
+					break
+				wait_time = IM.monitor_interval_in_sec - (time.time() - bt)
+				if wait_time > 0:
+					with self.cv:
+						self.cv.wait(wait_time)
+		except Exception as e:
+			Cons.P("\n%s Got an exception: %s\n%s" % (time.strftime("%y%m%d-%H%M%S"), e, traceback.format_exc()))
+			os._exit(1)
 
 	def _DescInst(self):
 		self.dio.P("\nDescribing instances:")
@@ -96,7 +101,7 @@ class IM:
 						jobid_inst[i.job_id][i.region] = i
 					else:
 						if i.region not in nojobid_inst:
-							nojobid_inst[i.region] = {}
+							nojobid_inst[i.region] = []
 						nojobid_inst[i.region].append(i)
 						num_nojobid_inst += 1
 
@@ -114,7 +119,7 @@ class IM:
 
 			if len(nojobid_inst) > 0:
 				self.dio.P("%-13s %d" % ("no-job-id", num_nojobid_inst))
-				for region, insts in nojobid_inst:
+				for region, insts in sorted(nojobid_inst.iteritems()):
 					for i in insts:
 						msg = " (%s %s %s)" % (i.az, i.public_ip, i.state)
 						if self.dio.LastLineWidth() + len(msg) > DIO.max_column_width:
