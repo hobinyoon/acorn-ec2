@@ -4,6 +4,7 @@ import base64
 import boto3
 import botocore
 import datetime
+import errno
 import imp
 import os
 import pprint
@@ -323,30 +324,32 @@ def _EnqJcMsg(q):
 	q.send_message(MessageBody=msg_body_jc, MessageAttributes=msg_attrs)
 
 
-# Loading the Youtube data file form EBS takes long, like up to 5 mins, and
-# could make a big difference among nodes in different regions, which varies
-# the start times of Youtube clients in different regions.
-class CacheEbsFileIntoMem:
-	def __init__(self):
-		self.fn = "/home/ubuntu/work/acorn-data/tweets-010"
-		if "acorn-youtube.fn_youtube_reqs" in _tags:
-			self.fn = "/home/ubuntu/work/acorn-data/%s" % _tags["acorn-youtube.fn_youtube_reqs"]
+# Loading the Youtube data file form EBS takes long, and could make a big
+# difference among nodes in different regions, which varies the start times of
+# Youtube clients in different regions.
+def _UnzipAcornDataToLocalSsd():
+	dn_in = "/home/ubuntu/work/acorn-data"
+	dn_out = "/mnt/local-ssd0/work/acorn-data"
 
-	def __enter__(self):
-		self.t = threading.Thread(target=self._VmTouch)
-		self.t.daemon = True
-		self.t.start()
-		_Log("Touching %s into memory ..." % self.fn)
-		return self
+	try:
+		os.makedirs(dn_out)
+	except OSError as e:
+		if e.errno == errno.EEXIST and os.path.isdir(dn_out):
+			pass
+		else:
+			raise
 
-	def __exit__(self, type, value, traceback):
-		self.t.join()
-		_Log("Touched %s into memory ..." % self.fn)
-		_Log("  %s" % self.out)
+	if "acorn-youtube.fn_youtube_reqs" not in _tags:
+		return
 
-	def _VmTouch(self):
-		cmd = "/usr/local/bin/vmtouch -t -f %s" % self.fn
-		self.out = Util.RunSubp(cmd, print_cmd = False, print_output = False)
+	_Log("Unzip Acorn data to local SSD ...")
+
+	fn_in = "%s/%s.7z" % (dn_in, _tags["acorn-youtube.fn_youtube_reqs"])
+	cmd = "7z e -y -o%s %s" % (dn_out, fn_in)
+	Util.RunSubp(cmd)
+
+	# Used to use vmtouch
+	#cmd = "/usr/local/bin/vmtouch -t -f %s" % self.fn
 
 
 _jr_sqs_url = None
@@ -383,15 +386,15 @@ def main(argv):
 		_az = Util.RunSubp("curl -s http://169.254.169.254/latest/meta-data/placement/availability-zone", print_cmd = False, print_output = False)
 		_region = _az[:-1]
 
-		with CacheEbsFileIntoMem():
-			_SetHostname()
-			_SyncTime()
-			#_InstallPkgs()
-			_MountAndFormatLocalSSDs()
-			_CloneAcornSrcAndBuild()
-			_EditCassConf()
-			_EditYoutubeClientConf()
-			_RunCass()
+		_SetHostname()
+		_SyncTime()
+		#_InstallPkgs()
+		_MountAndFormatLocalSSDs()
+		_UnzipAcornDataToLocalSsd()
+		_CloneAcornSrcAndBuild()
+		_EditCassConf()
+		_EditYoutubeClientConf()
+		_RunCass()
 
 		_WaitUntilYouSeeAllCassNodes()
 
