@@ -1,16 +1,16 @@
 def GetLatestAmiId(region):
 	region_ami = {
-			"ap-northeast-1": "ami-08b84a69"
-			, "ap-northeast-2": "ami-61915b0f"
-			, "ap-south-1": "ami-b8e68cd7"
-			, "ap-southeast-1": "ami-50d40933"
-			, "ap-southeast-2": "ami-fc13389f"
-			, "eu-central-1": "ami-9b8862f4"
-			, "eu-west-1": "ami-2c1d795f"
-			, "sa-east-1": "ami-ab33a6c7"
-			, "us-east-1": "ami-a742c7b0"
-			, "us-west-1": "ami-b9b1f6d9"
-			, "us-west-2": "ami-f58e4e95"
+			"ap-northeast-1": "ami-ffc63b9e"
+			, "ap-northeast-2": "ami-68a26806"
+			, "ap-south-1": "ami-26f09a49"
+			, "ap-southeast-1": "ami-6925f80a"
+			, "ap-southeast-2": "ami-31b19a52"
+			, "eu-central-1": "ami-e318f28c"
+			, "eu-west-1": "ami-8fa6c1fc"
+			, "sa-east-1": "ami-c6e97daa"
+			, "us-east-1": "ami-6f8e0878"
+			, "us-west-1": "ami-252b6d45"
+			, "us-west-2": "ami-a58645c5"
 			}
 
 	return region_ami[region]
