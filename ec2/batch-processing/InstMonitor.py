@@ -283,7 +283,7 @@ class ClusterCleaner():
 							" Termination requested." % (job_id, len(v), diff))
 				ClusterCleaner._q.put(ClusterCleaner.Msg(job_id), block=False)
 				# Reset to give the job-controller some time to clean up the cluster
-				ClusterCleaner.jobid_first_time_11.pop(job_id, None)
+				ClusterCleaner.jobid_first_time_under11.pop(job_id, None)
 
 			elif len(v) == 11:
 				# Even with 11 nodes, the cluster can be in a state it doesn't make any
@@ -291,12 +291,12 @@ class ClusterCleaner():
 				if job_id not in ClusterCleaner.jobid_first_time_11:
 					ClusterCleaner.jobid_first_time_11[job_id] = datetime.datetime.now()
 					continue
-				diff = (datetime.datetime.now() - ClusterCleaner.jobid_first_time_under11[job_id]).total_seconds()
+				diff = (datetime.datetime.now() - ClusterCleaner.jobid_first_time_11[job_id]).total_seconds()
 				if diff > ClusterCleaner.wait_time_before_clean_11:
 					Cons.P("Cluster (job_id %s, %d nodes) has been there for %d seconds." \
 							" Termination requested." % (job_id, len(v), diff))
 				ClusterCleaner._q.put(ClusterCleaner.Msg(job_id), block=False)
-				ClusterCleaner.jobid_first_time_under11.pop(job_id, None)
+				ClusterCleaner.jobid_first_time_11.pop(job_id, None)
 
 			else:
 				raise RuntimeError("Unexpected len(v): %d" % len(v))
