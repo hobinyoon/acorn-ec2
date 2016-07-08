@@ -6,6 +6,7 @@ import os
 import pprint
 import Queue
 import sys
+import threading
 import time
 import traceback
 
@@ -24,18 +25,36 @@ import S3
 
 def main(argv):
 	try:
-		Cons.P("Starting ...")
+		_Log("Starting ...")
 		PollMsgs()
 	except KeyboardInterrupt as e:
-		Cons.P("\n%s Got a keyboard interrupt. Stopping ..." % time.strftime("%y%m%d-%H%M%S"))
+		_Log("\nGot a keyboard interrupt. Stopping ...")
 	except Exception as e:
-		Cons.P("\n%s Got an exception: %s\n%s" % (time.strftime("%y%m%d-%H%M%S"), e, traceback.format_exc()))
+		_Log("\nGot an exception: %s\n%s" % (e, traceback.format_exc()))
 	# Deleting the job request queue is useful for preventing the job request
 	# reappearing
 
 	# You can temporarily disable this for dev, but needs to be very careful. You
 	# can easily spend $1000 a night.
 	JobReqQ.DeleteQ()
+
+
+_log_lock = threading.Lock()
+
+def _Log(msg):
+	with _log_lock:
+		startswith_newline = False
+		if msg.startswith("\n"):
+			startswith_newline = True
+			msg = msg[1:]
+
+		if startswith_newline:
+			Cons.P("")
+		m0 = "%s: %s" % (time.strftime("%y%m%d-%H%M%S"), msg)
+		Cons.P(m0)
+
+		with open(".job-controller.log", "a") as fo:
+			fo.write("%s\n" % m0)
 
 
 # Not sure if a Queue is necessary when the maxsize is 1. Leave it for now.
@@ -83,7 +102,7 @@ def PollMsgs():
 
 def ProcessClusterCleanReq(req):
 	job_id = req.job_id
-	Cons.P("\n%s Got a cluster clean request. job_id:%s" % (time.strftime("%y%m%d-%H%M%S"), job_id))
+	_Log("\nGot a cluster clean request. job_id:%s" % job_id)
 	_TermCluster(job_id)
 
 
@@ -91,8 +110,8 @@ def ProcessJobReq(jr):
 	# Note: May want some admission control here, like one based on how many free
 	# instance slots are available.
 
-	Cons.P("\n%s Got a job request msg. attrs:\n%s"
-			% (time.strftime("%y%m%d-%H%M%S"), pprint.pformat(jr.attrs)))
+	_Log("\nGot a job request msg. attrs:\n%s"
+			% pprint.pformat(jr.attrs))
 
 	# Pass these as the init script parameters. Decided not to use EC2 tag
 	# for these, due to its limitations.
@@ -132,7 +151,7 @@ def ProcessJobReq(jr):
 
 def ProcessJobCompletion(jc):
 	job_id = jc.attrs["job_id"]
-	Cons.P("\n%s Got a job completion msg. job_id:%s" % (time.strftime("%y%m%d-%H%M%S"), job_id))
+	_Log("\nGot a job completion msg. job_id:%s" % job_id)
 	_TermCluster(job_id)
 
 	JobReqQ.DeleteMsg(jc.attrs["job_req_msg_recript_handle"])
