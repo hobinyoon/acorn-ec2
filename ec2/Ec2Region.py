@@ -2,17 +2,17 @@ def GetLatestAmiId(region, name = "acorn-server"):
 	region_ami = None
 	if name == "acorn-server":
 		region_ami = {
-				"ap-northeast-1": "ami-ffc63b9e"
-				, "ap-northeast-2": "ami-68a26806"
-				, "ap-south-1": "ami-26f09a49"
-				, "ap-southeast-1": "ami-6925f80a"
-				, "ap-southeast-2": "ami-31b19a52"
-				, "eu-central-1": "ami-e318f28c"
-				, "eu-west-1": "ami-8fa6c1fc"
-				, "sa-east-1": "ami-c6e97daa"
-				, "us-east-1": "ami-6f8e0878"
-				, "us-west-1": "ami-252b6d45"
-				, "us-west-2": "ami-a58645c5"
+				"ap-northeast-1": "ami-7352af12"
+				, "ap-northeast-2": "ami-d5bc76bb"
+				, "ap-south-1": "ami-74f3991b"
+				, "ap-southeast-1": "ami-1b4c9178"
+				, "ap-southeast-2": "ami-8c80abef"
+				, "eu-central-1": "ami-14678d7b"
+				, "eu-west-1": "ami-46ea8d35"
+				, "sa-east-1": "ami-2f9f0b43"
+				, "us-east-1": "ami-ac32b4bb"
+				, "us-west-1": "ami-9c4f09fc"
+				, "us-west-2": "ami-b5c201d5"
 				}
 	elif name == "tweets-db":
 		region_ami = {
