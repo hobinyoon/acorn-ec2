@@ -21,6 +21,7 @@ import SpotPrice
 _dn_tmp = "%s/../.tmp" % os.path.dirname(__file__)
 _job_id = None
 
+_ami_name = None
 _tags = None
 _num_regions = None
 _jr_sqs_url = None
@@ -31,7 +32,7 @@ _region_az_lowest_max_spot_price = None
 _pm = None
 
 
-def Run(region_spot_req, tags, jr_sqs_url, jr_sqs_msg_receipt_handle):
+def Run(region_spot_req, ami_name, tags, jr_sqs_url, jr_sqs_msg_receipt_handle):
 	Reset()
 
 	Util.RunSubp("mkdir -p %s" % _dn_tmp, print_cmd = False)
@@ -41,7 +42,8 @@ def Run(region_spot_req, tags, jr_sqs_url, jr_sqs_msg_receipt_handle):
 	_job_id = req_datetime.strftime("%y%m%d-%H%M%S")
 	Cons.P("job_id:%s (for describing and terminating the cluster)" % _job_id)
 
-	global _tags, _num_regions, _jr_sqs_url, _jr_sqs_msg_receipt_handle, _init_script
+	global _ami_name, _tags, _num_regions, _jr_sqs_url, _jr_sqs_msg_receipt_handle, _init_script
+	_ami_name = ami_name
 	_tags = tags
 	_tags["job_id"] = _job_id
 	_num_regions = len(region_spot_req)
@@ -78,10 +80,11 @@ def Run(region_spot_req, tags, jr_sqs_url, jr_sqs_msg_receipt_handle):
 # This module can be called repeatedly
 def Reset():
 	global _job_id
-	global _tags, _jr_sqs_url, _jr_sqs_msg_receipt_handle, _init_script
+	global _ami_name, _tags, _jr_sqs_url, _jr_sqs_msg_receipt_handle, _init_script
 
 	_job_id = None
 
+	_ami_name = None
 	_tags = None
 	_num_regions = None
 	_jr_sqs_url = None
@@ -96,7 +99,6 @@ class ReqAndMonitor():
 		# max price.
 		self.az = _region_az_lowest_max_spot_price[region]
 
-		self.ami_id = Ec2Region.GetLatestAmiId(self.region)
 		self.inst_type = spot_req_params["inst_type"]
 		self.max_price = spot_req_params["max_price"]
 
@@ -126,7 +128,7 @@ sudo -i -u ubuntu /home/ubuntu/work/acorn-tools/ec2/ec2-init.py {0} {1} {2} {3}
 """
 		user_data = user_data.format(_init_script, _jr_sqs_url, _jr_sqs_msg_receipt_handle, _num_regions)
 
-		ls = {'ImageId': self.ami_id
+		ls = {'ImageId': Ec2Region.GetLatestAmiId(region = self.region, name = _ami_name)
 				#, 'KeyName': 'string'
 				, 'SecurityGroups': ["cass-server"]
 				, 'UserData': base64.b64encode(user_data)

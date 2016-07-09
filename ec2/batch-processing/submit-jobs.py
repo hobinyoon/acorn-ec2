@@ -23,9 +23,14 @@ def main(argv):
 	sqs = boto3.resource("sqs", region_name = sqs_region)
 	q = GetQ(bc, sqs)
 
-	#SingleDevNode(q)
+	SingleDevNode(q)
 
-	ByYoutubeWorkloadOfDifferentSizes(q)
+	# Test when the full replication (Unmodified Cassandra) saturates the cluster
+	# by varying request density (by changing the simulation time)
+	#FullRepClusterSaturationTest(q)
+
+	#for i in range(1):
+	#	ByYoutubeWorkloadOfDifferentSizes(q)
 
 	#ByRepModels(q)
 
@@ -52,40 +57,74 @@ def GetQ(bc, sqs):
 def SingleDevNode(q):
 	req_attrs = {
 			"init_script": "acorn-dev"
+			# Default is "acorn-server"
+			, "ami_name": "tweets-db"
 			, "region_spot_req": {
-				"us-west-1": {"inst_type": "r3.xlarge", "max_price": 1.0}
-				, "us-west-2": {"inst_type": "r3.xlarge", "max_price": 1.0}
+				"us-east-1": {"inst_type": "r3.xlarge", "max_price": 1.0}
+				#, "us-west-2": {"inst_type": "r3.xlarge", "max_price": 1.0}
+
+				# For the Tweet crawler, MySQL node
+				#"us-east-1": {"inst_type": "c3.4xlarge", "max_price": 1.0}
 				}
 			}
 	_EnqReq(q, req_attrs)
 
 
 # Pricing can be specified per datacenter too later when needed.
-_region_spot_req = {
-		"ap-northeast-1": {"inst_type": "r3.xlarge", "max_price": 1.0}
-		, "ap-northeast-2": {"inst_type": "r3.xlarge", "max_price": 1.0}
-		, "ap-south-1": {"inst_type": "r3.xlarge", "max_price": 1.0}
-		, "ap-southeast-1": {"inst_type": "r3.xlarge", "max_price": 1.0}
-		, "ap-southeast-2": {"inst_type": "r3.xlarge", "max_price": 1.0}
+_11_region_spot_req = {
+		"ap-northeast-1": {"inst_type": "r3.xlarge", "max_price": 3.0}
+		, "ap-northeast-2": {"inst_type": "r3.xlarge", "max_price": 3.0}
+
+		, "ap-south-1": {"inst_type": "i2.xlarge", "max_price": 3.0}
+		# Keep getting killed due to the limited capacity
+		#, "ap-south-1": {"inst_type": "r3.xlarge", "max_price": 3.0}
+		#, "ap-south-1": {"inst_type": "r3.2xlarge", "max_price": 3.0}
+
+		, "ap-southeast-1": {"inst_type": "r3.xlarge", "max_price": 3.0}
+		, "ap-southeast-2": {"inst_type": "r3.xlarge", "max_price": 3.0}
 
 		# r3.xlarge is oversubscribed and expensive. strange.
-		, "eu-central-1": {"inst_type": "r3.2xlarge", "max_price": 1.0}
+		, "eu-central-1": {"inst_type": "r3.2xlarge", "max_price": 3.0}
 
-		, "eu-west-1": {"inst_type": "r3.xlarge", "max_price": 1.0}
+		, "eu-west-1": {"inst_type": "r3.xlarge", "max_price": 3.0}
 
 		# Sao Paulo doesn't have r3.xlarge
-		, "sa-east-1": {"inst_type": "c3.2xlarge", "max_price": 1.0}
+		, "sa-east-1": {"inst_type": "c3.2xlarge", "max_price": 3.0}
 
-		, "us-east-1": {"inst_type": "r3.xlarge", "max_price": 1.0}
-		, "us-west-1": {"inst_type": "r3.xlarge", "max_price": 1.0}
-		, "us-west-2": {"inst_type": "r3.xlarge", "max_price": 1.0}
+		, "us-east-1": {"inst_type": "r3.xlarge", "max_price": 3.0}
+		, "us-west-1": {"inst_type": "r3.xlarge", "max_price": 3.0}
+		, "us-west-2": {"inst_type": "r3.xlarge", "max_price": 3.0}
 		}
+
+
+def FullRepClusterSaturationTest(q):
+	req_attrs = {
+			"init_script": "acorn-server"
+			, "region_spot_req": _11_region_spot_req
+
+			# Default is 30 mins, 1800 secs.
+			#, "acorn-youtube.simulation_time_dur_in_ms": "1800000"
+
+			# Default is true, true
+			#, "acorn_options.use_attr_user": "true"
+			#, "acorn_options.use_attr_topic": "true"
+			}
+
+	# Full replication, of course without any acorn metadata exchange
+	req_attrs["acorn-youtube.replication_type"] = "full"
+	req_attrs["acorn_options.use_attr_user"] = "false"
+	req_attrs["acorn_options.use_attr_topic"] = "false"
+
+	#for i in range(1100000, 2400000, 100000):
+	for i in [1100000]:
+		req_attrs["acorn-youtube.simulation_time_dur_in_ms"] = str(i)
+		_EnqReq(q, req_attrs)
 
 
 def ByYoutubeWorkloadOfDifferentSizes(q):
 	req_attrs = {
 			"init_script": "acorn-server"
-			, "region_spot_req": _region_spot_req
+			, "region_spot_req": _11_region_spot_req
 
 			# Partial replication metadata is exchanged
 			, "acorn-youtube.replication_type": "partial"
@@ -98,8 +137,8 @@ def ByYoutubeWorkloadOfDifferentSizes(q):
 			# Default is -1 (request all)
 			#, "acorn-youtube.max_requests": "-1"
 
-			# Default is 35 mins, 2100 secs.
-			#, "acorn-youtube.simulation_time_dur_in_ms": "2100000"
+			# Default is 30 mins, 1800 secs.
+			#, "acorn-youtube.simulation_time_dur_in_ms": "1800000"
 
 			# Default is true, true
 			#, "acorn_options.use_attr_user": "true"
@@ -248,7 +287,7 @@ def _EnqReq(q, attrs):
 
 		jc_params = {}
 		for k in attrs.keys():
-			if k in ["init_script", "region_spot_req"]:
+			if k in ["region_spot_req", "ami_name"]:
 				jc_params[k] = attrs[k]
 				del attrs[k]
 		#Cons.P(json.dumps(jc_params))
