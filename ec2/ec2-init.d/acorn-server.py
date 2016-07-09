@@ -12,6 +12,7 @@ import sys
 import threading
 import time
 import traceback
+import yaml
 import zipfile
 
 sys.path.insert(0, "%s/../../util/python" % os.path.dirname(__file__))
@@ -173,9 +174,10 @@ def _EditCassConf():
 					"/g' %s" % (k1, k1, v, fn_cass_yaml))
 
 
+_fn_acorn_youtube_yaml = "/home/ubuntu/work/acorn/acorn/clients/youtube/acorn-youtube.yaml"
+
 def _EditYoutubeClientConf():
-	fn = "/home/ubuntu/work/acorn/acorn/clients/youtube/acorn-youtube.yaml"
-	_Log("Editing %s ..." % fn)
+	_Log("Editing %s ..." % _fn_acorn_youtube_yaml)
 	for k, v in _tags.iteritems():
 		if k.startswith("acorn-youtube."):
 			#              01234567890123
@@ -183,7 +185,7 @@ def _EditYoutubeClientConf():
 			Util.RunSubp("sed -i 's/" \
 					"^%s:.*" \
 					"/%s: %s" \
-					"/g' %s" % (k1, k1, v, fn))
+					"/g' %s" % (k1, k1, v, _fn_acorn_youtube_yaml))
 
 
 def _RunCass():
@@ -340,12 +342,17 @@ def _UnzipAcornDataToLocalSsd():
 		else:
 			raise
 
+	fn_youtube_reqs = None
+	with open(_fn_acorn_youtube_yaml, "r") as fo:
+		doc = yaml.load(fo)
+		fn_youtube_reqs = doc["fn_youtube_reqs"]
+
 	if "acorn-youtube.fn_youtube_reqs" not in _tags:
 		return
 
 	_Log("Unzip Acorn data to local SSD ...")
 
-	fn_in = "%s/%s.7z" % (dn_in, _tags["acorn-youtube.fn_youtube_reqs"])
+	fn_in = "%s/%s.7z" % (dn_in, fn_youtube_reqs)
 	cmd = "7z e -y -o%s %s" % (dn_out, fn_in)
 	Util.RunSubp(cmd)
 
@@ -391,10 +398,10 @@ def main(argv):
 		_SyncTime()
 		#_InstallPkgs()
 		_MountAndFormatLocalSSDs()
-		_UnzipAcornDataToLocalSsd()
 		_CloneAcornSrcAndBuild()
 		_EditCassConf()
 		_EditYoutubeClientConf()
+		_UnzipAcornDataToLocalSsd()
 		_RunCass()
 
 		_WaitUntilYouSeeAllCassNodes()
