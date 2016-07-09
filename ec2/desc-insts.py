@@ -1,19 +1,14 @@
 #!/usr/bin/env python
 
+import os
 import sys
 
-import DescInst
-
+sys.path.insert(0, "%s/batch-processing" % os.path.dirname(__file__))
+import InstMonitor
 
 def main(argv):
-	tags = {}
-	for i in range(1, len(argv)):
-		t = argv[i].split(":")
-		if len(t) != 2:
-			raise RuntimeError("Unexpected. argv[%d]=[%s]" % (i, argv[i]))
-		tags[t[0]] = t[1]
-
-	DescInst.Run(tags)
+	im = InstMonitor.IM()
+	im.RunOnce()
 
 
 if __name__ == "__main__":

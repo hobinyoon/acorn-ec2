@@ -19,11 +19,15 @@ import Ec2Region
 class IM:
 	monitor_interval_in_sec = 10
 
+	def __init__(self):
+		self.stop_requested = False
+
 	def __enter__(self):
+		self.mode = "run_until_stopped"
 		self.stop_requested = False
 		self.dio = DIO()
 		self.cv = threading.Condition()
-		self.t = threading.Thread(target=self.DescInst)
+		self.t = threading.Thread(target=self._RunUtilStopped)
 		self.t.daemon = True
 		self.t.start()
 		return self
@@ -31,7 +35,12 @@ class IM:
 	def __exit__(self, type, value, traceback):
 		self.ReqStop()
 
-	def DescInst(self):
+	def RunOnce(self):
+		self.mode = "run_once"
+		self.dio = DIO(buffered = False)
+		self._DescInst()
+
+	def _RunUtilStopped(self):
 		try:
 			self.desc_inst_start_time = datetime.datetime.now()
 			self.stdout_msg = ""
@@ -49,7 +58,9 @@ class IM:
 			os._exit(1)
 
 	def _DescInst(self):
-		self.dio.P("\nDescribing instances:")
+		if self.mode == "run_until_stopped":
+			self.dio.P("\n")
+		self.dio.P("Describing instances:")
 
 		DescInstPerRegion.Reset()
 
@@ -127,8 +138,10 @@ class IM:
 						self.dio.P(msg)
 				self.dio.P("\n")
 
-		self.dio.P("Time since the last msg: %s" % (datetime.datetime.now() - self.desc_inst_start_time))
-		self.dio.Flush()
+		if self.mode == "run_until_stopped":
+			self.dio.P("Time since the last msg: %s" % (datetime.datetime.now() - self.desc_inst_start_time))
+			self.dio.Flush()
+
 
 	def ReqStop(self):
 		self.stop_requested = True
@@ -150,7 +163,8 @@ class IM:
 class DIO:
 	max_column_width = 120
 
-	def __init__(self):
+	def __init__(self, buffered = True):
+		self.buffered = buffered
 		self.msg = ""
 		self.msg_lock = threading.Lock()
 		self.lines_printed = 0
@@ -158,6 +172,9 @@ class DIO:
 	def P(self, msg):
 		with self.msg_lock:
 			self.msg += msg
+			if self.buffered == False:
+				Cons.Pnnl(msg)
+				sys.stdout.flush()
 
 	def LastLineWidth(self):
 		with self.msg_lock:
