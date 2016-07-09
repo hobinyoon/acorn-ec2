@@ -1,6 +1,6 @@
 def GetLatestAmiId(region, name = "acorn-server"):
 	region_ami = None
-	if name == "acorn_server":
+	if name == "acorn-server":
 		region_ami = {
 				"ap-northeast-1": "ami-ffc63b9e"
 				, "ap-northeast-2": "ami-68a26806"
