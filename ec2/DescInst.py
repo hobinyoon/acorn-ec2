@@ -14,18 +14,22 @@ import Ec2Region
 
 _fmt = "%13s %-15s %19s %15s %13s"
 
+# TODO: clean up the file.  This module is called only from AcornUtil.py in
+# YoutubeAcorn, which needs public ip and Az.
+
 def Run(tags = None):
 	sys.stdout.write("desc_instances:")
 	sys.stdout.flush()
 
-	dis = []
+	diprs = []
 	for r in Ec2Region.All():
-		dis.append(DescInstPerRegion(r, tags))
+		diprs.append(DescInstPerRegion(r, tags))
 
 	threads = []
-	for di in dis:
-		t = threading.Thread(target=di.Run)
+	for dipr in diprs:
+		t = threading.Thread(target=dipr.Run)
 		threads.append(t)
+		t.daemon = True
 		t.start()
 
 	for t in threads:
@@ -33,8 +37,8 @@ def Run(tags = None):
 	print ""
 
 	num_insts = 0
-	for di in dis:
-		num_insts += di.NumInsts()
+	for dipr in diprs:
+		num_insts += dipr.NumInsts()
 	if num_insts == 0:
 		Cons.P("No instances found.")
 		return
@@ -53,8 +57,8 @@ def Run(tags = None):
 		))
 
 	results = []
-	for di in dis:
-		results += di.GetResults()
+	for dipr in diprs:
+		results += dipr.GetResults()
 	for r in sorted(results):
 		Cons.P(r)
 
@@ -123,7 +127,6 @@ class DescInstPerRegion:
 		for r in self.response["Reservations"]:
 			ids += r["Instances"]
 		return ids
-
 
 	def GetResults(self):
 		#Cons.P(pprint.pformat(self.response, indent=2, width=100))
