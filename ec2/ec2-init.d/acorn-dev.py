@@ -331,6 +331,8 @@ def _EnqJcMsg(q):
 # difference among nodes in different regions, which varies the start times of
 # Youtube clients in different regions.
 def _UnzipAcornDataToLocalSsd():
+	_Log("Unzip Acorn data to local SSD ...")
+
 	dn_in = "/home/ubuntu/work/acorn-data"
 	dn_out = "/mnt/local-ssd0/work/acorn-data"
 
@@ -346,11 +348,6 @@ def _UnzipAcornDataToLocalSsd():
 	with open(_fn_acorn_youtube_yaml, "r") as fo:
 		doc = yaml.load(fo)
 		fn_youtube_reqs = doc["fn_youtube_reqs"]
-
-	if "acorn-youtube.fn_youtube_reqs" not in _tags:
-		return
-
-	_Log("Unzip Acorn data to local SSD ...")
 
 	fn_in = "%s/%s.7z" % (dn_in, fn_youtube_reqs)
 	cmd = "7z e -y -o%s %s" % (dn_out, fn_in)
