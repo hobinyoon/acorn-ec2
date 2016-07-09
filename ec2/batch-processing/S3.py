@@ -6,7 +6,7 @@ import Util
 
 
 def Sync():
-	dn = "%s/work/acorn-data" % os.path.expanduser("~")
+	dn = "%s/work/acorn-log" % os.path.expanduser("~")
 	Util.MkDirs(dn)
 
 	# http://docs.aws.amazon.com/cli/latest/reference/s3/sync.html
