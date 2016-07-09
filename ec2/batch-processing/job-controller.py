@@ -131,7 +131,7 @@ def ProcessJobReq(jr):
 
 	ReqSpotAndMonitor.Run(
 			region_spot_req = jc_params["region_spot_req"]
-			, ami_name = jc_params["ami_name"]
+			, ami_name = jc_params.get("ami_name", "acorn-server")
 			, tags = jr.attrs
 			, jr_sqs_url = jr_sqs_url
 			, jr_sqs_msg_receipt_handle = jr_sqs_msg_receipt_handle
