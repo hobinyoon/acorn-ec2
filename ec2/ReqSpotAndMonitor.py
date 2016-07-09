@@ -192,7 +192,7 @@ sudo -i -u ubuntu /home/ubuntu/work/acorn-tools/ec2/ec2-init.py {0} {1} {2} {3}
 			_pm.UpdateDescSpotInstResp(self.region, r)
 			if r["SpotInstanceRequests"][0]["Status"]["Code"] == "fulfilled":
 				break
-			time.sleep(1)
+			time.sleep(2)
 
 		# Get inst_id
 		#Cons.P(Util.Indent(pprint.pformat(r, indent=2, width=100), 2))
@@ -245,7 +245,7 @@ sudo -i -u ubuntu /home/ubuntu/work/acorn-tools/ec2/ec2-init.py {0} {1} {2} {3}
 
 			elif state in ["terminated", "running"]:
 				break
-			time.sleep(1)
+			time.sleep(2)
 
 		# Make sure everything is ok.
 		if state == "running":
