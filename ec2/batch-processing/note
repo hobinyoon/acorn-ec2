@@ -1,5 +1,10 @@
 TODO
 ----
+- Admission control. Launch a new cluster when the number of nodes in each DC
+	is less than 12. InstMonitor has the info.
+
+- When a cluter is cleaned by ClusterCleaner, re-launch the job (make the same
+	job request again).
 
 
 Done
