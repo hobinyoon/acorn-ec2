@@ -23,14 +23,17 @@ def main(argv):
 	sqs = boto3.resource("sqs", region_name = sqs_region)
 	q = GetQ(bc, sqs)
 
-	SingleDevNode(q)
+	#SingleDevNode(q)
+
+	# For dev
+	#TwoNodeAcornServer(q)
+
+	for i in range(1):
+		ByYoutubeWorkloadOfDifferentSizes(q)
 
 	# Test when the full replication (Unmodified Cassandra) saturates the cluster
 	# by varying request density (by changing the simulation time)
 	#FullRepClusterSaturationTest(q)
-
-	#for i in range(1):
-	#	ByYoutubeWorkloadOfDifferentSizes(q)
 
 	#ByRepModels(q)
 
@@ -57,8 +60,10 @@ def GetQ(bc, sqs):
 def SingleDevNode(q):
 	req_attrs = {
 			"init_script": "acorn-dev"
-			# Default is "acorn-server"
-			, "ami_name": "tweets-db"
+
+			, "ami_name": "acorn-server"
+			#, "ami_name": "tweets-db"
+
 			, "region_spot_req": {
 				"us-east-1": {"inst_type": "r3.xlarge", "max_price": 1.0}
 				#, "us-west-2": {"inst_type": "r3.xlarge", "max_price": 1.0}
@@ -70,7 +75,24 @@ def SingleDevNode(q):
 	_EnqReq(q, req_attrs)
 
 
-# Pricing can be specified per datacenter too later when needed.
+def TwoNodeAcornServer(q):
+	req_attrs = {
+			"init_script": "acorn-server"
+			, "region_spot_req": {
+				"us-east-1": {"inst_type": "r3.xlarge", "max_price": 3.0}
+				, "us-west-1": {"inst_type": "r3.xlarge", "max_price": 3.0}
+				}
+			}
+
+	# Full replication, of course without any acorn metadata exchange
+	req_attrs["acorn-youtube.replication_type"] = "full"
+	req_attrs["acorn_options.use_attr_user"] = "false"
+	req_attrs["acorn_options.use_attr_topic"] = "false"
+
+	req_attrs["acorn-youtube.simulation_time_dur_in_ms"] = "2100000"
+	_EnqReq(q, req_attrs)
+
+
 _11_region_spot_req = {
 		"ap-northeast-1": {"inst_type": "r3.xlarge", "max_price": 3.0}
 		, "ap-northeast-2": {"inst_type": "r3.xlarge", "max_price": 3.0}
@@ -115,8 +137,8 @@ def FullRepClusterSaturationTest(q):
 	req_attrs["acorn_options.use_attr_user"] = "false"
 	req_attrs["acorn_options.use_attr_topic"] = "false"
 
-	#for i in range(1100000, 2400000, 100000):
-	for i in [1100000]:
+	#for i in range(1100 * 1000, 2400 * 1000, 100 * 1000):
+	for i in range(1100 * 1000, 0, -100 * 1000):
 		req_attrs["acorn-youtube.simulation_time_dur_in_ms"] = str(i)
 		_EnqReq(q, req_attrs)
 
@@ -129,7 +151,7 @@ def ByYoutubeWorkloadOfDifferentSizes(q):
 			# Partial replication metadata is exchanged
 			, "acorn-youtube.replication_type": "partial"
 
-			, "acorn-youtube.fn_youtube_reqs": "tweets-010"
+			#, "acorn-youtube.fn_youtube_reqs": "tweets-010"
 
 			# Default is 10240
 			#, "acorn-youtube.youtube_extra_data_size": "10240"
@@ -144,8 +166,32 @@ def ByYoutubeWorkloadOfDifferentSizes(q):
 			#, "acorn_options.use_attr_user": "true"
 			#, "acorn_options.use_attr_topic": "true"
 			}
-	for wl in ["tweets-010", "tweets-017", "tweets-054", "tweets-076", "tweets-100"]:
-		req_attrs["acorn-youtube.fn_youtube_reqs"] = wl
+
+	fns_youtube_reqs = [
+			"160709-203228-tweets-0075041"
+			, "160709-203228-tweets-0131812"
+			, "160709-203228-tweets-0210017"
+			, "160709-203228-tweets-0280708"
+			, "160709-203228-tweets-0353154"
+			, "160709-203228-tweets-0434435"
+			, "160709-203228-tweets-0520444"
+			, "160709-203228-tweets-0602968"
+			, "160709-203228-tweets-0680159"
+			, "160709-203228-tweets-0767461"
+			, "160709-203228-tweets-0845300"
+			, "160709-203228-tweets-0923923"
+			, "160709-203228-tweets-1019052"
+			, "160709-203228-tweets-1109828"
+			, "160709-203228-tweets-1201137"
+			, "160709-203228-tweets-1293692"
+			, "160709-203228-tweets-1386084"
+			, "160709-203228-tweets-1466911"
+			, "160709-203228-tweets-1529245"
+			, "160709-203228-tweets-1571389"
+			]
+
+	for i in range(17, -3, -4):
+		req_attrs["acorn-youtube.fn_youtube_reqs"] = fns_youtube_reqs[i]
 		_EnqReq(q, req_attrs)
 
 	# Full replication, of course without any acorn metadata exchange
@@ -153,8 +199,8 @@ def ByYoutubeWorkloadOfDifferentSizes(q):
 	req_attrs["acorn_options.use_attr_user"] = "false"
 	req_attrs["acorn_options.use_attr_topic"] = "false"
 
-	for wl in ["tweets-010", "tweets-017", "tweets-054", "tweets-076", "tweets-100"]:
-		req_attrs["acorn-youtube.fn_youtube_reqs"] = wl
+	for i in range(17, -3, -4):
+		req_attrs["acorn-youtube.fn_youtube_reqs"] = fns_youtube_reqs[i]
 		_EnqReq(q, req_attrs)
 
 

@@ -12,6 +12,10 @@ import Util
 import BotoClient
 
 
+_lock = threading.Lock()
+_last_checked_time = None
+_region_az_lowest_price = {}
+
 _num_checked = 0
 _num_checked_lock = threading.Lock()
 
@@ -20,37 +24,50 @@ _az_price = None
 _az_price_lock = threading.Lock()
 
 
-def GetTheLowestMaxPriceAZs(region_spot_req):
-	_Reset()
+def GetTheLowestMaxPriceAZs(log, region_spot_req):
+	global _region_az_lowest_price
 
-	Cons.Pnnl("Checking spot prices:")
-	global _num_checked
-	_num_checked = 0
+	with _lock:
+		# If requested within the last 5 mins from the last request, return the
+		# stored one.
+		global _last_checked_time
+		if _last_checked_time is None:
+			_last_checked_time = datetime.datetime.now()
+		else:
+			diff = (datetime.datetime.now() - _last_checked_time).total_seconds()
+			if diff < 5 * 60:
+				return _region_az_lowest_price
 
-	# {region, CheckSpotPrice()}
-	csps = {}
-	for region, spot_req_params in region_spot_req.iteritems():
-		inst_type = spot_req_params["inst_type"]
-		csps[region] = CheckSpotPrice(region, inst_type)
+		_Reset()
 
-	threads = []
-	for region, v in csps.iteritems():
-		t = threading.Thread(target=v.Run)
-		t.daemon = True
-		threads.append(t)
-		t.start()
+		log.Pnnl("Checking spot prices:")
+		global _num_checked
+		_num_checked = 0
 
-	for t in threads:
-		t.join()
-	Cons.P("")
+		# {region, CheckSpotPrice()}
+		csps = {}
+		for region, spot_req_params in region_spot_req.iteritems():
+			inst_type = spot_req_params["inst_type"]
+			csps[region] = CheckSpotPrice(log, region, inst_type)
 
-	Cons.P("Region         inst_type az   cur 1d-avg 1d-max")
-	region_az_lowest_price = {}
-	for region, v in sorted(csps.iteritems()):
-		v.Print()
-		region_az_lowest_price[region] = v.AzLowestPrice()
-	#Cons.P(pprint.pformat(region_az_lowest_price))
-	return region_az_lowest_price
+		threads = []
+		for region, v in csps.iteritems():
+			t = threading.Thread(target=v.Run)
+			t.daemon = True
+			threads.append(t)
+			t.start()
+
+		for t in threads:
+			t.join()
+		log.P("")
+
+		log.P("Region         inst_type az   cur 1d-avg 1d-max")
+		_region_az_lowest_price = {}
+		for region, v in sorted(csps.iteritems()):
+			v.Print()
+			_region_az_lowest_price[region] = v.AzLowestPrice()
+		#log.P(pprint.pformat(_region_az_lowest_price))
+		return _region_az_lowest_price
 
 
 def GetCurPrice(az):
@@ -64,11 +81,11 @@ def _Reset():
 
 
 class CheckSpotPrice():
-	def __init__(self, region, inst_type):
+	def __init__(self, log, region, inst_type):
+		self.log = log
 		self.region = region
 		self.inst_type = inst_type
 		self.az_price = {}
-
 
 	def Run(self):
 		try:
@@ -124,20 +141,20 @@ class CheckSpotPrice():
 				_num_checked += 1
 				if _num_checked == 7:
 					#                        Checking spot prices:
-					Cons.sys_stdout_write("\n                     ")
-				Cons.sys_stdout_write(" %s" % self.region)
+					self.log.Pnnl("\n                     ")
+				self.log.Pnnl(" %s" % self.region)
 		except Exception as e:
-			Cons.P("%s\nregion=%s\n%s" % (e, self.region, traceback.format_exc()))
+			self.log.P("%s\nregion=%s\n%s" % (e, self.region, traceback.format_exc()))
 			os._exit(1)
 
 
 	def Print(self):
 		# ap-southeast-1
 		# 01234567890123
-		Cons.Pnnl("%-14s %-10s" % (self.region, self.inst_type))
+		self.log.Pnnl("%-14s %-10s" % (self.region, self.inst_type))
 		for az, p in sorted(self.az_price.iteritems()):
-			Cons.sys_stdout_write(" %s" % p)
-		Cons.P("")
+			self.log.Pnnl(" %s" % p)
+		self.log.P("")
 
 
 	def AzLowestPrice(self):

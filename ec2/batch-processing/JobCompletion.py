@@ -1,5 +1,6 @@
 import boto3
 import botocore
+import imp
 import os
 import pprint
 import sys
@@ -9,6 +10,8 @@ import traceback
 sys.path.insert(0, "%s/../../util/python" % os.path.dirname(__file__))
 import Cons
 
+import JobControllerLog
+import S3
 
 def PollBackground(jc_q):
 	_Init()
@@ -17,6 +20,36 @@ def PollBackground(jc_q):
 	_thr_poll = threading.Thread(target=_Poll, args=[jc_q])
 	_thr_poll.daemon = True
 	_thr_poll.start()
+
+
+def Process(msg):
+	job_id = msg.attrs["job_id"]
+	JobControllerLog.P("\nGot a job completion msg. job_id:%s Terminsting the cluster ..." % job_id)
+	TermCluster(job_id)
+
+	JobReq.DeleteMsg(msg.attrs["job_req_msg_recript_handle"])
+	_DeleteMsg(msg)
+	S3.Sync()
+
+
+def TermCluster(job_id):
+	fn_module = "%s/../term-insts.py" % os.path.dirname(__file__)
+	mod_name,file_ext = os.path.splitext(os.path.split(fn_module)[-1])
+	if file_ext.lower() != '.py':
+		raise RuntimeError("Unexpected file_ext: %s" % file_ext)
+	py_mod = imp.load_source(mod_name, fn_module)
+	getattr(py_mod, "main")([fn_module, "job_id:%s" % job_id])
+
+
+def _DeleteMsg(jc):
+	Cons.P("Deleting the job completion msg ...")
+	_bc = boto3.client("sqs", region_name = _sqs_region)
+	#Cons.P(pprint.pformat(jc.msg))
+	r = _bc.delete_message(
+			QueueUrl = jc.msg.queue_url,
+			ReceiptHandle = jc.msg.receipt_handle
+			)
+	#Cons.P(pprint.pformat(r, indent=2))
 
 
 _initialized = False
@@ -31,17 +64,6 @@ def _Init():
 		_bc = boto3.client("sqs", region_name = _sqs_region)
 		_sqs = boto3.resource("sqs", region_name = _sqs_region)
 		_initialized = True
-
-
-def DeleteMsg(jc):
-	Cons.P("Deleting the job completion msg ...")
-	_bc = boto3.client("sqs", region_name = _sqs_region)
-	#Cons.P(pprint.pformat(jc.msg))
-	r = _bc.delete_message(
-			QueueUrl = jc.msg.queue_url,
-			ReceiptHandle = jc.msg.receipt_handle
-			)
-	Cons.P(pprint.pformat(r, indent=2))
 
 
 def _Poll(jc_q):
@@ -60,7 +82,7 @@ def _Poll(jc_q):
 					)
 			for m in msgs:
 				# put the job completion msg. Wait when the queue is full.
-				jc_q.put(JobCompleted(m), block=True, timeout=None)
+				jc_q.put(Msg(m), block=True, timeout=None)
 		except botocore.exceptions.EndpointConnectionError as e:
 			# Could not connect to the endpoint URL: "https://queue.amazonaws.com/"
 			# Retrying after 1 sec doesn't seem to help. Might be the server being
@@ -72,11 +94,11 @@ def _Poll(jc_q):
 			os._exit(1)
 
 
-class JobCompleted:
+class Msg:
 	msg_body_jc = "acorn-job-completion"
 
 	def __init__(self, msg):
-		if msg.body != JobCompleted.msg_body_jc:
+		if msg.body != Msg.msg_body_jc:
 			raise RuntimeError("Unexpected. msg.body=[%s]" % msg.body)
 		if msg.receipt_handle is None:
 			raise RuntimeError("Unexpected")

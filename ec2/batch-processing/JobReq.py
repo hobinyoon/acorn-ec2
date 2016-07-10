@@ -1,5 +1,6 @@
 import boto3
 import botocore
+import json
 import os
 import pprint
 import sys
@@ -9,6 +10,13 @@ import traceback
 
 sys.path.insert(0, "%s/../../util/python" % os.path.dirname(__file__))
 import Cons
+
+sys.path.insert(0, "..")
+import ReqSpotInsts
+import RunAndMonitorEc2Inst
+
+import JobControllerLog
+
 
 # Note: no graceful termination
 
@@ -44,19 +52,64 @@ def DeleteQ():
 
 
 def DeleteMsg(msg_receipt_handle):
-	Cons.P("Deleting a job request message:")
+	Cons.P("Deleting a job request message ...")
 	#Cons.P("  receipt_handle: %s" % msg_receipt_handle)
 	try:
 		response = _bc.delete_message(
 				QueueUrl = _q._url,
 				ReceiptHandle = msg_receipt_handle
 				)
-		Cons.P(pprint.pformat(response, indent=2))
+		#Cons.P(pprint.pformat(response, indent=2))
 	except botocore.exceptions.ClientError as e:
 		if e.response["Error"]["Code"] == "AWS.SimpleQueueService.NonExistentQueue":
 			Cons.P("No such queue exists.")
 		else:
 			raise e
+
+
+def Process(req, job_controller_gm_q):
+	# Note: May want some admission control here, like one based on how many free
+	# instance slots are available.
+
+	JobControllerLog.P("\nGot a job request msg. attrs:\n%s"
+			% Util.Indent(pprint.pformat(req.attrs), 2))
+
+	# Pass these as the init script parameters. Decided not to use EC2 tag
+	# for these, due to its limitations.
+	#   http://docs.aws.amazon.com/awsaccountbilling/latest/aboutv2/allocation-tag-restrictions.html
+	jr_sqs_url = req.msg.queue_url
+	jr_sqs_msg_receipt_handle = req.msg.receipt_handle
+
+	# Get job controller parameters and delete them from the attrs
+	jc_params = json.loads(req.attrs["job_controller_params"])
+	req.attrs.pop("job_controller_params", None)
+
+	# Cassandra cluster name. It's ok for multiple clusters to have the same
+	# cluster_name for Cassandra. It's ok for multiple clusters to have the
+	# same name as long as they don't see each other through the gossip
+	# protocol.  It's even okay to use the default one: test-cluster
+	#tags["cass_cluster_name"] = "acorn"
+
+	ReqSpotInsts.Req(
+			region_spot_req = jc_params["region_spot_req"]
+			, ami_name = jc_params.get("ami_name", "acorn-server")
+			, tags = req.attrs
+			, jr_sqs_url = jr_sqs_url
+			, jr_sqs_msg_receipt_handle = jr_sqs_msg_receipt_handle
+			, job_controller_gm_q = job_controller_gm_q
+			)
+	# On-demand instances are too expensive.
+	#RunAndMonitorEc2Inst.Run()
+
+	# No need to sleep here. Launching a cluster takes like 30 secs.  Used to
+	# sleep a bit so that each cluster has a unique ID, which is made of current
+	# datetime
+	#time.sleep(1.5)
+
+	# Delete the job request msg for non-acorn-server nodes, e.g., acorn-dev
+	# nodes, so that they don't reappear.
+	if req.attrs["init_script"] not in ["acorn-server"]:
+		DeleteMsg(jr_sqs_msg_receipt_handle)
 
 
 _initialized = False
@@ -100,7 +153,7 @@ def _Poll(jr_q):
 					)
 			for m in msgs:
 				# put the job completion msg. Wait when the queue is full.
-				jr_q.put(JobReq(m), block=True, timeout=None)
+				jr_q.put(Msg(m), block=True, timeout=None)
 		except botocore.exceptions.EndpointConnectionError as e:
 			# Could not connect to the endpoint URL: "https://queue.amazonaws.com/"
 			Cons.P("%s\n%s" % (e, traceback.format_exc()))
@@ -111,11 +164,11 @@ def _Poll(jr_q):
 			os._exit(1)
 
 
-class JobReq:
+class Msg:
 	msg_body = "acorn-exp-req"
 
 	def __init__(self, msg):
-		if msg.body != JobReq.msg_body:
+		if msg.body != Msg.msg_body:
 			raise RuntimeError("Unexpected. msg.body=[%s]" % msg.body)
 		if msg.receipt_handle is None:
 			raise RuntimeError("Unexpected")
