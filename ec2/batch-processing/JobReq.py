@@ -53,7 +53,7 @@ def DeleteQ():
 
 
 def DeleteMsg(msg_receipt_handle):
-	Cons.P("Deleting a job request message ...")
+	Cons.P("Deleting the job request message ...")
 	#Cons.P("  receipt_handle: %s" % msg_receipt_handle)
 	try:
 		response = _bc.delete_message(
