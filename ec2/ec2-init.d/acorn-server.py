@@ -249,9 +249,9 @@ def _UploadResult():
 	# If you don't specify a region, the bucket will be created in US Standard.
 	#  http://boto3.readthedocs.io/en/latest/reference/services/s3.html#S3.Client.create_bucket
 	r = s3.create_bucket(Bucket=s3_bucket_name)
-	_Log(pprint.pformat(r))
+	#_Log(pprint.pformat(r))
 	r = s3.Object(s3_bucket_name, "%s.zip" % _job_id).put(Body=open(fn_out, "rb"))
-	_Log(pprint.pformat(r))
+	#_Log(pprint.pformat(r))
 
 	os.chdir(prev_dir)
 
