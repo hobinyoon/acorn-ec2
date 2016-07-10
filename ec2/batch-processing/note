@@ -1,5 +1,13 @@
 TODO
 ----
+
+
+Done
+----
+- When a cluster doesn't start in 6 mins, kill the instances. Spot
+	requests don't need to be cancelled. They are one-time requests.
+	With the async cluster start, this is achieved for nothing.
+
 - Need a log file, mapping job_id and parameters.
   - Job request
 	  - Received
@@ -10,18 +18,6 @@ TODO
 		- Served
 		- Failed: I haven't seen it fails.
 
-- When a cluster doesn't start in 6 mins, kill the instances. Cancel the spot
-	requests.
-
-
-Not sure
---------
-- term-inst.py
-	- Kill a specific instance with the inst_id
-
-
-Done
-----
 - When a cluster doesn't finish within 1 hr, kill it. It happens with a 11 node
 	cluster. One example is that one of the nodes didn't clone code from
 	github.com
