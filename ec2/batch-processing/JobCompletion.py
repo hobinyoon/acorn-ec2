@@ -11,6 +11,7 @@ sys.path.insert(0, "%s/../../util/python" % os.path.dirname(__file__))
 import Cons
 
 import JobControllerLog
+import JobReq
 import S3
 
 def PollBackground(jc_q):

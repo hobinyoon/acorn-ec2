@@ -72,8 +72,10 @@ def Process(req, job_controller_gm_q):
 	# Note: May want some admission control here, like one based on how many free
 	# instance slots are available.
 
-	JobControllerLog.P("\nGot a job request msg. attrs:\n%s"
-			% Util.Indent(pprint.pformat(req.attrs), 2))
+	job_id = time.strftime("%y%m%d-%H%M%S")
+	JobControllerLog.P("\nGot a job request msg. job_id:%s attrs:\n%s"
+			% (job_id, Util.Indent(pprint.pformat(req.attrs), 2)))
+	req.attrs["job_id"] = job_id
 
 	# Pass these as the init script parameters. Decided not to use EC2 tag
 	# for these, due to its limitations.
@@ -89,7 +91,7 @@ def Process(req, job_controller_gm_q):
 	# cluster_name for Cassandra. It's ok for multiple clusters to have the
 	# same name as long as they don't see each other through the gossip
 	# protocol.  It's even okay to use the default one: test-cluster
-	#tags["cass_cluster_name"] = "acorn"
+	#req.attrs["cass_cluster_name"] = "acorn"
 
 	ReqSpotInsts.Req(
 			region_spot_req = jc_params["region_spot_req"]
@@ -102,15 +104,14 @@ def Process(req, job_controller_gm_q):
 	# On-demand instances are too expensive.
 	#RunAndMonitorEc2Inst.Run()
 
-	# No need to sleep here. Launching a cluster takes like 30 secs.  Used to
-	# sleep a bit so that each cluster has a unique ID, which is made of current
-	# datetime
-	#time.sleep(1.5)
+	# Sleep a bit to make each request has unique job_id
+	time.sleep(1.1)
 
 	# Delete the job request msg for non-acorn-server nodes, e.g., acorn-dev
 	# nodes, so that they don't reappear.
 	if req.attrs["init_script"] not in ["acorn-server"]:
 		DeleteMsg(jr_sqs_msg_receipt_handle)
+
 
 
 _initialized = False

@@ -29,15 +29,8 @@ _tpe = concurrent.futures.ThreadPoolExecutor(max_workers=10)
 def Req(region_spot_req, ami_name, tags, jr_sqs_url, jr_sqs_msg_receipt_handle, job_controller_gm_q):
 	Util.MkDirs(_dn_tmp)
 
-	job_id = time.strftime("%y%m%d-%H%M%S")
-	Cons.P("job_id: %s. requesting spot instances" % job_id)
-	tags["job_id"] = job_id
-
 	_tpe.submit(_Req, region_spot_req, ami_name, tags, jr_sqs_url, jr_sqs_msg_receipt_handle
 			, job_controller_gm_q)
-
-	# Making sure each request has unique job_id
-	time.sleep(1.1)
 
 
 class _Req:

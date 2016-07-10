@@ -76,7 +76,6 @@ def PollMsgs():
 			JobReq.Process(msg, _q_general_msg)
 		elif isinstance(msg, JobCompletion.Msg):
 			JobCompletion.Process(msg)
-			ProcessJobCompletion(msg)
 		else:
 			raise RuntimeError("Unexpected type %s" % type(msg))
 
