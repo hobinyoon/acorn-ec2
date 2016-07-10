@@ -10,6 +10,7 @@ import traceback
 
 sys.path.insert(0, "%s/../../util/python" % os.path.dirname(__file__))
 import Cons
+import Util
 
 sys.path.insert(0, "..")
 import ReqSpotInsts
