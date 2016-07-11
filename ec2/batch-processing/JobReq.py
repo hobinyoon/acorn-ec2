@@ -151,6 +151,7 @@ def _Poll(jr_q):
 					# error in the experiment script overnight.
 					VisibilityTimeout=3600,
 
+					# TODO: If this can be 0 or a faction of second, then this doesn't have to be in a separate thread.
 					WaitTimeSeconds=5
 					)
 			for m in msgs:

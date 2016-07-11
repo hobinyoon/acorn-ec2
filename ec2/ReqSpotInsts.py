@@ -25,6 +25,8 @@ _dn_tmp = "%s/../.tmp" % os.path.dirname(__file__)
 # http://masnun.com/2016/03/29/python-a-quick-introduction-to-the-concurrent-futures-module.html
 _tpe = concurrent.futures.ThreadPoolExecutor(max_workers=10)
 
+# TODO: I need to be able to change max_workers at runtime
+
 
 def Req(region_spot_req, ami_name, tags, jr_sqs_url, jr_sqs_msg_receipt_handle, job_controller_gm_q):
 	Util.MkDirs(_dn_tmp)

@@ -4,7 +4,8 @@ import Queue
 import sys
 import traceback
 
-import InstMonitor
+import ClusterCleaner
+import ClusterMonitor
 import JobCompletion
 import JobControllerLog
 import JobReq
@@ -38,7 +39,7 @@ def PollMsgs():
 	JobCompletion.PollBackground(_q_jc)
 
 	while True:
-		with InstMonitor.IM():
+		with ClusterMonitor.CM():
 			# Blocked waiting until a request is available
 			#
 			# Interruptable get
@@ -51,7 +52,7 @@ def PollMsgs():
 					pass
 
 				try:
-					msg = InstMonitor.ClusterCleaner.Queue().get(timeout=0.01)
+					msg = ClusterCleaner.Queue().get(timeout=0.01)
 					break
 				except Queue.Empty:
 					pass
@@ -63,14 +64,18 @@ def PollMsgs():
 					pass
 
 				try:
-					msg = _q_jr.get(timeout=0.01)
-					break
+					if ClusterMonitor.CanLaunchAnotherCluster():
+						# TODO: I don't think the queue is needed here. Fetch one directly from the SQS queue.
+						# Something like this
+						#msg = JobReq.Get(timeout=0.01)
+						msg = _q_jr.get(timeout=0.01)
+						break
 				except Queue.Empty:
 					pass
 
 		if isinstance(msg, str):
 			JobControllerLog.P("\nGot a message: %s" % msg)
-		elif isinstance(msg, InstMonitor.ClusterCleaner.Msg):
+		elif isinstance(msg, ClusterCleaner.Msg):
 			ProcessClusterCleanReq(msg)
 		elif isinstance(msg, JobReq.Msg):
 			JobReq.Process(msg, _q_general_msg)

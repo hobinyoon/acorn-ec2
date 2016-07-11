@@ -1,6 +1,7 @@
 import botocore
 import datetime
 import os
+import pprint
 import Queue
 import sys
 import threading
@@ -15,8 +16,32 @@ sys.path.insert(0, "%s/.." % os.path.dirname(__file__))
 import BotoClient
 import Ec2Region
 
+import ClusterCleaner
+import JobControllerLog
 
-class IM:
+
+# Initialize all values to None
+_num_nodes_per_region = dict.fromkeys(Ec2Region.All())
+_num_nodes_per_region_lock = threading.Lock()
+
+def CanLaunchAnotherCluster():
+	# Returns True when all regions have less than 12 instances.
+	with _num_nodes_per_region_lock:
+		for r in Ec2Region.All():
+			v = _num_nodes_per_region.get(r)
+			if v is None:
+				return False
+			if v >= 12:
+				return False
+		#JobControllerLog.P("%s %s" % (Util.FileLine(), pprint.pformat(_num_nodes_per_region)))
+
+		# You can launch another cluster now
+		for r in Ec2Region.All():
+			_num_nodes_per_region[r] += 1
+		return True
+
+
+class CM:
 	monitor_interval_in_sec = 10
 
 	def __init__(self):
@@ -49,7 +74,7 @@ class IM:
 				self._DescInst()
 				if self.stop_requested:
 					break
-				wait_time = IM.monitor_interval_in_sec - (time.time() - bt)
+				wait_time = CM.monitor_interval_in_sec - (time.time() - bt)
 				if wait_time > 0:
 					with self.cv:
 						self.cv.wait(wait_time)
@@ -85,8 +110,21 @@ class IM:
 		self.dio.P("\n")
 
 		num_insts = 0
-		for di in dis:
-			num_insts += len(di.Instances())
+		with _num_nodes_per_region_lock:
+			for di in dis:
+				num_insts += len(di.Instances())
+				# Decrement slowly, at most one at a time. You don't want a suddern
+				# increase in the capacity. Increase as is reported by the boto library.
+				n = _num_nodes_per_region.get(di.region)
+				if n is None:
+					n = len(di.Instances())
+				else:
+					if len(di.Instances()) < n:
+						n -= 0.2
+					else:
+						n = len(di.Instances())
+				_num_nodes_per_region[di.region] = n
+
 		if num_insts == 0:
 			self.dio.P("No instances found.\n")
 		else:
@@ -257,79 +295,6 @@ class Inst():
 		self.inst_id = _Value(desc_inst_resp, "InstanceId")
 		self.public_ip = _Value(desc_inst_resp, "PublicIpAddress")
 		self.state = _Value(_Value(desc_inst_resp, "State"), "Name")
-
-
-class ClusterCleaner():
-	wait_time_before_clean_under11 = 360
-	wait_time_before_clean_11 = 55 * 60
-
-	# First time we've seen a cluster with under 11 nodes and with 11 nodes
-	#   { job_id: datetime }
-	jobid_first_time_under11 = {}
-	jobid_first_time_11 = {}
-
-	# Cluster cleaner job queue
-	_q = Queue.Queue(maxsize=100)
-
-	@staticmethod
-	def Queue():
-		return ClusterCleaner._q
-
-	@staticmethod
-	def Clean(jobid_inst):
-		# jobid_inst: { job_id: {region: Inst} }
-
-		for job_id, v in jobid_inst.iteritems():
-			# Only clean acorn-server nodes. Dev nodes are not cleaned automatically.
-			is_acorn_server = False
-			for region, i in v.iteritems():
-				if "init_script" in i.tags:
-					if i.tags["init_script"] == "acorn-server":
-						is_acorn_server = True
-						break
-			if not is_acorn_server:
-				continue
-
-			# Count only "running" instances.
-			running_insts = []
-			for region, i in v.iteritems():
-				if i.state == "running":
-					running_insts.append(i)
-			if len(running_insts) == 0:
-				continue
-
-			if len(running_insts) < 11:
-				if job_id not in ClusterCleaner.jobid_first_time_under11:
-					ClusterCleaner.jobid_first_time_under11[job_id] = datetime.datetime.now()
-					continue
-				diff = (datetime.datetime.now() - ClusterCleaner.jobid_first_time_under11[job_id]).total_seconds()
-				if diff > ClusterCleaner.wait_time_before_clean_under11:
-					Cons.P("Cluster (job_id %s, %d \"running\" nodes) has been there for %d seconds." \
-							" Termination requested." % (job_id, len(running_insts), diff))
-					ClusterCleaner._q.put(ClusterCleaner.Msg(job_id), block=False)
-					# Reset to give the job-controller some time to clean up the cluster
-					ClusterCleaner.jobid_first_time_under11.pop(job_id, None)
-
-			elif len(running_insts) == 11:
-				# Even with 11 nodes, the cluster can be in a state it doesn't make any
-				# progress
-				if job_id not in ClusterCleaner.jobid_first_time_11:
-					ClusterCleaner.jobid_first_time_11[job_id] = datetime.datetime.now()
-					continue
-				diff = (datetime.datetime.now() - ClusterCleaner.jobid_first_time_11[job_id]).total_seconds()
-				if diff > ClusterCleaner.wait_time_before_clean_11:
-					Cons.P("Cluster (job_id %s, %d \"running\" nodes) has been there for %d seconds." \
-							" Termination requested." % (job_id, len(running_insts), diff))
-					ClusterCleaner._q.put(ClusterCleaner.Msg(job_id), block=False)
-					ClusterCleaner.jobid_first_time_11.pop(job_id, None)
-
-			else:
-				raise RuntimeError("Unexpected len(running_insts): %d" % len(running_insts))
-
-
-	class Msg():
-		def __init__(self, job_id):
-			self.job_id = job_id
 
 
 def _Value(dict_, key):
