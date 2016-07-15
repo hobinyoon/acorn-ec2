@@ -190,7 +190,7 @@ def ByYoutubeWorkloadOfDifferentSizes(q):
 			, "160709-203228-tweets-1571389"
 			]
 
-	for i in range(17, -3, -4):
+	for i in range(19, -1, -1):
 		req_attrs["acorn-youtube.fn_youtube_reqs"] = fns_youtube_reqs[i]
 		_EnqReq(q, req_attrs)
 
@@ -198,8 +198,15 @@ def ByYoutubeWorkloadOfDifferentSizes(q):
 	req_attrs["acorn-youtube.replication_type"] = "full"
 	req_attrs["acorn_options.use_attr_user"] = "false"
 	req_attrs["acorn_options.use_attr_topic"] = "false"
+	req_attrs["acorn-youtube.simulation_time_dur_in_ms"] = "300000"
 
-	for i in range(17, -3, -4):
+	req_attrs["acorn-youtube.fn_youtube_reqs"] = "160709-203228-tweets-1293692"
+	_EnqReq(q, req_attrs)
+	req_attrs["acorn-youtube.fn_youtube_reqs"] = "160709-203228-tweets-1466911"
+	_EnqReq(q, req_attrs)
+	return
+
+	for i in range(19, -1, -1):
 		req_attrs["acorn-youtube.fn_youtube_reqs"] = fns_youtube_reqs[i]
 		_EnqReq(q, req_attrs)
 
