@@ -8,6 +8,7 @@ import errno
 import imp
 import os
 import pprint
+import subprocess
 import sys
 import threading
 import time
@@ -131,11 +132,15 @@ def _PingAllNodes():
 
 
 def __Ping(ip_from, ip_to):
-	cmd = "ping -c 1800 -D %s" % ip
-	# Note: You can map ip addr to region name later
-	fn = "%s/%s-%s" % (_dn_ping_output, ip_from, ip_to)
-	with open(fn, "w") as fo:
-		subprocess.call(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+	try:
+		cmd = "ping -c 1800 -D %s" % ip_to
+		# Note: You can map ip addr to region name later
+		fn = "%s/%s-%s" % (_dn_ping_output, ip_from, ip_to)
+		with open(fn, "w") as fo:
+			subprocess.call(cmd, shell=True, stdout=fo, stderr=subprocess.STDOUT)
+	except Exception as e:
+		Cons.P("%s\n%s" % (e, traceback.format_exc()))
+		os._exit(1)
 
 
 s3_bucket_name = "ping-latency"
@@ -143,7 +148,7 @@ s3_bucket_name = "ping-latency"
 
 def _UploadResult():
 	prev_dir = os.getcwd()
-	os.chdir("%s/work/acorn/acorn/clients/youtube/.run" % os.path.expanduser('~'))
+	os.chdir("/mnt/local-ssd0")
 
 	# Zip .run
 	# http://stackoverflow.com/questions/1855095/how-to-create-a-zip-archive-of-a-directory
