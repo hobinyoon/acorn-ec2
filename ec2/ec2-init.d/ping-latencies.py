@@ -113,7 +113,12 @@ _all_ips = None
 
 def _PingAllNodes():
 	global _all_ips
-	_all_ips = GetIPs.GetByTags(_tags)
+	# Wait until you see all nodes
+	while True:
+		_all_ips = GetIPs.GetByTags(_tags)
+		if len(_all_ips) == _num_regions:
+			break
+		time.sleep(1)
 	_Log(_all_ips)
 
 	ip_this = GetIPs.GetMyPubIp()
